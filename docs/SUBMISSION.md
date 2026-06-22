@@ -2,7 +2,7 @@
 
 - Public GitHub repo: https://github.com/ShalyX/prooflet-protocol
 - Demo video: `DEMO_VIDEO_URL_HERE`
-- Live landing page: `LIVE_DEMO_URL_HERE`
+- Live landing page: https://prooflet-protocol.vercel.app
 
 ## Short Pitch
 

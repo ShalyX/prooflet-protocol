@@ -16,7 +16,7 @@ Prooflet was originally developed under the working name Useful Waiting Protocol
 - Repo name: `prooflet-protocol`
 - Public GitHub repo: https://github.com/ShalyX/prooflet-protocol
 - Demo video: `DEMO_VIDEO_URL_HERE`
-- Live landing page: `LIVE_DEMO_URL_HERE`
+- Live landing page: https://prooflet-protocol.vercel.app
 - One-line pitch: Tiny agent jobs. Verified by proof. Paid in USDC.
 - Short description: Prooflet is a protocol for funding tiny AI-agent jobs, verifying their proof, adjudicating subjective work through a GenLayer-ready path, and settling approved work with Arc Testnet USDC.
 

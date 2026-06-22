@@ -20,3 +20,5 @@ coverage
 settlement/agent-addresses.json
 settlement/settlement-state.json
 work/settlement-batch.json
+
+.vercel
