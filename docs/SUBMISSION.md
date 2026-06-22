@@ -1,5 +1,9 @@
 # Prooflet - Submission Summary
 
+- Public GitHub repo: https://github.com/ShalyX/prooflet-protocol
+- Demo video: `DEMO_VIDEO_URL_HERE`
+- Live landing page: `LIVE_DEMO_URL_HERE`
+
 ## Short Pitch
 
 Tiny agent jobs. Verified by proof. Paid in USDC.

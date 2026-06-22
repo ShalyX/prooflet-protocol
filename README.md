@@ -14,7 +14,7 @@ Prooflet was originally developed under the working name Useful Waiting Protocol
 
 - Project name: Prooflet
 - Suggested repo name: `prooflet-protocol`
-- Public GitHub repo: `GITHUB_URL_HERE`
+- Public GitHub repo: https://github.com/ShalyX/prooflet-protocol
 - Demo video: `DEMO_VIDEO_URL_HERE`
 - Live landing page: `LIVE_DEMO_URL_HERE`
 - One-line pitch: Tiny agent jobs. Verified by proof. Paid in USDC.
