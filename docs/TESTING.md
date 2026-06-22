@@ -1,0 +1,27 @@
+# External Testing Log
+
+## Purpose
+
+Use this file to collect real external testing evidence before final submission. Do not invent testers. Replace the placeholders only after someone outside the builder's own environment runs the repo, records feedback, or provides a screenshot/video link.
+
+## Tester Log
+
+| Date | Tester / handle | What they tested | Result | Feedback | Evidence link/screenshot |
+| --- | --- | --- | --- | --- | --- |
+| `DATE_HERE` | `TESTER_HANDLE_1` | `FLOW_TESTED_HERE` | `RESULT_HERE` | `FEEDBACK_HERE` | `EVIDENCE_LINK_HERE` |
+| `DATE_HERE` | `TESTER_HANDLE_2` | `FLOW_TESTED_HERE` | `RESULT_HERE` | `FEEDBACK_HERE` | `EVIDENCE_LINK_HERE` |
+| `DATE_HERE` | `TESTER_HANDLE_3` | `FLOW_TESTED_HERE` | `RESULT_HERE` | `FEEDBACK_HERE` | `EVIDENCE_LINK_HERE` |
+
+## Suggested Flows
+
+```bash
+npm run demo:seed
+npm run settlement:daemon:dry-run -- --once
+```
+
+```bash
+npm run job:create-link -- --url https://docs.arc.network --reward 0.001
+npm run agent:link -- --once
+```
+
+Ask testers to note whether the landing page, dashboard, proof packet, and dry-run payout plan were understandable without private context.

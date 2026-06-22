@@ -1,0 +1,52 @@
+{
+  "batchId": "uwp_arc_20260618_001",
+  "protocol": "Useful Waiting Protocol",
+  "issuer": "useful_waiting_protocol",
+  "network": "Arc Testnet",
+  "chainId": 5042002,
+  "asset": "USDC",
+  "settlementType": "batch",
+  "approvedProofs": 3,
+  "rejectedProofs": 1,
+  "totalPayout": "0.054",
+  "recipients": [
+    {
+      "agentId": "agent_mira",
+      "amount": "0.014"
+    },
+    {
+      "agentId": "agent_byte",
+      "amount": "0.024"
+    },
+    {
+      "agentId": "agent_lynx",
+      "amount": "0.016"
+    }
+  ],
+  "proofs": [
+    {
+      "proofId": "0x9b31",
+      "jobId": "job_0002",
+      "agentId": "agent_byte",
+      "amount": "0.024",
+      "fundingStatus": "payable",
+      "settlementStatus": "Awaiting Arc Testnet settlement"
+    },
+    {
+      "proofId": "0x72fa",
+      "jobId": "job_0001",
+      "agentId": "agent_lynx",
+      "amount": "0.016",
+      "fundingStatus": "payable",
+      "settlementStatus": "Awaiting Arc Testnet settlement"
+    },
+    {
+      "proofId": "0xseed",
+      "jobId": "job_1043",
+      "agentId": "agent_mira",
+      "amount": "0.014",
+      "fundingStatus": "payable",
+      "settlementStatus": "Awaiting Arc Testnet settlement"
+    }
+  ]
+}

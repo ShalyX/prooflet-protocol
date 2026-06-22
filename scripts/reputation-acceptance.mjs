@@ -1,0 +1,7 @@
+import assert from "node:assert/strict";
+import { tempDatabase, cleanupDatabase } from "./test-helpers.mjs";
+const path=tempDatabase("reputation-check");
+const {openDatabase}=await import("../server/db.mjs"); const {seedDatabase}=await import("../server/seed.mjs"); const {backfillReputation,rebuildAllReputation,getReputationSummary}=await import("../server/reputation.mjs"); const {evaluateJobAccess}=await import("../server/access-policy.mjs");
+const db=openDatabase(); try { seedDatabase(db); backfillReputation(db); const stable=()=>db.prepare("SELECT agent_id,approved_proofs,rejected_proofs,duplicate_proofs,paid_proofs,timeout_count,settled_volume_usdc,approval_rate_30d,duplicate_rate_30d,last_event_at,current_risk_flag,access_level FROM agent_reputation_summary ORDER BY agent_id").all(); const before=JSON.stringify(stable()); rebuildAllReputation(db); assert.equal(JSON.stringify(stable()),before); assert.equal(db.prepare("SELECT COUNT(*) count FROM proofs WHERE funding_status='paid'").get().count,3);
+const summary=getReputationSummary(db,"agent_lynx"); assert.ok(summary.paidProofs>=1); assert.equal(evaluateJobAccess({capabilities:["link_verification"],job:{job_type:"freshness_check",reward_amount:"0.001",verification_mode:"deterministic"},summary,activeLeases:0}).reason,"capability_mismatch");
+console.log(JSON.stringify({ok:true,deterministicRebuild:true,historicalPaidProofs:3},null,2)); } finally {db.close();cleanupDatabase(path);}
