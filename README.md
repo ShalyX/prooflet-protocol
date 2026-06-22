@@ -13,7 +13,7 @@ Prooflet was originally developed under the working name Useful Waiting Protocol
 ## Submission Links
 
 - Project name: Prooflet
-- Suggested repo name: `prooflet-protocol`
+- Repo name: `prooflet-protocol`
 - Public GitHub repo: https://github.com/ShalyX/prooflet-protocol
 - Demo video: `DEMO_VIDEO_URL_HERE`
 - Live landing page: `LIVE_DEMO_URL_HERE`
