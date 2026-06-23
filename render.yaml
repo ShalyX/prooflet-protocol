@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: prooflet-api
+    runtime: node
+    plan: free
+    buildCommand: npm ci
+    startCommand: node --no-warnings server/api.mjs
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: 24
+      - key: NODE_ENV
+        value: production
+      - key: SETTLEMENT_MODE
+        value: "off"
+      - key: ADJUDICATION_MODE
+        value: manual
+      - key: UWP_DB_PATH
+        value: /tmp/prooflet.sqlite
+      - key: TREASURY_ADDRESS
+        value: 0x709F18F797347FbB8D53Fb60567892751dd14B11

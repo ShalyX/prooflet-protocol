@@ -434,6 +434,7 @@ function verifySubjectivePreflight(job, proof, requirements) {
 const isMain = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
 if (isMain) {
   const { app } = createApp();
-  const port = Number(process.env.API_PORT || 8787);
-  app.listen(port, "127.0.0.1", () => console.log(`Prooflet API v0 listening at http://127.0.0.1:${port}`));
+  const port = Number(process.env.PORT || process.env.API_PORT || 8787);
+  const host = process.env.API_HOST || (process.env.RENDER ? "0.0.0.0" : "127.0.0.1");
+  app.listen(port, host, () => console.log(`Prooflet API v0 listening at http://${host}:${port}`));
 }
