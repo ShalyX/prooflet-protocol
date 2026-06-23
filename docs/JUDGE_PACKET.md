@@ -65,8 +65,10 @@ The Render-hosted API was smoke-tested on June 23, 2026:
 - The API verified the proof as `accepted` and marked it `payable`.
 - Hosted settlement batch export produced `hosted_onboarding_dry_run_001` with `totalPayout: "0.001"` and no transaction sent.
 - A later Windows CLI hosted run created `job_link_1782248660597_83e390c3`, claimed it from the hosted API, checked `https://docs.arc.network`, and produced payable proof `proof_agent_lynx_1782248681573_25948009`.
+- External tester RonnyX registered `agent_ronny`, authenticated against the hosted API, and produced rejected duplicate proof `proof_agent_ronny_1782250283724_27e95b07`, demonstrating duplicate-proof protection.
+- RonnyX then registered `agent_ronny_clean`, claimed hosted job `job_link_1782250369800_01f38d1d`, checked `https://httpbin.org/anything/prooflet-ronny-20260623-2131`, and produced payable proof `proof_agent_ronny_clean_1782250563304_5a4fc3ec`.
 
-External tester instructions are in `docs/EXTERNAL_RUN.md`. Tester handle and payout-wallet confirmation are still pending before claiming paid external-user settlement.
+External tester instructions are in `docs/EXTERNAL_RUN.md`. A remote settlement runner now supports hosted API export -> local Arc Testnet signing -> hosted receipt recording without putting treasury keys on Render.
 
 ## GenLayer Path
 

@@ -29,7 +29,7 @@ Prooflet is a protocol for funding tiny AI-agent jobs, verifying their proof, ad
 
 Link Sentinel performs real HTTP requests, measures response time, hashes response bodies, and submits proof through the API. Jobs, claims, proofs, reputation events, batches, transactions, and failures persist in SQLite. Approved proofs become payable; rejected and pending proofs are excluded. The settlement path has executed confirmed Arc Testnet USDC transfers.
 
-The hosted Render API is live for public onboarding. A hosted smoke test created `job_link_1782231998353_06cc2241`, ran Link Sentinel against `https://prooflet-api.onrender.com`, accepted proof `proof_agent_lynx_1782232027887_6b64fc05`, and exported dry-run batch `hosted_onboarding_dry_run_001` for `0.001 USDC` without sending funds. A later Windows CLI hosted run created `job_link_1782248660597_83e390c3`, claimed it from the hosted API, checked `https://docs.arc.network`, and accepted proof `proof_agent_lynx_1782248681573_25948009` as payable. Tester handle and payout-wallet confirmation remain pending before claiming paid external-user settlement.
+The hosted Render API is live for public onboarding. A hosted smoke test created `job_link_1782231998353_06cc2241`, ran Link Sentinel against `https://prooflet-api.onrender.com`, accepted proof `proof_agent_lynx_1782232027887_6b64fc05`, and exported dry-run batch `hosted_onboarding_dry_run_001` for `0.001 USDC` without sending funds. A later Windows CLI hosted run created `job_link_1782248660597_83e390c3`, claimed it from the hosted API, checked `https://docs.arc.network`, and accepted proof `proof_agent_lynx_1782248681573_25948009` as payable. External tester RonnyX then registered `agent_ronny`, produced rejected duplicate proof `proof_agent_ronny_1782250283724_27e95b07`, and reran with `agent_ronny_clean` on unique hosted job `job_link_1782250369800_01f38d1d`, producing payable proof `proof_agent_ronny_clean_1782250563304_5a4fc3ec`.
 
 ## How Arc Is Used
 
@@ -51,7 +51,7 @@ Objective work is verified deterministically. Subjective work can route through 
 
 ## How Payouts Happen
 
-Accepted unpaid proofs become payable. The settlement daemon groups them by recipient, validates every proof and amount, and prints the payout plan in dry-run mode. Execute mode acquires an atomic batch lock, sends Arc Testnet USDC, records transaction hashes, and marks only confirmed proofs paid.
+Accepted unpaid proofs become payable. The settlement daemon groups them by recipient, validates every proof and amount, and prints the payout plan in dry-run mode. Execute mode acquires an atomic batch lock, sends Arc Testnet USDC, records transaction hashes, and marks only confirmed proofs paid. For the hosted Render API, the remote settlement runner fetches a hosted export, signs Arc Testnet USDC locally, and posts the confirmed receipt back to the API so treasury keys never live on Render.
 
 Rejected, pending, already-paid, or already-settled proofs cannot enter payout. Settled batch IDs cannot execute twice.
 
