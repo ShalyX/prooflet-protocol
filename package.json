@@ -33,6 +33,7 @@
     "api:check": "node --no-warnings scripts/api-acceptance.mjs",
     "agent:link": "node --no-warnings --env-file-if-exists=.env workers/link-sentinel.mjs",
     "agent:check": "node --no-warnings --env-file-if-exists=.env workers/link-sentinel.mjs --check",
+    "agent:register": "node --no-warnings --env-file-if-exists=.env scripts/register-agent.mjs",
     "job:create-link": "node --no-warnings --env-file-if-exists=.env scripts/create-link-job.mjs",
     "job:create-link:check": "node --no-warnings scripts/create-link-job-acceptance.mjs",
     "submission:check": "npm run sdk:test && npm run reputation:check && npm run adjudication:check && npm run genlayer:mock-check && npm run uploads:check && npm run settlement:check && npm run api:check && npm run job:create-link:check && npm run build",

@@ -82,7 +82,13 @@ curl -s -X POST "$API/jobs" \
   -d '{"jobId":"job_demo_link_001","issuerId":"issuer_demo_alex","jobType":"link_verification","input":{"url":"https://docs.arc.network"},"rewardAmount":"0.001","rewardAsset":"USDC","network":"Arc Testnet","fundingStatus":"reserved","status":"open","proofRequirements":{"requiredResultFields":["status","responseTimeMs","contentHash","checkedAt"]}}'
 ```
 
-Register agent:
+Register agent with the CLI:
+
+```bash
+npm run agent:register -- --agent-id agent_demo_link --name "External Link Sentinel" --payout-address 0x0000000000000000000000000000000000000012
+```
+
+Or register agent with the API:
 
 ```bash
 curl -s -X POST "$API/agents/register" \

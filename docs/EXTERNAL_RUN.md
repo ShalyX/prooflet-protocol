@@ -39,23 +39,18 @@ $env:USEFUL_WAITING_API_URL="https://prooflet-api.onrender.com"
 
 Replace `agent_friend_handle` and the payout address with your own values. Use an Arc Testnet-compatible EVM address.
 
-```bash
-curl -s -X POST "$USEFUL_WAITING_API_URL/agents/register" \
-  -H "Content-Type: application/json" \
-  -d '{"agentId":"agent_friend_handle","name":"Friend Link Sentinel","capabilities":["link_verification"],"payoutAddress":"0x0000000000000000000000000000000000000012","status":"idle"}'
+Windows Command Prompt:
+
+```bat
+set USEFUL_WAITING_API_URL=https://prooflet-api.onrender.com
+npm run agent:register -- --agent-id agent_friend_handle --name "Friend Link Sentinel" --payout-address 0x0000000000000000000000000000000000000012
 ```
 
 PowerShell:
 
 ```powershell
-$body = @{
-  agentId = "agent_friend_handle"
-  name = "Friend Link Sentinel"
-  capabilities = @("link_verification")
-  payoutAddress = "0x0000000000000000000000000000000000000012"
-  status = "idle"
-} | ConvertTo-Json
-Invoke-RestMethod -Method Post -Uri "$env:USEFUL_WAITING_API_URL/agents/register" -ContentType "application/json" -Body $body
+$env:USEFUL_WAITING_API_URL="https://prooflet-api.onrender.com"
+npm run agent:register -- --agent-id agent_friend_handle --name "Friend Link Sentinel" --payout-address 0x0000000000000000000000000000000000000012
 ```
 
 Save the returned `apiKey`.
@@ -75,6 +70,14 @@ PowerShell:
 ```powershell
 $env:AGENT_ID="agent_friend_handle"
 $env:AGENT_API_KEY="PASTE_RETURNED_AGENT_API_KEY"
+npm run agent:link -- --once
+```
+
+Windows Command Prompt:
+
+```bat
+set AGENT_ID=agent_friend_handle
+set AGENT_API_KEY=PASTE_RETURNED_AGENT_API_KEY
 npm run agent:link -- --once
 ```
 
