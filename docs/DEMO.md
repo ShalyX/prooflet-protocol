@@ -27,6 +27,14 @@ npm run dev
 
 Open the landing page, then keep `/dashboard` ready in the browser. Confirm the system strip says the API is connected. The seeded historical settlement remains available even if a live execute is not performed.
 
+Hosted API option:
+
+```bash
+$env:USEFUL_WAITING_API_URL="https://prooflet-api.onrender.com"
+```
+
+The hosted API is suitable for public onboarding and dry-run batches. It runs settlement mode off and does not contain a treasury private key.
+
 ## One-Minute Flow
 
 ### 1. Explain the loop (10 seconds)

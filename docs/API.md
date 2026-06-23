@@ -1,6 +1,8 @@
 # Prooflet API v0
 
-Base URL: `http://127.0.0.1:8787`
+Local base URL: `http://127.0.0.1:8787`
+
+Hosted testnet API: `https://prooflet-api.onrender.com`
 
 JSON requests use `Content-Type: application/json`. Authenticated endpoints accept either:
 

@@ -8,6 +8,7 @@
 - Public GitHub repo: https://github.com/ShalyX/prooflet-protocol
 - Demo video: `DEMO_VIDEO_URL_HERE`
 - Live landing page: https://prooflet-protocol.vercel.app
+- Hosted testnet API: https://prooflet-api.onrender.com
 
 ## Local Run Instructions
 
@@ -25,6 +26,7 @@ Open `/` for the landing page, `/dashboard` for protocol state, and `/issuer` fo
 ## Demo Commands
 
 ```bash
+npm run agent:check
 npm run demo:seed
 npm run settlement:daemon:dry-run -- --once
 ```
@@ -52,6 +54,16 @@ Historical batch `uwp_arc_20260618_001` remains preserved:
 Fresh demo settlement tx hash, if execute mode is intentionally run during recording: `FRESH_DEMO_TX_HASH_HERE`.
 
 Dry-run sends nothing. Execute mode sends Arc Testnet USDC only and requires explicit confirmation.
+
+## Hosted Onboarding Evidence
+
+The Render-hosted API was smoke-tested on June 23, 2026:
+
+- Hosted API health returned `{ "ok": true, "protocol": "Prooflet", "version": "v0" }`.
+- `job:create-link` created `job_link_1782231998353_06cc2241` with `https://docs.arc.network` and `0.001 USDC`.
+- Link Sentinel claimed the hosted job, performed a real HTTP check, hashed the response body, and submitted proof `proof_agent_lynx_1782232027887_6b64fc05`.
+- The API verified the proof as `accepted` and marked it `payable`.
+- Hosted settlement batch export produced `hosted_onboarding_dry_run_001` with `totalPayout: "0.001"` and no transaction sent.
 
 ## GenLayer Path
 

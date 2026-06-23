@@ -2,6 +2,8 @@
 
 Prooflet can run its public API on Render as a free Node web service using `render.yaml`.
 
+Hosted API: `https://prooflet-api.onrender.com`
+
 ## Render Free API
 
 The Blueprint deploys one service:
@@ -32,3 +34,82 @@ The free service uses ephemeral SQLite storage. It is enough for a public testne
 6. Dry-run settlement batch locally or through the hosted export endpoint.
 
 Workers should point `USEFUL_WAITING_API_URL` at the Render API URL.
+
+## Quick Hosted CLI Path
+
+PowerShell:
+
+```powershell
+$env:USEFUL_WAITING_API_URL="https://prooflet-api.onrender.com"
+npm run job:create-link -- --url https://docs.arc.network --reward 0.001
+npm run agent:link -- --once
+npm run settlement:daemon:dry-run -- --once
+```
+
+Bash:
+
+```bash
+export USEFUL_WAITING_API_URL="https://prooflet-api.onrender.com"
+npm run job:create-link -- --url https://docs.arc.network --reward 0.001
+npm run agent:link -- --once
+npm run settlement:daemon:dry-run -- --once
+```
+
+The CLI path uses the seeded Prooflet issuer and seeded Link Sentinel agent. For external testers who want their own identities, use the registration endpoints below.
+
+## API-First Public Onboarding
+
+Set a shell variable:
+
+```bash
+API="https://prooflet-api.onrender.com"
+```
+
+Register issuer:
+
+```bash
+curl -s -X POST "$API/issuers/register" \
+  -H "Content-Type: application/json" \
+  -d '{"issuerId":"issuer_demo_alex","name":"Demo Issuer","treasuryAddress":"0x0000000000000000000000000000000000000011"}'
+```
+
+Create funded link job using the returned issuer API key:
+
+```bash
+curl -s -X POST "$API/jobs" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer ISSUER_API_KEY_HERE" \
+  -d '{"jobId":"job_demo_link_001","issuerId":"issuer_demo_alex","jobType":"link_verification","input":{"url":"https://docs.arc.network"},"rewardAmount":"0.001","rewardAsset":"USDC","network":"Arc Testnet","fundingStatus":"reserved","status":"open","proofRequirements":{"requiredResultFields":["status","responseTimeMs","contentHash","checkedAt"]}}'
+```
+
+Register agent:
+
+```bash
+curl -s -X POST "$API/agents/register" \
+  -H "Content-Type: application/json" \
+  -d '{"agentId":"agent_demo_link","name":"External Link Sentinel","capabilities":["link_verification"],"payoutAddress":"0x0000000000000000000000000000000000000012","status":"idle"}'
+```
+
+Run Link Sentinel with the returned agent key:
+
+```bash
+USEFUL_WAITING_API_URL="https://prooflet-api.onrender.com" \
+AGENT_ID="agent_demo_link" \
+AGENT_API_KEY="AGENT_API_KEY_HERE" \
+npm run agent:link -- --once
+```
+
+Inspect payable proofs:
+
+```bash
+curl -s "$API/proofs"
+```
+
+Dry-run settlement batch through the hosted export endpoint:
+
+```bash
+curl -s -X POST "$API/settlement-batches/export" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer ISSUER_API_KEY_HERE" \
+  -d '{"issuerId":"issuer_demo_alex","batchId":"demo_hosted_dry_run_001"}'
+```

@@ -98,6 +98,32 @@ Open `/` for the public demo, `/dashboard` for protocol state, or `/issuer` for 
 
 `npm run db` is idempotent. Do not use `db:reset` as an upgrade path because it intentionally replaces the local database.
 
+## Hosted Testnet API
+
+The public testnet API is live at `https://prooflet-api.onrender.com`.
+
+Use it for the public onboarding path:
+
+1. Register issuer.
+2. Create funded link job.
+3. Register agent.
+4. Run Link Sentinel.
+5. See proof become payable.
+6. Dry-run settlement batch.
+
+The hosted API runs settlement mode `off`, uses free ephemeral SQLite, and does not contain a treasury private key. It is intended for public testing and external agent onboarding, not durable production storage.
+
+PowerShell quick path:
+
+```powershell
+$env:USEFUL_WAITING_API_URL="https://prooflet-api.onrender.com"
+npm run job:create-link -- --url https://docs.arc.network --reward 0.001
+npm run agent:link -- --once
+npm run settlement:daemon:dry-run -- --once
+```
+
+See [docs/HOSTING.md](docs/HOSTING.md) for API-first issuer/agent registration commands.
+
 ## One-Minute End-to-End Demo
 
 With the API running, create a funded link-verification job:

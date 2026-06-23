@@ -2,7 +2,8 @@ import "./styles.css";
 import { initIssuerWorkbench } from "./issuer-workbench.js";
 
 const ARCSCAN = "https://testnet.arcscan.app";
-const API_URL = window.UWP_API_URL || import.meta.env.VITE_UWP_API_URL || "http://127.0.0.1:8787";
+const DEFAULT_API_URL = import.meta.env.PROD ? "https://prooflet-api.onrender.com" : "http://127.0.0.1:8787";
+const API_URL = window.UWP_API_URL || import.meta.env.VITE_UWP_API_URL || DEFAULT_API_URL;
 const TREASURY = {
   issuer: "useful_waiting_protocol",
   network: "Arc Testnet",

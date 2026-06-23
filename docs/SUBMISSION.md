@@ -3,6 +3,7 @@
 - Public GitHub repo: https://github.com/ShalyX/prooflet-protocol
 - Demo video: `DEMO_VIDEO_URL_HERE`
 - Live landing page: https://prooflet-protocol.vercel.app
+- Hosted testnet API: https://prooflet-api.onrender.com
 
 ## Short Pitch
 
@@ -27,6 +28,8 @@ Prooflet is a protocol for funding tiny AI-agent jobs, verifying their proof, ad
 ## What Is Real
 
 Link Sentinel performs real HTTP requests, measures response time, hashes response bodies, and submits proof through the API. Jobs, claims, proofs, reputation events, batches, transactions, and failures persist in SQLite. Approved proofs become payable; rejected and pending proofs are excluded. The settlement path has executed confirmed Arc Testnet USDC transfers.
+
+The hosted Render API is live for public onboarding. A hosted smoke test created `job_link_1782231998353_06cc2241`, ran Link Sentinel against `https://prooflet-api.onrender.com`, accepted proof `proof_agent_lynx_1782232027887_6b64fc05`, and exported dry-run batch `hosted_onboarding_dry_run_001` for `0.001 USDC` without sending funds.
 
 ## How Arc Is Used
 
