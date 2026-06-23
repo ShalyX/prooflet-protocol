@@ -5,7 +5,7 @@ import { authenticate, generateApiKey, storeApiKey } from "./auth.mjs";
 import { authenticateAdjudicator } from "./auth.mjs";
 import { expireLeases, json, openDatabase, parseJson, withTransaction } from "./db.mjs";
 import { seedDatabase } from "./seed.mjs";
-import { createSettlementBatch, settlementSummary } from "./settlement.mjs";
+import { createSettlementBatch, recordSettledBatch, settlementSummary } from "./settlement.mjs";
 import { canonicalJson, proofFingerprint, verifyProof } from "./verifiers.mjs";
 import { requiredAccessLevel, evaluateJobAccess } from "./access-policy.mjs";
 import { appendReputationEvent, backfillReputation, getReputationSummary } from "./reputation.mjs";
@@ -294,8 +294,25 @@ export function createApp({ db = openDatabase() } = {}) {
   app.post("/settlement-batches/export", (request, response) => {
     const issuerId = request.body?.issuerId || "useful_waiting_protocol";
     if (!authenticate(db, request, "issuer", issuerId)) throw httpError(401, "Valid issuer API key required.");
-    const batch = createSettlementBatch(db, { issuerId, batchId: request.body?.batchId });
+    const proofIds = request.body?.proofIds;
+    if (proofIds != null && (!Array.isArray(proofIds) || proofIds.some((proofId) => typeof proofId !== "string"))) throw httpError(400, "proofIds must be an array of proof IDs.");
+    const batch = createSettlementBatch(db, { issuerId, batchId: request.body?.batchId, proofIds });
     response.status(201).json({ batch });
+  });
+
+  app.post("/settlement-batches/:batchId/receipt", (request, response) => {
+    const { batchId } = request.params;
+    const issuerId = request.body?.issuerId || "useful_waiting_protocol";
+    if (!authenticate(db, request, "issuer", issuerId)) throw httpError(401, "Valid issuer API key required.");
+    const batchRow = db.prepare("SELECT * FROM settlement_batches WHERE batch_id = ? AND issuer_id = ?").get(batchId, issuerId);
+    if (!batchRow) throw httpError(404, `Settlement batch ${batchId} does not exist for issuer ${issuerId}.`);
+    if (batchRow.status === "settled") throw httpError(409, `Settlement batch ${batchId} is already settled.`);
+    if (!["prepared", "executing"].includes(batchRow.status)) throw httpError(409, `Settlement batch ${batchId} is ${batchRow.status}, not prepared for receipt recording.`);
+    const transactions = validateSettlementReceipt(request.body?.transactions);
+    const batch = createSettlementBatch(db, { issuerId, batchId });
+    validateReceiptMatchesBatch(batch, transactions);
+    recordSettledBatch(db, batch, transactions);
+    response.status(201).json({ batchId, status: "settled", transactions, proofs: batch.proofs.map((proof) => ({ ...proof, fundingStatus: "paid", settlementStatus: "Settled on Arc Testnet" })) });
   });
 
   app.get("/agents/:agentId", (request, response) => {
@@ -390,6 +407,39 @@ function validateReward(value) {
     if (parseUnits(String(value), 6) <= 0n) throw new Error();
   } catch {
     throw httpError(400, "rewardAmount must be a positive USDC amount with at most 6 decimals.");
+  }
+}
+
+function validateSettlementReceipt(transactions) {
+  if (!Array.isArray(transactions) || transactions.length === 0) throw httpError(400, "transactions must be a non-empty array.");
+  return transactions.map((transaction, index) => {
+    const agentId = transaction?.agentId;
+    const to = transaction?.to;
+    const amount = transaction?.amount;
+    const hash = transaction?.hash;
+    const explorer = transaction?.explorer;
+    const blockNumber = transaction?.blockNumber;
+    const status = transaction?.status;
+    requireId(agentId, `transactions[${index}].agentId`);
+    if (!isAddress(to)) throw httpError(400, `transactions[${index}].to must be a valid EVM address.`);
+    validateReward(amount);
+    if (typeof hash !== "string" || !/^0x[a-fA-F0-9]{64}$/.test(hash)) throw httpError(400, `transactions[${index}].hash must be a transaction hash.`);
+    if (typeof explorer !== "string" || !explorer.startsWith("https://testnet.arcscan.app/tx/")) throw httpError(400, `transactions[${index}].explorer must be an Arcscan testnet tx URL.`);
+    if (blockNumber == null || String(blockNumber).trim() === "") throw httpError(400, `transactions[${index}].blockNumber is required.`);
+    if (status !== "success") throw httpError(400, `transactions[${index}].status must be success.`);
+    return { agentId, to, amount: normalizedReward(amount), hash, explorer, blockNumber: String(blockNumber), status };
+  });
+}
+
+function validateReceiptMatchesBatch(batch, transactions) {
+  const txByAgent = new Map(transactions.map((transaction) => [transaction.agentId, transaction]));
+  if (txByAgent.size !== transactions.length) throw httpError(400, "transactions must not contain duplicate agentId entries.");
+  if (transactions.length !== batch.recipients.length) throw httpError(400, "transactions must match the batch recipient count.");
+  for (const recipient of batch.recipients) {
+    const tx = txByAgent.get(recipient.agentId);
+    if (!tx) throw httpError(400, `Missing transaction for ${recipient.agentId}.`);
+    if (tx.to.toLowerCase() !== recipient.payoutAddress.toLowerCase()) throw httpError(400, `Transaction recipient mismatch for ${recipient.agentId}.`);
+    if (normalizedReward(tx.amount) !== normalizedReward(recipient.amount)) throw httpError(400, `Transaction amount mismatch for ${recipient.agentId}.`);
   }
 }
 

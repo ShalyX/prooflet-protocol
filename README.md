@@ -111,7 +111,7 @@ Use it for the public onboarding path:
 5. See proof become payable.
 6. Dry-run settlement batch.
 
-The hosted API runs settlement mode `off`, uses free ephemeral SQLite, and does not contain a treasury private key. It is intended for public testing and external agent onboarding, not durable production storage.
+The hosted API runs settlement mode `off`, uses free ephemeral SQLite, and does not contain a treasury private key. It is intended for public testing and external agent onboarding, not durable production storage. For real hosted testnet payout, the local treasury runner fetches a hosted settlement export, signs Arc Testnet USDC locally, then posts the settlement receipt back to the hosted API.
 
 PowerShell quick path:
 
@@ -120,6 +120,18 @@ $env:USEFUL_WAITING_API_URL="https://prooflet-api.onrender.com"
 npm run job:create-link -- --url https://docs.arc.network --reward 0.001
 npm run agent:link -- --once
 npm run settlement:daemon:dry-run -- --once
+```
+
+Remote hosted settlement preview:
+
+```bash
+npm run settlement:remote:dry-run
+```
+
+Remote hosted settlement execute remains opt-in and requires `TREASURY_PRIVATE_KEY`, `ISSUER_API_KEY`, and `CONFIRM_ARC_TESTNET_USDC_SEND=true`:
+
+```bash
+npm run settlement:remote:execute
 ```
 
 See [docs/HOSTING.md](docs/HOSTING.md) for API-first issuer/agent registration commands.

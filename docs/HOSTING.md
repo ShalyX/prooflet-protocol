@@ -31,7 +31,9 @@ The free service uses ephemeral SQLite storage. It is enough for a public testne
 3. Register agent.
 4. Run Link Sentinel against the hosted API.
 5. See proof become payable.
-6. Dry-run settlement batch locally or through the hosted export endpoint.
+6. Export the hosted settlement batch.
+7. Sign/send Arc Testnet USDC locally from the treasury wallet if execute is intentionally enabled.
+8. Post the settlement receipt back to the hosted API.
 
 Workers should point `USEFUL_WAITING_API_URL` at the Render API URL.
 
@@ -125,3 +127,31 @@ curl -s -X POST "$API/settlement-batches/export" \
   -H "Authorization: Bearer ISSUER_API_KEY_HERE" \
   -d '{"issuerId":"issuer_demo_alex","batchId":"demo_hosted_dry_run_001"}'
 ```
+
+## Remote Settlement Runner
+
+The hosted API never holds a treasury private key. For real testnet payout, the local treasury machine fetches the hosted batch, signs Arc Testnet USDC transfers, then posts the receipt back to Render.
+
+Dry-run a hosted batch:
+
+```bash
+USEFUL_WAITING_API_URL="https://prooflet-api.onrender.com" \
+ISSUER_ID="useful_waiting_protocol" \
+ISSUER_API_KEY="ISSUER_API_KEY_HERE" \
+REMOTE_SETTLEMENT_PROOF_IDS="proof_agent_ronny_clean_..." \
+npm run settlement:remote:dry-run
+```
+
+Execute only after reviewing the dry-run:
+
+```bash
+USEFUL_WAITING_API_URL="https://prooflet-api.onrender.com" \
+ISSUER_ID="useful_waiting_protocol" \
+ISSUER_API_KEY="ISSUER_API_KEY_HERE" \
+TREASURY_PRIVATE_KEY="TREASURY_PRIVATE_KEY_HERE" \
+CONFIRM_ARC_TESTNET_USDC_SEND=true \
+REMOTE_SETTLEMENT_PROOF_IDS="proof_agent_ronny_clean_..." \
+npm run settlement:remote:execute
+```
+
+This sends Arc Testnet USDC only. The local runner refuses non-Arc chains, rejected proofs, already-paid proofs, and locally repeated batch IDs.

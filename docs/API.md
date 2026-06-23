@@ -292,11 +292,35 @@ Requires the matching issuer key.
 ```json
 {
   "issuerId": "useful_waiting_protocol",
-  "batchId": "optional_stable_batch_id"
+  "batchId": "optional_stable_batch_id",
+  "proofIds": ["optional_specific_payable_proof_id"]
 }
 ```
 
-The batch contains accepted, payable, unpaid, unbatched proofs only. Rejected, pending, paid, and already-settled proofs are excluded.
+The batch contains accepted, payable, unpaid, unbatched proofs only. Rejected, pending, paid, and already-settled proofs are excluded. Exported recipients include payout addresses so a local treasury runner can sign Arc Testnet USDC transfers without putting treasury keys on the hosted API.
+
+### `POST /settlement-batches/:batchId/receipt`
+
+Requires the matching issuer key. This records transactions that were signed by a local treasury runner after fetching a hosted settlement export.
+
+```json
+{
+  "issuerId": "useful_waiting_protocol",
+  "transactions": [
+    {
+      "agentId": "agent_ronny_clean",
+      "to": "0x1DcB045123730e606A88380BCe534332F50332d2",
+      "amount": "0.001",
+      "hash": "0x...",
+      "explorer": "https://testnet.arcscan.app/tx/0x...",
+      "blockNumber": "47500000",
+      "status": "success"
+    }
+  ]
+}
+```
+
+The API validates the batch is not already settled, every transaction matches the exported recipient and amount, and only then marks the matching proofs `paid` / `Settled on Arc Testnet`. A duplicate receipt is rejected.
 
 ### Status endpoints
 

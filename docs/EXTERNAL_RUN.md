@@ -113,4 +113,21 @@ Send the builder:
 
 ## Optional Settlement
 
-The hosted API does not execute settlement and has no treasury private key. If the builder chooses to pay the proof, they will run the Arc Testnet settlement runner locally with explicit execute confirmation and add the tx hash to the submission docs.
+The hosted API does not execute settlement and has no treasury private key. If the builder chooses to pay the proof, they will run the remote settlement runner locally with explicit execute confirmation:
+
+1. Hosted API exports accepted, payable, unpaid proof IDs.
+2. Local treasury runner signs and sends Arc Testnet USDC.
+3. Local runner posts the transaction receipt back to the hosted API.
+4. Hosted API marks the proof `paid` / `Settled on Arc Testnet`.
+
+Dry-run command shape:
+
+```bash
+USEFUL_WAITING_API_URL="https://prooflet-api.onrender.com" \
+ISSUER_ID="useful_waiting_protocol" \
+ISSUER_API_KEY="ISSUER_API_KEY_HERE" \
+REMOTE_SETTLEMENT_PROOF_IDS="PROOF_ID_HERE" \
+npm run settlement:remote:dry-run
+```
+
+Execute sends Arc Testnet USDC only and requires `TREASURY_PRIVATE_KEY` plus `CONFIRM_ARC_TESTNET_USDC_SEND=true`.

@@ -68,7 +68,7 @@ export function createSettlementBatch(db, { issuerId = "useful_waiting_protocol"
     approvedProofs: proofs.length,
     rejectedProofs,
     totalPayout,
-    recipients: recipientList.map(({ agentId, amount }) => ({ agentId, amount })),
+    recipients: recipientList.map(({ agentId, amount, payoutAddress }) => ({ agentId, amount, payoutAddress })),
     proofs: proofs.map((proof) => ({
       proofId: proof.proof_id,
       jobId: proof.job_id,

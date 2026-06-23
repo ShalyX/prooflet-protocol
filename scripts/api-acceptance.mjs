@@ -113,10 +113,32 @@ try {
   assert.equal(exported.status, 201);
   assert.equal(exported.body.batch.approvedProofs, 1);
   assert.equal(exported.body.batch.proofs[0].proofId, "acceptance_proof_1");
+  assert.equal(exported.body.batch.recipients[0].payoutAddress, "0x0000000000000000000000000000000000000012");
   assert.ok(!exported.body.batch.proofs.some((proof) => proof.proofId === "acceptance_proof_duplicate"));
 
+  const receipt = await request("POST", "/settlement-batches/acceptance_batch_001/receipt", {
+    issuerId: "acceptance_issuer",
+    transactions: [{
+      agentId: "acceptance_agent",
+      to: "0x0000000000000000000000000000000000000012",
+      amount: "0.003",
+      hash: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      explorer: "https://testnet.arcscan.app/tx/0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      blockNumber: "123",
+      status: "success",
+    }],
+  }, issuerKey);
+  assert.equal(receipt.status, 201);
+  assert.equal(receipt.body.status, "settled");
+  assert.equal(db.prepare("SELECT funding_status FROM proofs WHERE proof_id='acceptance_proof_1'").get().funding_status, "paid");
+  const duplicateReceipt = await request("POST", "/settlement-batches/acceptance_batch_001/receipt", {
+    issuerId: "acceptance_issuer",
+    transactions: receipt.body.transactions,
+  }, issuerKey);
+  assert.equal(duplicateReceipt.status, 409);
+
   const paidProofs = db.prepare("SELECT COUNT(*) AS count FROM proofs WHERE funding_status = 'paid'").get().count;
-  assert.equal(paidProofs, 3);
+  assert.equal(paidProofs, 4);
   console.log(JSON.stringify({
     ok: true,
     checks: [
@@ -128,6 +150,8 @@ try {
       "deterministic proof approval",
       "duplicate proof rejection",
       "rejected proof settlement exclusion",
+      "remote settlement receipt marks payable proof paid",
+      "duplicate remote settlement receipt rejected",
       "historical paid proofs remain paid",
     ],
   }, null, 2));
