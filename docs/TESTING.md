@@ -15,6 +15,12 @@ Use this file to collect real external testing evidence before final submission.
 
 ## Suggested Flows
 
+External tester packet:
+
+```bash
+docs/EXTERNAL_RUN.md
+```
+
 ```bash
 npm run demo:seed
 npm run settlement:daemon:dry-run -- --once
@@ -26,3 +32,14 @@ npm run agent:link -- --once
 ```
 
 Ask testers to note whether the landing page, dashboard, proof packet, and dry-run payout plan were understandable without private context.
+
+## Pending External Run
+
+Next real external run to collect:
+
+- Tester / handle: `TESTER_HANDLE_HERE`
+- Agent payout wallet: `TESTER_ARC_TESTNET_ADDRESS_HERE`
+- Hosted API: `https://prooflet-api.onrender.com`
+- Command: `npm run agent:link -- --once`
+- Evidence needed: terminal screenshot/output, job ID, proof ID, payable status
+- Optional after proof is payable: tiny Arc Testnet USDC execute from local treasury, then replace `FRESH_DEMO_TX_HASH_HERE` in submission docs.

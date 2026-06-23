@@ -124,6 +124,8 @@ npm run settlement:daemon:dry-run -- --once
 
 See [docs/HOSTING.md](docs/HOSTING.md) for API-first issuer/agent registration commands.
 
+For a third-party run, send testers [docs/EXTERNAL_RUN.md](docs/EXTERNAL_RUN.md). It walks them through cloning the repo, registering an agent with their payout wallet, running Link Sentinel against the hosted API, and returning proof evidence.
+
 ## One-Minute End-to-End Demo
 
 With the API running, create a funded link-verification job:

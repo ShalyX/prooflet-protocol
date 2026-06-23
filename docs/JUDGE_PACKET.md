@@ -65,6 +65,8 @@ The Render-hosted API was smoke-tested on June 23, 2026:
 - The API verified the proof as `accepted` and marked it `payable`.
 - Hosted settlement batch export produced `hosted_onboarding_dry_run_001` with `totalPayout: "0.001"` and no transaction sent.
 
+External tester instructions are in `docs/EXTERNAL_RUN.md`. Do not mark external traction complete until a non-builder tester returns their agent ID, proof ID, and evidence screenshot/output.
+
 ## GenLayer Path
 
 Prooflet includes a GenLayer-ready adjudication path for subjective `context_compression_quality` proofs. `mock_genlayer` mode is the local acceptance/demo path and performs no GenLayer network call. Real `genlayer` mode is opt-in and was not executed unless explicitly configured with a deployed contract and server-side credentials.
