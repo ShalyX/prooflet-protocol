@@ -105,6 +105,12 @@ AGENT_API_KEY="AGENT_API_KEY_HERE" \
 npm run agent:link -- --once
 ```
 
+Windows Command Prompt can avoid environment-variable mistakes by passing the credentials directly:
+
+```bat
+npm run agent:link -- --once --api-url https://prooflet-api.onrender.com --agent-id agent_demo_link --agent-api-key AGENT_API_KEY_HERE
+```
+
 Inspect payable proofs:
 
 ```bash

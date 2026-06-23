@@ -29,6 +29,8 @@ async function main() {
     apiUrl,
     agent: response.body.agent,
     apiKey: response.body.apiKey,
+    windowsCmd: `npm run agent:link -- --once --api-url ${apiUrl} --agent-id ${response.body.agent.agentId} --agent-api-key ${response.body.apiKey}`,
+    windowsEnvNote: "In cmd.exe, run each set command on its own line. Do not combine set AGENT_ID and set AGENT_API_KEY on one line.",
     next: [
       `set USEFUL_WAITING_API_URL=${apiUrl}`,
       `set AGENT_ID=${response.body.agent.agentId}`,

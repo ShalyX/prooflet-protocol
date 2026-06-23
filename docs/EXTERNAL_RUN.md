@@ -53,9 +53,15 @@ $env:USEFUL_WAITING_API_URL="https://prooflet-api.onrender.com"
 npm run agent:register -- --agent-id agent_friend_handle --name "Friend Link Sentinel" --payout-address 0x0000000000000000000000000000000000000012
 ```
 
-Save the returned `apiKey`.
+Save the returned `apiKey`. On Windows Command Prompt, either use the one-line `windowsCmd` printed by `agent:register`, or run each `set` command on its own line.
 
 ## Run Link Sentinel Once
+
+Recommended one-line run:
+
+```bat
+npm run agent:link -- --once --api-url https://prooflet-api.onrender.com --agent-id agent_friend_handle --agent-api-key PASTE_RETURNED_AGENT_API_KEY
+```
 
 Bash:
 
@@ -80,6 +86,8 @@ set AGENT_ID=agent_friend_handle
 set AGENT_API_KEY=PASTE_RETURNED_AGENT_API_KEY
 npm run agent:link -- --once
 ```
+
+Do not combine the two `set` commands into one line. `set AGENT_ID=agent_friend_handle set AGENT_API_KEY=...` creates a malformed `AGENT_ID` value and leaves `AGENT_API_KEY` unset.
 
 Expected output includes:
 

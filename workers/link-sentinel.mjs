@@ -1,15 +1,16 @@
 import { createHash, randomUUID } from "node:crypto";
 import { AgentClient, UsefulWaitingApiError } from "@useful-waiting/agent-sdk";
 
+const flags = parseArgs(process.argv.slice(2));
 const config = {
-  apiUrl: (process.env.USEFUL_WAITING_API_URL || "http://127.0.0.1:8787").replace(/\/$/, ""),
-  agentId: process.env.AGENT_ID || "agent_lynx",
-  apiKey: process.env.AGENT_API_KEY || "uwp_agent_lynx_dev",
-  capabilities: parseCapabilities(process.env.WORKER_CAPABILITIES || "link_verification"),
-  pollIntervalMs: positiveInteger(process.env.POLL_INTERVAL_MS, 5000),
-  fetchTimeoutMs: positiveInteger(process.env.WORKER_FETCH_TIMEOUT_MS, 20000),
-  once: process.argv.includes("--once"),
-  checkOnly: process.argv.includes("--check"),
+  apiUrl: (flags.apiUrl || process.env.USEFUL_WAITING_API_URL || "http://127.0.0.1:8787").replace(/\/$/, ""),
+  agentId: flags.agentId || process.env.AGENT_ID || "agent_lynx",
+  apiKey: flags.agentApiKey || process.env.AGENT_API_KEY || "uwp_agent_lynx_dev",
+  capabilities: parseCapabilities(flags.capabilities || process.env.WORKER_CAPABILITIES || "link_verification"),
+  pollIntervalMs: positiveInteger(flags.pollIntervalMs || process.env.POLL_INTERVAL_MS, 5000),
+  fetchTimeoutMs: positiveInteger(flags.fetchTimeoutMs || process.env.WORKER_FETCH_TIMEOUT_MS, 20000),
+  once: flags.once,
+  checkOnly: flags.check,
 };
 const client = new AgentClient({ agentId: config.agentId, apiKey: config.apiKey, baseUrl: config.apiUrl, timeoutMs: config.fetchTimeoutMs });
 
@@ -182,6 +183,28 @@ function parseCapabilities(value) {
   const capabilities = value.split(",").map((item) => item.trim()).filter(Boolean);
   if (capabilities.length === 0) throw new Error("WORKER_CAPABILITIES must include at least one capability.");
   return [...new Set(capabilities)];
+}
+
+function parseArgs(args) {
+  const parsed = { once: false, check: false };
+  for (let index = 0; index < args.length; index += 1) {
+    const argument = args[index];
+    if (argument === "--once") {
+      parsed.once = true;
+      continue;
+    }
+    if (argument === "--check") {
+      parsed.check = true;
+      continue;
+    }
+    const match = argument.match(/^--(api-url|agent-id|agent-api-key|capabilities|poll-interval-ms|fetch-timeout-ms)(?:=(.*))?$/);
+    if (!match) throw new Error(`Unknown argument ${argument}. Expected --once, --check, --api-url, --agent-id, --agent-api-key, --capabilities, --poll-interval-ms, or --fetch-timeout-ms.`);
+    const value = match[2] ?? args[++index];
+    if (!value || value.startsWith("--")) throw new Error(`--${match[1]} requires a value.`);
+    const key = match[1].replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
+    parsed[key] = value;
+  }
+  return parsed;
 }
 
 function positiveInteger(value, fallback) {
