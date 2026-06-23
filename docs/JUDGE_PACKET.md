@@ -64,8 +64,9 @@ The Render-hosted API was smoke-tested on June 23, 2026:
 - Link Sentinel claimed the hosted job, performed a real HTTP check, hashed the response body, and submitted proof `proof_agent_lynx_1782232027887_6b64fc05`.
 - The API verified the proof as `accepted` and marked it `payable`.
 - Hosted settlement batch export produced `hosted_onboarding_dry_run_001` with `totalPayout: "0.001"` and no transaction sent.
+- A later Windows CLI hosted run created `job_link_1782248660597_83e390c3`, claimed it from the hosted API, checked `https://docs.arc.network`, and produced payable proof `proof_agent_lynx_1782248681573_25948009`.
 
-External tester instructions are in `docs/EXTERNAL_RUN.md`. Do not mark external traction complete until a non-builder tester returns their agent ID, proof ID, and evidence screenshot/output.
+External tester instructions are in `docs/EXTERNAL_RUN.md`. Tester handle and payout-wallet confirmation are still pending before claiming paid external-user settlement.
 
 ## GenLayer Path
 
