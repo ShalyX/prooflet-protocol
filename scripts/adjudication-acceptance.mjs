@@ -1,0 +1,21 @@
+import assert from "node:assert/strict";
+import { startTestApi,api } from "./test-helpers.mjs";
+const test=await startTestApi("adjudication-check"); const issuerKey="uwp_issuer_useful_waiting_protocol_dev", adjudicatorKey="uwp_adjudicator_local_review_dev";
+try { const reg=await api(test.baseUrl,"POST","/agents/register",{agentId:"subjective_agent",name:"Subjective Agent",capabilities:["eval_labeling"],payoutAddress:"0x0000000000000000000000000000000000000052"});
+test.db.prepare("UPDATE agent_reputation_summary SET access_level='trusted',current_risk_flag='clean',duplicate_proofs=0 WHERE agent_id='subjective_agent'").run();
+await api(test.baseUrl,"POST","/jobs",{jobId:"subjective_job",issuerId:"useful_waiting_protocol",jobType:"eval_labeling",input:{prompt:"Is this useful?"},rewardAmount:"0.01",proofRequirements:{requiredResultFields:["label"]},verificationMode:"subjective"},issuerKey);
+assert.equal((await api(test.baseUrl,"POST","/agents/subjective_agent/claim-job",{jobId:"subjective_job"},reg.body.apiKey)).status,200);
+const submitted=await api(test.baseUrl,"POST","/jobs/subjective_job/proof",{proofId:"subjective_proof",agentId:"subjective_agent",jobId:"subjective_job",jobType:"eval_labeling",input:{prompt:"Is this useful?"},result:{label:"yes",rationale:"Measurable result"},verificationRoute:"manual_adapter",proofTimestamp:new Date().toISOString()},reg.body.apiKey);
+assert.equal(submitted.body.proof.fundingStatus,"pending_adjudication");
+assert.equal((await api(test.baseUrl,"GET","/adjudication/pending",null,issuerKey)).body.code,"missing_adjudicator_scope");
+const decision=await api(test.baseUrl,"POST","/adjudication/proofs/subjective_proof/decision",{decision:"approved",reason:"Evidence satisfies the requested judgment.",confidence:.91,evidenceReviewed:{result:true}},adjudicatorKey);
+assert.equal(decision.body.decision.verifier,"manual_adapter"); assert.equal(test.db.prepare("SELECT funding_status FROM proofs WHERE proof_id='subjective_proof'").get().funding_status,"payable");
+assert.equal(test.db.prepare("SELECT COUNT(*) count FROM adjudication_decisions").get().count,1);
+test.db.prepare("UPDATE agent_reputation_summary SET access_level='trusted',current_risk_flag='clean',duplicate_proofs=0 WHERE agent_id='subjective_agent'").run();
+await api(test.baseUrl,"POST","/jobs",{jobId:"subjective_reject_job",issuerId:"useful_waiting_protocol",jobType:"eval_labeling",input:{prompt:"Reject this result"},rewardAmount:"0.01",proofRequirements:{requiredResultFields:["label"]},verificationMode:"subjective"},issuerKey);
+await api(test.baseUrl,"POST","/agents/subjective_agent/claim-job",{jobId:"subjective_reject_job"},reg.body.apiKey);
+await api(test.baseUrl,"POST","/jobs/subjective_reject_job/proof",{proofId:"subjective_reject_proof",agentId:"subjective_agent",jobId:"subjective_reject_job",jobType:"eval_labeling",input:{prompt:"Reject this result"},result:{label:"unsupported"},verificationRoute:"manual_adapter",proofTimestamp:new Date().toISOString()},reg.body.apiKey);
+await api(test.baseUrl,"POST","/adjudication/proofs/subjective_reject_proof/decision",{decision:"rejected",reason:"Evidence does not support the submitted label.",confidence:.96,evidenceReviewed:{result:true}},adjudicatorKey);
+assert.equal(test.db.prepare("SELECT funding_status FROM proofs WHERE proof_id='subjective_reject_proof'").get().funding_status,"rejected");
+const exported=await api(test.baseUrl,"POST","/settlement-batches/export",{issuerId:"useful_waiting_protocol",batchId:"adjudication_check_batch"},issuerKey); assert.ok(!exported.body.batch.proofs.some((proof)=>proof.proofId==="subjective_reject_proof"));
+console.log(JSON.stringify({ok:true,pendingExcluded:true,scopedAuth:true,manualApprovalPayable:true,manualRejectionExcluded:true},null,2)); } finally {await test.close();}

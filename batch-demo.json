@@ -1,0 +1,15 @@
+[
+  {
+    "jobId": "batch_demo_valid_from_ui",
+    "jobType": "link_verification",
+    "input": { "url": "https://httpbin.org/anything/batch-valid" },
+    "rewardAmount": "0.002",
+    "proofRequirements": { "requiredResultFields": ["status"] }
+  },
+  {
+    "jobId": "batch_demo_invalid_from_ui",
+    "jobType": "link_verification",
+    "input": { "url": "https://httpbin.org/anything/batch-invalid" },
+    "proofRequirements": { "requiredResultFields": ["status"] }
+  }
+]

@@ -1,0 +1,9 @@
+import assert from "node:assert/strict";
+import { startTestApi,api } from "./test-helpers.mjs";
+const test=await startTestApi("uploads-check"), key="uwp_issuer_useful_waiting_protocol_dev";
+try { const before=test.db.prepare("SELECT COUNT(*) count FROM jobs").get().count; const content=JSON.stringify([{jobId:"upload_valid",jobType:"link_verification",input:{url:"https://example.com"},rewardAmount:"0.003",proofRequirements:{requiredResultFields:["status"]}},{jobId:"upload_invalid",jobType:"link_verification",input:{url:"https://example.com"},rewardAmount:"5",proofRequirements:{}}]);
+const validated=await api(test.baseUrl,"POST","/issuers/useful_waiting_protocol/uploads/validate",{filename:"jobs.json",format:"json",content},key); assert.equal(validated.status,201); assert.equal(validated.body.upload.validRows,1); assert.equal(test.db.prepare("SELECT COUNT(*) count FROM jobs").get().count,before);
+assert.equal((await api(test.baseUrl,"POST",`/issuers/useful_waiting_protocol/uploads/${validated.body.upload.uploadId}/confirm`,{mode:"strict"},key)).status,409);
+const confirmed=await api(test.baseUrl,"POST",`/issuers/useful_waiting_protocol/uploads/${validated.body.upload.uploadId}/confirm`,{mode:"validOnly",acknowledgeInvalidRows:true},key); assert.deepEqual(confirmed.body.upload.createdJobIds,["upload_valid"]);
+await api(test.baseUrl,"POST",`/issuers/useful_waiting_protocol/uploads/${validated.body.upload.uploadId}/confirm`,{mode:"validOnly",acknowledgeInvalidRows:true},key); assert.equal(test.db.prepare("SELECT COUNT(*) count FROM jobs WHERE job_id='upload_valid'").get().count,1);
+console.log(JSON.stringify({ok:true,validationWritesNoJobs:true,strictAtomic:true,validOnlyExplicit:true,idempotentConfirm:true},null,2)); } finally {await test.close();}

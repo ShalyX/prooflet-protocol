@@ -1,0 +1,3 @@
+import { UsefulWaitingClient } from "@useful-waiting/sdk-core";
+export { UsefulWaitingApiError, PendingAdjudicationError, GenLayerNotConfiguredError, GenLayerRequestFailedError } from "@useful-waiting/sdk-core";
+export class AgentClient extends UsefulWaitingClient { agentId:string; constructor(options:{agentId:string;baseUrl?:string;apiKey?:string;timeoutMs?:number;fetchImpl?:typeof fetch}); getAgent():Promise<any>; getReputation():Promise<any>; getAdjudicationStatus(proofId:string):Promise<any>; claimJob(options?:{jobId?:string;leaseSeconds?:number}):Promise<any|null>; submitProof(jobId:string,proof:any):Promise<any>; poll(options?:{intervalMs?:number;leaseSeconds?:number;signal?:AbortSignal;onJob:(job:any,client:AgentClient)=>Promise<void>}):Promise<void>; }

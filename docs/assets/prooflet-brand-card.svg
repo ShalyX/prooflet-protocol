@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="300" viewBox="0 0 600 300">
+  <rect width="600" height="300" fill="#1E1A16" />
+  
+  <g transform="translate(40, 40)">
+    <text x="0" y="24" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="24" font-weight="800" fill="#F5EFE6" letter-spacing="-0.5">
+      Proof<tspan fill="#F2A93B">let</tspan>
+    </text>
+    <text x="0" y="60" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="16" font-weight="500" fill="#F2A93B">
+      BRAND KIT
+    </text>
+  </g>
+  
+  <g transform="translate(40, 140)">
+    <!-- Swatches -->
+    <rect x="0" y="0" width="40" height="40" rx="4" fill="#15130E" stroke="#3A3024" stroke-width="1" />
+    <rect x="50" y="0" width="40" height="40" rx="4" fill="#1E1A16" stroke="#3A3024" stroke-width="1" />
+    <rect x="100" y="0" width="40" height="40" rx="4" fill="#3A3024" stroke="#3A3024" stroke-width="1" />
+    <rect x="150" y="0" width="40" height="40" rx="4" fill="#F2A93B" stroke="#3A3024" stroke-width="1" />
+    <rect x="200" y="0" width="40" height="40" rx="4" fill="#FFD98A" stroke="#3A3024" stroke-width="1" />
+    <rect x="250" y="0" width="40" height="40" rx="4" fill="#F5EFE6" stroke="#3A3024" stroke-width="1" />
+  </g>
+  
+  <g transform="translate(40, 220)">
+    <text x="0" y="20" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="18" font-weight="600" fill="#F5EFE6">
+      Tiny agent jobs. Verified by proof. Paid in USDC.
+    </text>
+  </g>
+</svg>

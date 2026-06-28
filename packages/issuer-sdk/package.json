@@ -1,0 +1,1 @@
+{"name":"@useful-waiting/issuer-sdk","version":"0.1.0","type":"module","main":"index.mjs","types":"index.d.ts","dependencies":{"@useful-waiting/sdk-core":"0.1.0"},"exports":{".":{"types":"./index.d.ts","import":"./index.mjs"}},"files":["index.mjs","index.d.ts","README.md"]}
