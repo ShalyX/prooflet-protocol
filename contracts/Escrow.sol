@@ -17,7 +17,25 @@ interface IERC20 {
     function balanceOf(address account) external view returns (uint256);
 }
 
-contract ProofletEscrow {
+abstract contract ReentrancyGuard {
+    uint256 private constant _NOT_ENTERED = 1;
+    uint256 private constant _ENTERED = 2;
+
+    uint256 private _status;
+
+    constructor() {
+        _status = _NOT_ENTERED;
+    }
+
+    modifier nonReentrant() {
+        require(_status != _ENTERED, "ReentrancyGuard: reentrant call");
+        _status = _ENTERED;
+        _;
+        _status = _NOT_ENTERED;
+    }
+}
+
+contract ProofletEscrow is ReentrancyGuard {
     // Arc Testnet USDC: 0x3600000000000000000000000000000000000000
     IERC20 public immutable usdc;
 
@@ -80,7 +98,7 @@ contract ProofletEscrow {
      * @param agent    The agent address who will receive payment on release
      * @param amount   USDC amount (in smallest unit, 6 decimals)
      */
-    function deposit(bytes32 jobId, address agent, uint256 amount) external {
+    function deposit(bytes32 jobId, address agent, uint256 amount) external nonReentrant {
         require(agent != address(0), "ProofletEscrow: zero agent address");
         require(amount > 0, "ProofletEscrow: zero amount");
         require(
@@ -108,7 +126,7 @@ contract ProofletEscrow {
      * @notice Release escrowed USDC to the agent. Called by settlement operator
      *         after proof is approved.
      */
-    function release(bytes32 jobId) external onlyOperator jobExists(jobId) {
+    function release(bytes32 jobId) external onlyOperator jobExists(jobId) nonReentrant {
         Escrow storage escrow = escrows[jobId];
         require(escrow.status == EscrowStatus.Funded, "ProofletEscrow: not in funded state");
 
@@ -123,7 +141,7 @@ contract ProofletEscrow {
      * @notice Refund escrowed USDC to the issuer. Called by settlement operator
      *         when proof is rejected or job is cancelled.
      */
-    function refund(bytes32 jobId) external onlyOperator jobExists(jobId) {
+    function refund(bytes32 jobId) external onlyOperator jobExists(jobId) nonReentrant {
         Escrow storage escrow = escrows[jobId];
         require(escrow.status == EscrowStatus.Funded, "ProofletEscrow: not in funded state");
 

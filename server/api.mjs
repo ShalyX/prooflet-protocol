@@ -547,6 +547,9 @@ function serializeJob(row) {
     fundingStatus: row.funding_status, status: row.status, proofRequirements: parseJson(row.proof_requirements_json, {}),
     claimedBy: row.claimed_by, leaseExpiresAt: row.lease_expires_at, verificationMode: row.verification_mode || "deterministic", requiredAccessLevel: row.required_access_level || "starter",
     compoundParentId: row.compound_parent_id || null,
+    fundingRail: row.funding_rail || "treasury",
+    escrowStatus: row.escrow_status || null,
+    escrowTxHash: row.escrow_tx_hash || null,
   };
 }
 

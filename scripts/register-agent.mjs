@@ -24,20 +24,46 @@ async function main() {
     body: { agentId, name, capabilities, payoutAddress, status: "idle" },
   });
 
-  console.log(JSON.stringify({
+  let nanopaymentConfig = { enabled: false };
+  try {
+    const cfgResponse = await client.request("/nanopayment/config", { method: "GET" });
+    if (cfgResponse.body?.enabled) nanopaymentConfig = cfgResponse.body;
+  } catch (e) {
+    // ignore
+  }
+
+  const resultLog = {
     registered: true,
     apiUrl,
     agent: response.body.agent,
     apiKey: response.body.apiKey,
-    windowsCmd: `npm run agent:link -- --once --api-url ${apiUrl} --agent-id ${response.body.agent.agentId} --agent-api-key ${response.body.apiKey}`,
-    windowsEnvNote: "In cmd.exe, run each set command on its own line. Do not combine set AGENT_ID and set AGENT_API_KEY on one line.",
-    next: [
-      `set USEFUL_WAITING_API_URL=${apiUrl}`,
-      `set AGENT_ID=${response.body.agent.agentId}`,
-      `set AGENT_API_KEY=${response.body.apiKey}`,
-      "npm run agent:link -- --once",
-    ],
-  }, null, 2));
+  };
+
+  if (response.body.circleWallet) {
+    resultLog.circleWallet = response.body.circleWallet;
+  }
+
+  if (nanopaymentConfig.enabled) {
+    resultLog.actionRequired = "NANOPAYMENT_FEE";
+    resultLog.instructions = `Agents must pay a ${nanopaymentConfig.accessFee} USDC anti-spam fee before claiming jobs.`;
+    resultLog.paymentDetails = {
+      network: "Arc Testnet",
+      asset: "USDC",
+      amount: nanopaymentConfig.accessFee,
+      destination: nanopaymentConfig.treasuryAddress
+    };
+  }
+
+  resultLog.windowsCmd = `npm run agent:link -- --once --api-url ${apiUrl} --agent-id ${response.body.agent.agentId} --agent-api-key ${response.body.apiKey}`;
+  resultLog.windowsEnvNote = "In cmd.exe, run each set command on its own line. Do not combine set AGENT_ID and set AGENT_API_KEY on one line.";
+  resultLog.next = [
+    `set USEFUL_WAITING_API_URL=${apiUrl}`,
+    `set AGENT_ID=${response.body.agent.agentId}`,
+    `set AGENT_API_KEY=${response.body.apiKey}`,
+    "npm run agent:link -- --once",
+  ];
+
+  console.log(JSON.stringify(resultLog, null, 2));
 }
 
 function parseArgs(args) {

@@ -76,6 +76,7 @@ export function createSettlementBatch(db, { issuerId = "useful_waiting_protocol"
       amount: formatUnits(parseUnits(proofAmount(db, proof.job_id), 6), 6),
       fundingStatus: proof.funding_status,
       settlementStatus: proof.settlement_status,
+      fundingRail: proof.funding_rail,
     })),
   };
 
@@ -151,8 +152,9 @@ function loadUnbatchedPayableProofs(db, issuerId, proofIds) {
 
 function loadBatchProofs(db, batchId) {
   return db.prepare(`
-    SELECT p.*, a.payout_address
+    SELECT p.*, a.payout_address, j.funding_rail
     FROM proofs p JOIN agents a ON a.agent_id = p.agent_id
+    JOIN jobs j ON j.job_id = p.job_id
     WHERE p.batch_id = ? AND p.outcome = 'accepted' AND p.funding_status = 'payable'
       AND p.settlement_status != 'Settled on Arc Testnet' AND p.tx_hash IS NULL
     ORDER BY p.created_at, p.proof_id

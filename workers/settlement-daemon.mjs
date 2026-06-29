@@ -1,4 +1,4 @@
-import { erc20Abi, formatUnits, http, isAddress, parseUnits, createPublicClient, createWalletClient } from "viem";
+import { erc20Abi, formatUnits, http, isAddress, parseUnits, createPublicClient, createWalletClient, parseAbi, stringToHex, pad } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { arcTestnet } from "viem/chains";
 import { json, openDatabase, withTransaction } from "../server/db.mjs";
@@ -9,6 +9,11 @@ import { appendReputationEvent } from "../server/reputation.mjs";
 import { initiateDeveloperControlledWalletsClient } from "@circle-fin/developer-controlled-wallets";
 
 const ARC_USDC = "0x3600000000000000000000000000000000000000";
+const ESCROW_ADDRESS = process.env.ESCROW_CONTRACT_ADDRESS;
+const escrowAbi = parseAbi([
+  "function release(bytes32 jobId) external",
+  "function getEscrow(bytes32 jobId) external view returns (uint256 amount, address issuer, address agent, uint8 status)"
+]);
 const ARCSCAN = "https://testnet.arcscan.app";
 const modeArg = process.argv.find((arg) => arg.startsWith("--mode="));
 const config = {
@@ -108,20 +113,32 @@ async function settleViaViem(batch, plan) {
     let hash = null;
     try {
       assertProofsPayable(batch.batchId, transfer.proofIds);
-      hash = await walletClient.writeContract({
-        address: config.usdcAddress,
-        abi: erc20Abi,
-        functionName: "transfer",
-        args: [transfer.to, transfer.rawAmount],
-      });
+      if (transfer.type === "escrow") {
+        if (!ESCROW_ADDRESS) throw new Error("ESCROW_CONTRACT_ADDRESS not configured.");
+        const jobIdBytes32 = pad(stringToHex(transfer.jobId), { size: 32 });
+        hash = await walletClient.writeContract({
+          address: ESCROW_ADDRESS,
+          abi: escrowAbi,
+          functionName: "release",
+          args: [jobIdBytes32],
+        });
+        db.prepare("UPDATE jobs SET escrow_status = 'released', escrow_tx_hash = ? WHERE job_id = ?").run(hash, transfer.jobId);
+      } else {
+        hash = await walletClient.writeContract({
+          address: config.usdcAddress,
+          abi: erc20Abi,
+          functionName: "transfer",
+          args: [transfer.to, transfer.rawAmount],
+        });
+      }
       const receipt = await publicClient.waitForTransactionReceipt({ hash, timeout: 30000 });
       if (receipt.status !== "success") throw new Error(`Transaction ${hash} reverted.`);
       recordSuccessfulTransfer(batch.batchId, transfer, hash, receipt.blockNumber.toString());
-      log("transfer settled", { batchId: batch.batchId, agentId: transfer.agentId, amount: transfer.amount, txHash: hash, explorer: `${ARCSCAN}/tx/${hash}` });
+      log("transfer settled", { batchId: batch.batchId, agentId: transfer.agentId, amount: transfer.amount, txHash: hash, explorer: `${ARCSCAN}/tx/${hash}`, type: transfer.type });
     } catch (error) {
       settlementFailures.push({ transfer, hash, error });
       recordTransferFailure(batch.batchId, transfer, hash, error);
-      log("transfer failed", { batchId: batch.batchId, agentId: transfer.agentId, amount: transfer.amount, txHash: hash, error: error.message });
+      log("transfer failed", { batchId: batch.batchId, agentId: transfer.agentId, amount: transfer.amount, txHash: hash, error: error.message, type: transfer.type });
     }
   }
 }
@@ -132,6 +149,9 @@ async function settleViaCircle(batch, plan, treasuryWalletId) {
     let response = null;
     try {
       assertProofsPayable(batch.batchId, transfer.proofIds);
+      if (transfer.type === "escrow") {
+        throw new Error("Circle Developer-Controlled Wallets do not yet support Escrow smart contract calls in this release.");
+      }
       response = await c.createTransaction({
         idempotencyKey: `settle-${batch.batchId}-${transfer.agentId}-${Date.now()}`,
         walletId: treasuryWalletId,
@@ -159,24 +179,47 @@ function validateAndBuildPlan(batch) {
   }
   if (!Array.isArray(batch.recipients) || batch.recipients.length === 0) throw new Error("Settlement batch has no recipients.");
   if (!Array.isArray(batch.proofs) || batch.proofs.length === 0) throw new Error("Settlement batch has no payable proofs.");
-  const proofsByAgent = new Map();
+
+  const transfers = [];
+  const treasuryProofsByAgent = new Map();
+
   for (const proof of batch.proofs) {
     if (proof.fundingStatus !== "payable" || proof.settlementStatus === "Settled on Arc Testnet") {
       throw new Error(`Proof ${proof.proofId} is not eligible for settlement.`);
     }
-    const current = proofsByAgent.get(proof.agentId) || [];
-    current.push(proof.proofId);
-    proofsByAgent.set(proof.agentId, current);
+    if (proof.fundingRail === "arc_usdc_escrow") {
+      const agent = db.prepare("SELECT payout_address FROM agents WHERE agent_id = ?").get(proof.agentId);
+      if (!agent || !isAddress(agent.payout_address)) throw new Error(`Missing valid payout address for ${proof.agentId}.`);
+      transfers.push({
+        type: "escrow",
+        agentId: proof.agentId,
+        to: agent.payout_address,
+        amount: proof.amount,
+        rawAmount: parseUsdc(proof.amount),
+        proofIds: [proof.proofId],
+        jobId: proof.jobId
+      });
+    } else {
+      const current = treasuryProofsByAgent.get(proof.agentId) || [];
+      current.push(proof);
+      treasuryProofsByAgent.set(proof.agentId, current);
+    }
   }
 
-  const transfers = batch.recipients.map((recipient) => {
-    const agent = db.prepare("SELECT payout_address FROM agents WHERE agent_id = ?").get(recipient.agentId);
-    if (!agent || !isAddress(agent.payout_address)) throw new Error(`Missing valid payout address for ${recipient.agentId}.`);
-    const rawAmount = parseUsdc(recipient.amount);
-    const proofIds = proofsByAgent.get(recipient.agentId) || [];
-    if (proofIds.length === 0) throw new Error(`Recipient ${recipient.agentId} has no matching payable proof.`);
-    return { agentId: recipient.agentId, to: agent.payout_address, amount: formatUnits(rawAmount, 6), rawAmount, proofIds };
-  });
+  for (const [agentId, proofs] of treasuryProofsByAgent.entries()) {
+    const agent = db.prepare("SELECT payout_address FROM agents WHERE agent_id = ?").get(agentId);
+    if (!agent || !isAddress(agent.payout_address)) throw new Error(`Missing valid payout address for ${agentId}.`);
+    const rawAmount = proofs.reduce((sum, p) => sum + parseUsdc(p.amount), 0n);
+    transfers.push({
+      type: "treasury",
+      agentId,
+      to: agent.payout_address,
+      amount: formatUnits(rawAmount, 6),
+      rawAmount,
+      proofIds: proofs.map((p) => p.proofId)
+    });
+  }
+
   const totalRaw = transfers.reduce((sum, transfer) => sum + transfer.rawAmount, 0n);
   if (totalRaw !== parseUsdc(batch.totalPayout)) throw new Error("Recipient totals do not match batch totalPayout.");
 

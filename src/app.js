@@ -272,9 +272,13 @@ function render() {
 
   const visibleJobs = filteredJobs(jobs, activeQueueFilter).filter(job => !job.title?.includes("Fixture") && !job.title?.includes("fixture"));
   $("#jobs").innerHTML = visibleJobs.length ? visibleJobs.map((job) => `
-    <article class="job ${job.state}">
+    <article class="job ${job.state} ${job.compoundParentId ? 'is-subtask' : ''} ${job.type === 'compound_job' ? 'is-compound' : ''}">
       <div class="job-main">
-        <span class="state-badge ${jobStatus(job).toLowerCase()}">${jobStatus(job)}</span>
+        <div style="display:flex; gap: 8px; align-items: center;">
+          <span class="state-badge ${jobStatus(job).toLowerCase().replace(' ', '-')}">${jobStatus(job)}</span>
+          ${job.type === 'compound_job' ? '<span class="state-badge compound-badge">Compound</span>' : ''}
+          ${job.compoundParentId ? `<span class="state-badge subtask-badge">↳ Sub-task</span>` : ''}
+        </div>
         <h3>${job.title}</h3>
         <p>${job.id} - ${job.estimate} - ${job.issuer}${job.proof ? ` - ${job.proof}` : ""}</p>
       </div>
@@ -624,6 +628,9 @@ function applyDashboard(dashboard) {
       proof: fallback?.proof,
       secondsSaved: fallback?.secondsSaved || 0,
       agentId: job.claimedBy,
+      compoundParentId: job.compoundParentId,
+      fundingRail: job.fundingRail,
+      escrowStatus: job.escrowStatus,
     };
   });
 
@@ -679,6 +686,11 @@ function applyDashboard(dashboard) {
 function setLandingText(selector, value) { const element = document.querySelector(selector); if (element) element.textContent = value; }
 
 function jobStatus(job) {
+  if (job.fundingRail === "arc_usdc_escrow") {
+    if (job.escrowStatus === "released") return "Released";
+    if (job.escrowStatus === "refunded") return "Refunded";
+    if (job.escrowStatus === "funded") return "Escrowed";
+  }
   if (job.fundingStatus === "paid") return "Paid";
   if (job.fundingStatus === "rejected" || job.state === "rejected") return "Rejected";
   if (job.fundingStatus === "payable") return "Payable";
