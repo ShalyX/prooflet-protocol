@@ -153,6 +153,14 @@ export const migrations = [
          addColumn(db, "jobs", "treasury_tx_hash", "TEXT");
        },
      },
+     {
+       version: 9,
+       name: "issuer_registration_fields",
+       up(db) {
+         addColumn(db, "issuers", "email", "TEXT");
+         addColumn(db, "issuers", "description", "TEXT");
+       },
+     },
    ];
 
 export function runMigrations(db) {

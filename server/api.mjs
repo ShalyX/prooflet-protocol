@@ -37,7 +37,7 @@ export function createApp({ db = openDatabase() } = {}) {
   app.get("/health", (_request, response) => response.json({ ok: true, protocol: "Prooflet", version: "v0" }));
 
   app.post("/issuers/register", (request, response) => {
-    const { issuerId, name, treasuryAddress = null } = request.body || {};
+    const { issuerId, name, treasuryAddress = null, email = null, description = null } = request.body || {};
     requireId(issuerId, "issuerId");
     requireString(name, "name");
     if (treasuryAddress && !isAddress(treasuryAddress)) throw httpError(400, "treasuryAddress must be a valid EVM address.");
@@ -46,16 +46,16 @@ export function createApp({ db = openDatabase() } = {}) {
     try {
       withTransaction(db, () => {
         db.prepare(`
-          INSERT INTO issuers (issuer_id, name, treasury_address, status, created_at)
-          VALUES (?, ?, ?, 'active', ?)
-        `).run(issuerId, name, treasuryAddress, now);
+          INSERT INTO issuers (issuer_id, name, treasury_address, email, description, status, created_at)
+          VALUES (?, ?, ?, ?, ?, 'active', ?)
+        `).run(issuerId, name, treasuryAddress, email, description, now);
         storeApiKey(db, "issuer", issuerId, apiKey, now);
       });
     } catch (error) {
       if (String(error.message).includes("UNIQUE")) throw httpError(409, `Issuer ${issuerId} already exists.`);
       throw error;
     }
-    response.status(201).json({ issuer: { issuerId, name, treasuryAddress, status: "active" }, apiKey });
+    response.status(201).json({ issuer: { issuerId, name, treasuryAddress, email, description, status: "active" }, apiKey });
   });
 
   app.get("/issuers/:issuerId/wallet", async (request, response) => {

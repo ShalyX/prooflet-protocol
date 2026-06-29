@@ -14,13 +14,21 @@ export function initIssuerWorkbench({ apiUrl, onNavigate }) {
     e.target.classList.add("active");
     mode = e.target.dataset.mode;
     document.querySelector("#fundingModeLabel").textContent = mode === "external" ? "External Issuer" : "Prooflet Demo Issuer";
+    
+    // Reset panels
+    document.querySelector("#returningIssuerPanel").hidden = false;
+    document.querySelector("#registerIssuerPanel").hidden = true;
+    document.querySelector("#registerSuccessPanel").hidden = true;
+
     if (mode === "external") {
       document.querySelector("#issuerFundingPanel").hidden = false;
+      document.querySelector("#showRegisterBtn").hidden = false;
       document.querySelector("#issuerIdInput").value = sessionStorage.getItem("uwp.extIssuerId")||"";
       document.querySelector("#issuerKeyInput").value = sessionStorage.getItem("uwp.extIssuerApiKey")||"";
       document.querySelector("#issuerHelperText").textContent = "External issuers require a Circle wallet for funding.";
     } else {
       document.querySelector("#issuerFundingPanel").hidden = true;
+      document.querySelector("#showRegisterBtn").hidden = true;
       document.querySelector("#issuerIdInput").value = sessionStorage.getItem("uwp.issuerId")||"useful_waiting_protocol";
       document.querySelector("#issuerKeyInput").value = sessionStorage.getItem("uwp.issuerApiKey")||"";
       document.querySelector("#issuerHelperText").textContent = "Internal compatibility ID retained from the original build.";
@@ -28,6 +36,80 @@ export function initIssuerWorkbench({ apiUrl, onNavigate }) {
     client = null;
     renderUnauthenticated();
   }));
+
+  document.querySelector("#showRegisterBtn").addEventListener("click", () => {
+    document.querySelector("#returningIssuerPanel").hidden = true;
+    document.querySelector("#registerIssuerPanel").hidden = false;
+  });
+  
+  document.querySelector("#showLoginBtn").addEventListener("click", () => {
+    document.querySelector("#returningIssuerPanel").hidden = false;
+    document.querySelector("#registerIssuerPanel").hidden = true;
+  });
+
+  document.querySelector("#registerIssuerForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    try {
+      setStatus("Registering issuer...", true);
+      const issuerId = document.querySelector("#regIssuerId").value.trim();
+      const name = document.querySelector("#regIssuerName").value.trim();
+      const email = document.querySelector("#regIssuerEmail").value.trim() || undefined;
+      const description = document.querySelector("#regIssuerDesc").value.trim() || undefined;
+      
+      const result = await IssuerClient.register({ baseUrl: apiUrl, issuerId, name, email, description });
+      
+      const apiKey = result.apiKey;
+      document.querySelector("#successIssuerId").textContent = issuerId;
+      document.querySelector("#successApiKey").textContent = apiKey;
+      
+      // Auto create wallet
+      let wallet = null;
+      try {
+        const res = await fetch(`${apiUrl}/issuers/${encodeURIComponent(issuerId)}/wallet`, { method: "POST", headers: { "X-API-Key": apiKey } });
+        const wData = await res.json();
+        if (res.ok) wallet = wData.wallet;
+      } catch (wErr) { console.error("Wallet creation failed", wErr); }
+
+      if (wallet) {
+        document.querySelector("#successWalletId").textContent = wallet.walletId;
+        document.querySelector("#successWalletAddress").textContent = wallet.address;
+      } else {
+        document.querySelector("#successWalletId").textContent = "Failed";
+        document.querySelector("#successWalletAddress").textContent = "Failed";
+      }
+
+      document.querySelector("#registerIssuerPanel").hidden = true;
+      document.querySelector("#registerSuccessPanel").hidden = false;
+      setStatus("Registration successful.", true);
+    } catch (error) {
+      setStatus(error.message, false);
+    }
+  });
+
+  document.querySelector("#continueWorkbenchBtn").addEventListener("click", () => {
+    document.querySelector("#registerSuccessPanel").hidden = true;
+    document.querySelector("#returningIssuerPanel").hidden = false;
+    document.querySelector("#issuerIdInput").value = document.querySelector("#successIssuerId").textContent;
+    document.querySelector("#issuerKeyInput").value = document.querySelector("#successApiKey").textContent;
+    connect();
+  });
+
+  document.querySelector("#copyCredsBtn").addEventListener("click", () => {
+    const text = `Issuer ID: ${document.querySelector("#successIssuerId").textContent}\nIssuer API Key: ${document.querySelector("#successApiKey").textContent}`;
+    navigator.clipboard.writeText(text);
+    setStatus("Credentials copied to clipboard.", true);
+  });
+
+  document.querySelector("#downloadEnvBtn").addEventListener("click", () => {
+    const text = `ISSUER_ID="${document.querySelector("#successIssuerId").textContent}"\nISSUER_API_KEY="${document.querySelector("#successApiKey").textContent}"\n`;
+    const blob = new Blob([text], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = ".env.issuer";
+    a.click();
+    URL.revokeObjectURL(url);
+  });
 
   toggle.addEventListener("click",()=>onNavigate(location.pathname==="/issuer"?"/dashboard":"/issuer"));
   document.querySelector("#connectIssuer").addEventListener("click",connect);

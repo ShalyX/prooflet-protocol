@@ -1,6 +1,14 @@
 import { UsefulWaitingClient } from "@useful-waiting/sdk-core";
 export { UsefulWaitingApiError, PendingAdjudicationError, GenLayerNotConfiguredError, GenLayerRequestFailedError } from "@useful-waiting/sdk-core";
 export class IssuerClient extends UsefulWaitingClient {
+  static async register({ baseUrl, issuerId, name, treasuryAddress, email, description }) {
+    const tempClient = new UsefulWaitingClient({ baseUrl });
+    const { body } = await tempClient.request("/issuers/register", {
+      method: "POST",
+      body: { issuerId, name, treasuryAddress, email, description }
+    });
+    return body;
+  }
   constructor({ issuerId, ...options }) { super(options); if (!issuerId) throw new Error("issuerId is required."); this.issuerId = issuerId; }
   createJob(job) {
     const payload = { ...job, issuerId: this.issuerId };

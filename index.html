@@ -156,16 +156,57 @@
           <button class="mode-tab active" data-mode="demo">Prooflet Demo Issuer</button>
           <button class="mode-tab" data-mode="external">External Issuer</button>
         </div>
-        <div class="issuer-session-panel workbench-auth">
+        <div class="issuer-session-panel workbench-auth" id="returningIssuerPanel">
           <div class="issuer-session-column" id="issuerCol">
             <label>Issuer ID<input id="issuerIdInput" value="useful_waiting_protocol" autocomplete="username"></label>
             <p class="issuer-helper" id="issuerHelperText">Internal compatibility ID retained from the original build.</p>
           </div>
           <div class="issuer-key-column">
-            <label>Session API key<input id="issuerKeyInput" type="password" placeholder="Stored for this tab only" autocomplete="current-password"></label>
+            <label>Issuer API Key<input id="issuerKeyInput" type="password" placeholder="Stored for this tab only" autocomplete="current-password"></label>
             <div class="issuer-session-actions">
-              <button class="primary" id="connectIssuer" type="button">Connect</button>
+              <button class="primary" id="connectIssuer" type="button">Connect Issuer</button>
               <button class="ghost" id="clearIssuer" type="button">Clear session</button>
+              <button class="ghost external-only" id="showRegisterBtn" type="button" hidden>Register New Issuer</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="issuer-session-panel workbench-auth external-only" id="registerIssuerPanel" hidden>
+          <form id="registerIssuerForm" style="display:flex; width:100%; gap: 24px;">
+            <div class="issuer-session-column">
+              <label>Issuer ID<input id="regIssuerId" required placeholder="my_platform_001"></label>
+              <label>Platform / Issuer name<input id="regIssuerName" required placeholder="My Agent Platform"></label>
+            </div>
+            <div class="issuer-key-column">
+              <label>Contact email / handle (optional)<input id="regIssuerEmail" placeholder="team@platform.com"></label>
+              <label>Description (optional)<input id="regIssuerDesc" placeholder="Delegated agent tasks"></label>
+              <div class="issuer-session-actions" style="margin-top: 12px;">
+                <button class="primary" type="submit">Register Issuer</button>
+                <button class="ghost" id="showLoginBtn" type="button">Returning Issuer</button>
+              </div>
+            </div>
+          </form>
+        </div>
+
+        <div class="issuer-session-panel workbench-auth external-only" id="registerSuccessPanel" hidden>
+          <div style="width: 100%;">
+            <h3 style="color: var(--primary); margin-bottom: 12px;">Registration Successful</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+              <div>
+                <p><strong>Issuer ID:</strong> <span id="successIssuerId"></span></p>
+                <p><strong>Issuer API Key:</strong> <span id="successApiKey" style="font-family: monospace;"></span></p>
+                <p class="issuer-helper" style="color: var(--status-rejected);">Save this key. Prooflet may not show it again.</p>
+              </div>
+              <div>
+                <p><strong>Circle Wallet ID:</strong> <span id="successWalletId"></span></p>
+                <p><strong>Circle Wallet Address:</strong> <span id="successWalletAddress"></span></p>
+                <p class="issuer-helper">Provider: Circle Developer-Controlled Wallets</p>
+              </div>
+            </div>
+            <div class="issuer-session-actions">
+              <button class="primary" id="continueWorkbenchBtn" type="button">Continue to Workbench</button>
+              <button class="secondary" id="copyCredsBtn" type="button">Copy credentials</button>
+              <button class="secondary" id="downloadEnvBtn" type="button">Download .env snippet</button>
             </div>
           </div>
         </div>
