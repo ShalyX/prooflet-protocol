@@ -16,7 +16,19 @@
 - Live landing page: https://prooflet-protocol.vercel.app
 - Hosted testnet API: https://prooflet-api.onrender.com
 
-## Local Run Instructions
+## Arc Testnet Evidence
+
+**Escrow contract deployed, funded, and released in a complete lifecycle on Arc Testnet:**
+
+| Artifact | Value |
+|---|---|
+| Escrow | [`0xb3397ce196ebf553b8e951abaf75c18785c7e69a`](https://testnet.arcscan.app/address/0xb3397ce196ebf553b8e951abaf75c18785c7e69a) |
+| Deploy TX | [`0xcbd471...1452d3a`](https://testnet.arcscan.app/tx/0xcbd471ff0ce264a66583f710ecde3ee67774856e8ae395ace0f34f2151452d3a) |
+| Fund TX | [`0x2a81fb...4404d60`](https://testnet.arcscan.app/tx/0x2a81fbf3064751319c171726b19eef08880611a49dbd95e500186f9c44404d60) |
+| Release TX | [`0xed7522...4626ef9`](https://testnet.arcscan.app/tx/0xed7522a39b15bf9be0a1d94a9ee4d42cc69807d5f4108cb343bb44e514626ef9) |
+| Amount | 0.002 USDC |
+| Job | `job_link_1782741166956_fb45ef65` |
+| Proof | `proof_agent_lynx_1782741794394_095f079b` |
 
 ```bash
 npm install

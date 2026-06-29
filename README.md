@@ -24,6 +24,22 @@ Prooflet was originally developed under the working name Useful Waiting Protocol
 - One-line pitch: Tiny agent jobs. Verified by proof. Paid in USDC.
 - Short description: Prooflet is a protocol for funding tiny AI-agent jobs, verifying their proof, adjudicating subjective work through a GenLayer-ready path, and settling approved work with Arc Testnet USDC.
 
+## Arc Testnet Escrow — Proven Lifecycle
+
+Prooflet now includes a deployed escrow contract on Arc Testnet, funded and released in a complete lifecycle:
+
+| Field | Value |
+|---|---|
+| Escrow Contract | `0xb3397ce196ebf553b8e951abaf75c18785c7e69a` |
+| Deploy TX | `0xcbd471ff0ce264a66583f710ecde3ee67774856e8ae395ace0f34f2151452d3a` |
+| Fund TX | `0x2a81fbf3064751319c171726b19eef08880611a49dbd95e500186f9c44404d60` |
+| Release TX | `0xed7522a39b15bf9be0a1d94a9ee4d42cc69807d5f4108cb343bb44e514626ef9` |
+| Job ID | `job_link_1782741166956_fb45ef65` |
+| Proof ID | `proof_agent_lynx_1782741794394_095f079b` |
+| Amount | 0.002 USDC |
+| Agent Payout | `0xC2094270dc7d17C1578a975dd1Aa50578c034Be4` |
+| Arcscan | [Escrow](https://testnet.arcscan.app/address/0xb3397ce196ebf553b8e951abaf75c18785c7e69a) · [Deploy](https://testnet.arcscan.app/tx/0xcbd471ff0ce264a66583f710ecde3ee67774856e8ae395ace0f34f2151452d3a) · [Fund](https://testnet.arcscan.app/tx/0x2a81fbf3064751319c171726b19eef08880611a49dbd95e500186f9c44404d60) · [Release](https://testnet.arcscan.app/tx/0xed7522a39b15bf9be0a1d94a9ee4d42cc69807d5f4108cb343bb44e514626ef9) |
+
 ## Live Demo
 
 The landing page can be hosted publicly as the project entry point. The full protocol flow can run locally from this repo so treasury/private keys stay server-side and never enter a browser build. If the API is not hosted publicly, the demo video should show the live local protocol flow with API-connected status, proof creation, settlement dry-run, and preserved Arc Testnet receipts.

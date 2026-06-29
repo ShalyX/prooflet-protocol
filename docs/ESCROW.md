@@ -73,3 +73,19 @@ Jobs funded through escrow show:
 - Escrow holds exact reward amount — no treasury mixing
 - Operator key should be stored separately from treasury key
 - All actions emit on-chain events for audit
+
+## Verified Lifecycle
+
+Escrow contract deployed, funded, and released on Arc Testnet:
+
+| Phase | TX | Arcscan |
+|---|---|---|
+| Deploy | `0xcbd471...1452d3a` | [View](https://testnet.arcscan.app/tx/0xcbd471ff0ce264a66583f710ecde3ee67774856e8ae395ace0f34f2151452d3a) |
+| Fund | `0x2a81fb...4404d60` | [View](https://testnet.arcscan.app/tx/0x2a81fbf3064751319c171726b19eef08880611a49dbd95e500186f9c44404d60) |
+| Release | `0xed7522...4626ef9` | [View](https://testnet.arcscan.app/tx/0xed7522a39b15bf9be0a1d94a9ee4d42cc69807d5f4108cb343bb44e514626ef9) |
+
+- Contract: [`0xb3397ce196ebf553b8e951abaf75c18785c7e69a`](https://testnet.arcscan.app/address/0xb3397ce196ebf553b8e951abaf75c18785c7e69a)
+- Job: `job_link_1782741166956_fb45ef65`
+- Proof: `proof_agent_lynx_1782741794394_095f079b`
+- Amount: 0.002 USDC
+- Agent: `0xC2094270dc7d17C1578a975dd1Aa50578c034Be4`

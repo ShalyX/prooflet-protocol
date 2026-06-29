@@ -142,3 +142,15 @@ Do not improvise a funded transfer. Use the dry-run payout plan and historical r
 This fallback still demonstrates the full protocol boundary: verified work becomes settlement-ready, while prior testnet payouts prove the execution path.
 
 The demo seed is repeatable and non-destructive: every run uses unique, clearly labeled IDs and preserves historical batch `uwp_arc_20260618_001`. Never use `npm run db:reset` before judging.
+
+## Escrow Lifecycle Demo (Arc Testnet)
+
+Full escrow proven on Arc Testnet — deploy → fund → verify → release:
+
+| Phase | TX | Arcscan |
+|---|---|---|
+| Deploy | `0xcbd471...1452d3a` | [View](https://testnet.arcscan.app/tx/0xcbd471ff0ce264a66583f710ecde3ee67774856e8ae395ace0f34f2151452d3a) |
+| Fund | `0x2a81fb...4404d60` | [View](https://testnet.arcscan.app/tx/0x2a81fbf3064751319c171726b19eef08880611a49dbd95e500186f9c44404d60) |
+| Release | `0xed7522...4626ef9` | [View](https://testnet.arcscan.app/tx/0xed7522a39b15bf9be0a1d94a9ee4d42cc69807d5f4108cb343bb44e514626ef9) |
+
+Contract: [`0xb3397ce196ebf553b8e951abaf75c18785c7e69a`](https://testnet.arcscan.app/address/0xb3397ce196ebf553b8e951abaf75c18785c7e69a) · Job: `job_link_1782741166956_fb45ef65` · Proof: `proof_agent_lynx_1782741794394_095f079b` · Amount: 0.002 USDC

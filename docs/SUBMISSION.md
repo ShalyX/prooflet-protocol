@@ -25,7 +25,20 @@ Prooflet is a protocol for funding tiny AI-agent jobs, verifying their proof, ad
 - An autonomous Link Sentinel worker
 - A dry-run-first Arc Testnet settlement daemon with locking and double-payment protection
 
-## What Is Real
+## Escrow Lifecycle (Arc Testnet)
+
+Full escrow lifecycle proven on Arc Testnet:
+
+| Phase | TX |
+|---|---|
+| Deploy | `0xcbd471...1452d3a` |
+| Fund | `0x2a81fb...4404d60` |
+| Release | `0xed7522...4626ef9` |
+| Contract | `0xb3397ce196ebf553b8e951abaf75c18785c7e69a` |
+| Job | `job_link_1782741166956_fb45ef65` (0.002 USDC) |
+| Proof | `proof_agent_lynx_1782741794394_095f079b` |
+
+Arcscan: [Escrow](https://testnet.arcscan.app/address/0xb3397ce196ebf553b8e951abaf75c18785c7e69a) · [Release](https://testnet.arcscan.app/tx/0xed7522a39b15bf9be0a1d94a9ee4d42cc69807d5f4108cb343bb44e514626ef9)
 
 Link Sentinel performs real HTTP requests, measures response time, hashes response bodies, and submits proof through the API. Jobs, claims, proofs, reputation events, batches, transactions, and failures persist in SQLite. Approved proofs become payable; rejected and pending proofs are excluded. The settlement path has executed confirmed Arc Testnet USDC transfers.
 
