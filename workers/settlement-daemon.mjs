@@ -127,7 +127,7 @@ async function settleViaViem(batch, plan) {
 }
 
 async function settleViaCircle(batch, plan, treasuryWalletId) {
-  const c = initiateDeveloperControlledWalletsClient({ apiKey: *** entitySecret: process.env.CIRCLE_ENTITY_SECRET });
+  const c = initiateDeveloperControlledWalletsClient({ apiKey: process.env.CIRCLE_API_KEY, entitySecret: process.env.CIRCLE_ENTITY_SECRET });
   for (const transfer of plan.transfers) {
     let response = null;
     try {

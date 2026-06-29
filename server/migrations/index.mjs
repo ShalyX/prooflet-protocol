@@ -129,7 +129,22 @@ export const migrations = [
        `);
      },
    },
- ];
+     {
+       version: 7,
+       name: "escrow_and_nanopayment_metadata",
+       up(db) {
+         // Escrow funding metadata
+         addColumn(db, "jobs", "funding_rail", "TEXT NOT NULL DEFAULT 'direct_treasury'");
+         addColumn(db, "jobs", "escrow_status", "TEXT");
+         addColumn(db, "jobs", "escrow_tx_hash", "TEXT");
+         // Nanopayment claim metadata
+         addColumn(db, "job_claims", "claim_access_rail", "TEXT NOT NULL DEFAULT 'none'");
+         addColumn(db, "job_claims", "claim_access_price", "TEXT NOT NULL DEFAULT '0'");
+         addColumn(db, "job_claims", "claim_access_status", "TEXT NOT NULL DEFAULT 'unpaid'");
+         addColumn(db, "job_claims", "claim_access_tx_hash", "TEXT");
+       },
+     },
+   ];
 
 export function runMigrations(db) {
   db.exec("CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at TEXT NOT NULL)");

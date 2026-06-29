@@ -14,6 +14,7 @@ import { decideProof, getAdjudicationProof, listPendingAdjudications, pendingMan
 import { getGenLayerRequest, getProofGenLayerStatus, routeConfiguredAdjudication, submitGenLayerProof, syncGenLayerRequest } from "./adjudication/genlayer.mjs";
 import { confirmUpload, validateUpload } from "./uploads.mjs";
 import { createCompoundJob, checkCompoundJobCompletion, checkCompoundJobFailure, listCompoundJobs } from "./compound-jobs.mjs";
+import { createPaymentRequest, nanopaymentConfig, verifyNanopayment } from "./circle-nanopayment.mjs";
 
 export function createApp({ db = openDatabase() } = {}) {
   seedDatabase(db);
@@ -446,6 +447,61 @@ export function createApp({ db = openDatabase() } = {}) {
   app.get("/proofs", (_request, response) => response.json({ proofs: db.prepare("SELECT * FROM proofs ORDER BY created_at DESC").all().map(serializeProof) }));
   app.get("/settlements", (_request, response) => response.json(settlementSummary(db)));
   app.get("/dashboard", (_request, response) => response.json(buildDashboard(db)));
+
+  // ---- Escrow Endpoints ----
+  app.post("/escrow/deposit", (request, response) => {
+    if (!authenticate(db, request, "issuer", "useful_waiting_protocol")) throw httpError(403, "Issuer API key required.");
+    const { jobId, agentAddress, amount, txHash } = request.body || {};
+    requireId(jobId, "jobId");
+    requireString(agentAddress, "agentAddress");
+    requireString(amount, "amount");
+    requireString(txHash, "txHash");
+    db.prepare("UPDATE jobs SET funding_rail = ?, escrow_status = ?, escrow_tx_hash = ? WHERE job_id = ?")
+      .run("arc_usdc_escrow", "funded", txHash, jobId);
+    response.json({ ok: true, fundingRail: "arc_usdc_escrow", escrowStatus: "funded", escrowTxHash: txHash });
+  });
+
+  app.post("/escrow/release", (request, response) => {
+    if (!authenticate(db, request, "issuer", "useful_waiting_protocol")) throw httpError(403, "Issuer API key required.");
+    const { jobId, txHash } = request.body || {};
+    requireId(jobId, "jobId");
+    requireString(txHash, "txHash");
+    db.prepare("UPDATE jobs SET escrow_status = 'released', escrow_tx_hash = ? WHERE job_id = ?").run(txHash, jobId);
+    response.json({ ok: true, escrowStatus: "released", escrowTxHash: txHash });
+  });
+
+  app.post("/escrow/refund", (request, response) => {
+    if (!authenticate(db, request, "issuer", "useful_waiting_protocol")) throw httpError(403, "Issuer API key required.");
+    const { jobId, txHash } = request.body || {};
+    requireId(jobId, "jobId");
+    requireString(txHash, "txHash");
+    db.prepare("UPDATE jobs SET escrow_status = 'refunded', escrow_tx_hash = ? WHERE job_id = ?").run(txHash, jobId);
+    response.json({ ok: true, escrowStatus: "refunded", escrowTxHash: txHash });
+  });
+
+  // ---- Nanopayment Endpoints ----
+  app.get("/nanopayment/config", (_request, response) => {
+    response.json(nanopaymentConfig());
+  });
+
+  app.get("/jobs/:jobId/access-fee", (request, response) => {
+    const { agentAddress } = request.query;
+    response.json(createPaymentRequest(request.params.jobId, agentAddress || "unknown"));
+  });
+
+  app.post("/jobs/:jobId/access-fee/verify", async (request, response) => {
+    const { agentId, agentAddress } = request.body || {};
+    requireId(agentId, "agentId");
+    requireString(agentAddress, "agentAddress");
+    const result = await verifyNanopayment(agentAddress, request.params.jobId);
+    if (result.paid) {
+      try {
+        db.prepare(`UPDATE job_claims SET claim_access_rail = ?, claim_access_price = ?, claim_access_status = ? WHERE job_id = ? AND agent_id = ? AND status = 'active'`)
+          .run("circle_gateway_nanopayments", result.accessFee, "paid", request.params.jobId, agentId);
+      } catch { /* claim may not exist yet */ }
+    }
+    response.json(result);
+  });
 
   app.use((error, _request, response, _next) => {
     const status = error.status || 500;
