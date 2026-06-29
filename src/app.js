@@ -566,6 +566,7 @@ async function hydrateFromApi() {
     systemStatus.arc = dashboard.treasury?.network === "Arc Testnet" ? "Connected" : "Unavailable";
     setLandingText("#landingApi", "Connected");
     render();
+    hydrateLeaderboard().catch(() => {});
   } catch (error) {
     apiConnected = false;
     apiLoading = false;
@@ -579,6 +580,7 @@ async function hydrateFromApi() {
     setLandingText("#landingRejected", ledger.filter((proof) => proof.fundingStatus === "rejected").length);
     setLandingText("#landingTreasury", "Demo data");
     render();
+    renderLocalLeaderboard();
   } finally {
     window.clearTimeout(timeout);
   }
@@ -790,3 +792,62 @@ document.addEventListener("click", (event) => {
 });
 window.addEventListener("popstate", renderRoute);
 renderRoute();
+
+async function hydrateLeaderboard() {
+  try {
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 3000);
+    const response = await fetch(`${API_URL}/leaderboard`, { signal: controller.signal });
+    window.clearTimeout(timeout);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    renderLeaderboard(data.leaderboard || []);
+  } catch {
+    renderLocalLeaderboard();
+  }
+}
+
+function renderLocalLeaderboard() {
+  const sorted = [...agents].sort((a, b) => b.earned - a.earned || b.score - a.score);
+  renderLeaderboard(sorted.map((agent, i) => ({
+    rank: i + 1,
+    agentId: agent.agentId,
+    name: agent.name,
+    score: agent.score,
+    approvedProofs: "-",
+    paidProofs: "-",
+    settledVolume: `${agent.earned.toFixed(3)} USDC`,
+    duplicateRate: 0,
+    riskFlag: "clean",
+    accessLevel: "starter",
+    status: agent.status,
+  })));
+}
+
+function renderLeaderboard(rows) {
+  const tbody = document.getElementById("leaderboardBody");
+  if (!tbody) return;
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="7" class="leaderboard-empty">No agents found</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map((row) => {
+    const riskClass = row.riskFlag === "clean" ? "risk-clean" : row.riskFlag === "flagged" ? "risk-flagged" : "risk-blocked";
+    const rankIcon = row.rank === 1 ? "🥇" : row.rank === 2 ? "🥈" : row.rank === 3 ? "🥉" : `#${row.rank}`;
+    return `<tr>
+      <td class="leaderboard-rank">${rankIcon}</td>
+      <td><strong>${escapeHtml(row.name)}</strong><br><small>${escapeHtml(row.agentId)}</small></td>
+      <td class="leaderboard-score">${row.score ?? "-"}</td>
+      <td>${row.approvedProofs ?? "-"}</td>
+      <td>${row.paidProofs ?? "-"}</td>
+      <td class="leaderboard-earned">${row.settledVolume || "0.000 USDC"}</td>
+      <td><span class="risk-badge ${riskClass}">${row.riskFlag || "clean"}</span></td>
+    </tr>`;
+  }).join("");
+}
+
+function escapeHtml(str) {
+  const div = document.createElement("div");
+  div.textContent = str;
+  return div.innerHTML;
+}

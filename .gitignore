@@ -22,3 +22,4 @@ settlement/settlement-state.json
 work/settlement-batch.json
 
 .vercel
+.env*

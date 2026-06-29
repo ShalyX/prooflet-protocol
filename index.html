@@ -238,6 +238,18 @@
           <div class="ledger" id="ledger"></div>
         </section>
 
+        <section class="panel leaderboard-panel" id="leaderboardPanel">
+          <header><h2>🏆 Agent Leaderboard</h2><span class="panel-badge">ranked by trust + earnings</span></header>
+          <div class="leaderboard-table-wrap">
+            <table class="leaderboard-table">
+              <thead><tr><th>Rank</th><th>Agent</th><th>Trust</th><th>Approved</th><th>Paid</th><th>Earned</th><th>Risk</th></tr></thead>
+              <tbody id="leaderboardBody">
+                <tr><td colspan="7" class="leaderboard-loading">Loading leaderboard…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
         <section class="panel queue-panel">
           <header><h2>Micro-work Queue</h2><button class="ghost compact" id="addJobs" type="button">Add jobs</button></header>
           <nav class="queue-tabs" id="queueTabs" aria-label="Queue filters">
