@@ -85,31 +85,14 @@ export function createApp({ db = openDatabase() } = {}) {
   app.post("/jobs/:jobId/fund-escrow", async (request, response) => {
     const { jobId } = request.params;
     const { issuerId } = request.body || {};
-    if (!issuerId) throw httpError(400, "issuerId required.");
-    if (!authenticate(db, request, "issuer", issuerId)) throw httpError(401, "Valid issuer API key required.");
-    
+    requireId(issuerId, "issuerId");
+    verifyApiKey(request, db, "issuer", issuerId);
+
     const job = db.prepare("SELECT * FROM jobs WHERE job_id = ? AND issuer_id = ?").get(jobId, issuerId);
     if (!job) throw httpError(404, "Job not found");
-    if (job.funding_status !== "awaiting_wallet_funding") throw httpError(400, `Cannot fund job in state ${job.funding_status}`);
-    if (job.funding_rail !== "arc_usdc_escrow") throw httpError(400, "Job does not require escrow funding");
+    if (job.funding_status !== "awaiting_wallet_funding") throw httpError(400, "Job is not awaiting wallet funding");
 
-    const issuer = db.prepare("SELECT * FROM issuers WHERE issuer_id = ?").get(issuerId);
-    if (!issuer.circle_wallet_id) throw httpError(400, "Issuer has no Circle Wallet. Create one first.");
-
-    const treasury = process.env.TREASURY_ADDRESS;
-    if (!treasury) throw httpError(500, "Missing TREASURY_ADDRESS");
-
-    const tx = await sendUsdc({
-      sourceWalletId: issuer.circle_wallet_id,
-      amount: job.reward_amount,
-      destinationAddress: treasury,
-      idempotencyKey: `fund-job-${jobId}-${Date.now()}`
-    });
-    if (!tx) throw httpError(500, "Circle transfer failed");
-
-    db.prepare(`UPDATE jobs SET funding_status = 'escrow_funded', funding_source = 'circle_wallet', treasury_tx_hash = ? WHERE job_id = ?`).run(tx.hash, jobId);
-
-    response.json({ fundingStatus: "escrow_funded", txHash: tx.hash });
+    throw httpError(400, "Open marketplace funding requires ProofletEscrowV2. Coming soon.");
   });
 
   app.post("/agents/register", (request, response) => {

@@ -217,17 +217,33 @@
               <p><strong>Current mode:</strong> <span id="fundingModeLabel">External Issuer</span></p>
               <p><strong>Circle issuer wallet:</strong> <span id="fundingWalletStatus" class="state-badge draft">Not created</span></p>
               <div id="fundingWalletDetails" hidden>
-                <p><strong>Wallet address:</strong> <span id="fundingWalletAddress"></span></p>
-                <p><strong>Balance:</strong> <span id="fundingWalletBalance">0</span> USDC</p>
-                <p class="issuer-helper">Send Arc Testnet USDC to this issuer wallet before funding escrow.</p>
+                <p><strong>Wallet address:</strong> <span id="fundingWalletAddress"></span> <button type="button" class="compact ghost" id="copyWalletAddrBtn">Copy</button></p>
+                <p><strong>Balance:</strong> <span id="fundingWalletBalance">0</span> USDC <span id="fundingBalanceStatus" class="state-badge"></span></p>
+                <div class="top-up-instructions" style="margin-top: 12px; padding: 12px; border: 1px solid var(--line-strong); border-radius: 8px;">
+                  <strong style="color: var(--primary); display: block; margin-bottom: 4px;">Top up this wallet</strong>
+                  <p class="issuer-helper" style="margin-bottom: 8px;">Send Arc Testnet USDC to this issuer wallet before funding escrow.</p>
+                  <p><strong>Network:</strong> Arc Testnet (5042002)</p>
+                  <p><strong>Asset:</strong> USDC <code style="font-size: 0.8em;">0x3600000000000000000000000000000000000000</code></p>
+                </div>
               </div>
-              <div class="funding-actions">
+              <div class="funding-actions" style="margin-top: 12px;">
                 <button class="primary" id="createIssuerWalletBtn" type="button">Create Circle wallet</button>
                 <button class="secondary" id="refreshWalletBtn" type="button" hidden>Refresh balance</button>
               </div>
             </div>
           </section>
+          
           <section class="workbench-block"><h3>Overview</h3><div class="workbench-stats" id="issuerOverview"><div class="workbench-empty"><strong>Connect an issuer session</strong><p>Create funded jobs, validate bulk uploads, review proofs, and follow Arc Testnet payouts from one workspace.</p></div></div></section>
+          
+          <section class="workbench-block" id="demoEvidencePanel">
+            <h3>Demo Evidence</h3>
+            <div style="display: flex; flex-direction: column; gap: 8px; font-size: 0.85rem; padding: 12px; background: rgba(255,255,255,0.02); border: 1px solid var(--line-strong); border-radius: 8px;">
+              <p><strong>Escrow Contract:</strong> <code style="font-size:0.8em">0xb3397ce196ebf553b8e951abaf75c18785c7e69a</code> <a href="https://testnet.arcscan.io/address/0xb3397ce196ebf553b8e951abaf75c18785c7e69a" target="_blank" rel="noreferrer" style="color: var(--amber);">Arcscan</a></p>
+              <p><strong>Circle Wallet Provisioning:</strong> <span class="state-badge claimed">Active</span></p>
+              <p><strong>Nanopayment Mode:</strong> <span class="state-badge completed">Config-ready Sandbox</span></p>
+              <p><strong>Environment:</strong> Arc Testnet / Off-chain Proofs</p>
+            </div>
+          </section>
           <section class="workbench-block"><h3>Create Single Job</h3><form id="singleJobForm" class="workbench-form">
             <label>Job ID<input name="jobId" required placeholder="job_link_001"></label><label>Job type<select name="jobType"><option>link_verification</option><option>freshness_check</option><option>eval_labeling</option></select></label>
             <label>Reward USDC<input name="rewardAmount" required value="0.003"></label><label>Verification<select name="verificationMode"><option value="deterministic">Deterministic</option><option value="subjective">Subjective</option></select></label>

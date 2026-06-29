@@ -26,12 +26,14 @@ export function initIssuerWorkbench({ apiUrl, onNavigate }) {
       document.querySelector("#issuerIdInput").value = sessionStorage.getItem("uwp.extIssuerId")||"";
       document.querySelector("#issuerKeyInput").value = sessionStorage.getItem("uwp.extIssuerApiKey")||"";
       document.querySelector("#issuerHelperText").textContent = "External issuers require a Circle wallet for funding.";
+      document.querySelector("#demoEvidencePanel").hidden = true;
     } else {
       document.querySelector("#issuerFundingPanel").hidden = true;
       document.querySelector("#showRegisterBtn").hidden = true;
       document.querySelector("#issuerIdInput").value = sessionStorage.getItem("uwp.issuerId")||"useful_waiting_protocol";
       document.querySelector("#issuerKeyInput").value = sessionStorage.getItem("uwp.issuerApiKey")||"";
       document.querySelector("#issuerHelperText").textContent = "Internal compatibility ID retained from the original build.";
+      document.querySelector("#demoEvidencePanel").hidden = false;
     }
     client = null;
     renderUnauthenticated();
@@ -111,6 +113,11 @@ export function initIssuerWorkbench({ apiUrl, onNavigate }) {
     URL.revokeObjectURL(url);
   });
 
+  document.querySelector("#copyWalletAddrBtn").addEventListener("click", () => {
+    navigator.clipboard.writeText(document.querySelector("#fundingWalletAddress").textContent);
+    setStatus("Wallet address copied.", true);
+  });
+
   toggle.addEventListener("click",()=>onNavigate(location.pathname==="/issuer"?"/dashboard":"/issuer"));
   document.querySelector("#connectIssuer").addEventListener("click",connect);
   document.querySelector("#clearIssuer").addEventListener("click",()=>{
@@ -138,11 +145,12 @@ export function initIssuerWorkbench({ apiUrl, onNavigate }) {
 
   async function fetchWallet() {
     try {
+      document.querySelector("#fundingBalanceStatus").textContent = "Loading...";
       const res = await fetch(`${apiUrl}/issuers/${encodeURIComponent(client.issuerId)}/wallet`, { headers: { "X-API-Key": client.apiKey } });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       renderWallet(data.wallet);
-    } catch (error) { setStatus(error.message, false); }
+    } catch (error) { setStatus(error.message, false); document.querySelector("#fundingBalanceStatus").textContent = "Config unavailable"; document.querySelector("#fundingBalanceStatus").className = "state-badge rejected"; }
   }
 
   async function createWallet() {
@@ -169,6 +177,16 @@ export function initIssuerWorkbench({ apiUrl, onNavigate }) {
       document.querySelector("#fundingWalletDetails").hidden = false;
       document.querySelector("#fundingWalletAddress").textContent = wallet.address || wallet.walletId;
       document.querySelector("#fundingWalletBalance").textContent = money(wallet.balance);
+      
+      const balSpan = document.querySelector("#fundingBalanceStatus");
+      if (wallet.balance > 0) {
+        balSpan.textContent = "Available";
+        balSpan.className = "state-badge completed";
+      } else {
+        balSpan.textContent = "Insufficient balance";
+        balSpan.className = "state-badge draft";
+      }
+      
       document.querySelector("#createIssuerWalletBtn").hidden = true;
       document.querySelector("#refreshWalletBtn").hidden = false;
     }
@@ -184,13 +202,15 @@ export function initIssuerWorkbench({ apiUrl, onNavigate }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      setStatus(`Escrow funded for ${jobId}.`, true);
+      setStatus(`Escrow funding broadcast for ${jobId}.`, true);
       await refresh();
       await fetchWallet();
     } catch (error) { setStatus(error.message, false); }
   }
 
   window.fundJobAction = fundJob;
+
+
 
   async function refresh(){const [overview,jobs,proofs,settlements]=await Promise.all([client.overview(),client.listJobs(),client.listProofs(),client.listSettlements()]);renderOverview(overview);renderJobs(jobs.jobs);renderProofs(proofs.proofs);renderSettlements(settlements);}
   
@@ -222,17 +242,21 @@ export function initIssuerWorkbench({ apiUrl, onNavigate }) {
   function renderOverview(value){document.querySelector("#issuerOverview").innerHTML=[["Jobs",value.jobs],["Proofs",value.proofs],["Reserved",`${money(value.reservedRewards)} USDC`],["Payable",`${money(value.payableRewards)} USDC`],["Paid proofs",value.paidProofs],["Pending review",value.pendingAdjudication]].map(([label,val])=>`<div><span>${label}</span><strong>${val}</strong></div>`).join("");}
   
   function renderJobs(rows){
-    document.querySelector("#issuerJobs").innerHTML=rows.length?table(["Job","Type","Reward","Status","Funding","Claimed by","Access"],rows.map((row)=>[
-      row.jobId,
-      row.jobType,
-      `${row.rewardAmount} USDC`,
-      jobState(row),
-      row.fundingStatus === "awaiting_wallet_funding" 
-        ? `${pill("Awaiting wallet funding")} <button type="button" class="funding-action-btn primary" onclick="fundJobAction('${escape(row.jobId)}')">Fund Escrow</button>` 
-        : pill(fundingState(row.fundingStatus)),
-      row.claimedBy||"—",
-      row.requiredAccessLevel
-    ]),true):empty("No funded jobs yet","Create a single job or validate a bulk upload to begin.");
+    document.querySelector("#issuerJobs").innerHTML=rows.length?table(["Job","Type","Reward","Status","Funding","Claimed by","Access"],rows.map((row)=>{
+      let fundingCol = pill(fundingState(row.fundingStatus));
+      if (row.fundingStatus === "awaiting_wallet_funding") {
+        fundingCol = `${pill("Awaiting wallet funding")} <br><span class="issuer-helper" style="display:inline-block; margin-top:4px; max-width: 140px; color: var(--amber);">Open marketplace funding requires ProofletEscrowV2.</span>`;
+      }
+      return [
+        row.jobId,
+        row.jobType,
+        `${row.rewardAmount} USDC`,
+        jobState(row),
+        fundingCol,
+        row.claimedBy||"—",
+        row.requiredAccessLevel
+      ];
+    }),true):empty("No funded jobs yet","Create a single job or validate a bulk upload to begin.");
   }
   
   function renderProofs(rows){document.querySelector("#issuerProofs").innerHTML=rows.length?table(["Proof","Agent","Route","Verification","Adjudication","Funding","Settlement","Transaction"],rows.map((row)=>[truncateId(row.proofId),truncateId(row.agentId),row.verificationRoute,pill(row.verificationStatus),adjudicationState(row),pill(fundingState(row.fundingStatus)),settlementState(row),row.txHash?`<a href="${escape(row.explorer)}" target="_blank" rel="noreferrer">Arcscan</a>`:"—"]),true):empty("No proofs submitted","Verified agent work will appear here with its payout state.");}
@@ -247,7 +271,7 @@ function truncateId(id){if(!id)return "—";return `<span title="${escape(id)}" 
 function pill(status){const cssClass = String(status).toLowerCase().split(" ")[0]; return `<span class="state-badge ${escape(cssClass)}">${escape(status)}</span>`;}
 function money(value){return Number(value||0).toFixed(3);} function date(value){return new Date(value).toLocaleString();}
 function empty(title,copy){return `<div class="workbench-empty"><strong>${escape(title)}</strong><p>${escape(copy)}</p></div>`;}
-function fundingState(value){return ({reserved:"Reserved",payable:"Payable",paid:"Paid",rejected:"Rejected",pending_adjudication:"Pending review",settlement_failed:"Settlement review",escrow_funded:"Escrow funded",escrow_deposited:"Escrow deposited",awaiting_wallet_funding:"Awaiting wallet funding"})[value]||value;}
+function fundingState(value){return ({reserved:"Reserved",payable:"Payable",paid:"Paid",rejected:"Rejected",pending_adjudication:"Pending review",settlement_failed:"Settlement review",escrow_funded:"Escrow funded",escrow_deposited:"Escrow deposited",awaiting_wallet_funding:"Awaiting wallet funding",awaiting_escrow_funding:"Awaiting verification"})[value]||value;}
 function jobState(row){return ({open:"Open",claimed:"Claimed",completed:"Completed",rejected:"Rejected",pending_adjudication:"Pending review"})[row.status]||row.status;}
 function settlementState(row){if(row.fundingStatus==="paid")return "Paid · Settled on Arc";if(row.fundingStatus==="payable")return "Payable · Approved";if(row.fundingStatus==="rejected")return "Rejected · No payout";return escape(row.settlementStatus);}
 function adjudicationState(row){if(row.adjudicationRoute==="deterministic")return "Deterministic";if(row.adjudicationRoute==="manual_adapter")return "Manual Adapter";const decision=row.genlayer?.decision;const status=row.genlayer?.status||"pending";return `${pill(status)}${decision?`<div class="reason-cell">${escape(decision.decision)}: ${escape(decision.reason)}</div>`:""}`;}
