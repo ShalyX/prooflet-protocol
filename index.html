@@ -152,10 +152,14 @@
 
       <section class="workbench protocol-route" id="issuerWorkbench" hidden aria-label="Issuer Workbench">
         <header class="workbench-head"><div><span>ISSUER CONTROL PLANE</span><h2>Issuer Workbench</h2></div><strong id="workbenchConnection">Not authenticated</strong></header>
+        <div class="issuer-mode-tabs">
+          <button class="mode-tab active" data-mode="demo">Prooflet Demo Issuer</button>
+          <button class="mode-tab" data-mode="external">External Issuer</button>
+        </div>
         <div class="issuer-session-panel workbench-auth">
           <div class="issuer-session-column" id="issuerCol">
             <label>Issuer ID<input id="issuerIdInput" value="useful_waiting_protocol" autocomplete="username"></label>
-            <p class="issuer-helper">Internal compatibility ID retained from the original build.</p>
+            <p class="issuer-helper" id="issuerHelperText">Internal compatibility ID retained from the original build.</p>
           </div>
           <div class="issuer-key-column">
             <label>Session API key<input id="issuerKeyInput" type="password" placeholder="Stored for this tab only" autocomplete="current-password"></label>
@@ -166,6 +170,22 @@
           </div>
         </div>
         <div class="workbench-grid">
+          <section class="workbench-block external-only" id="issuerFundingPanel" hidden>
+            <h3>Issuer Funding</h3>
+            <div class="funding-status-panel">
+              <p><strong>Current mode:</strong> <span id="fundingModeLabel">External Issuer</span></p>
+              <p><strong>Circle issuer wallet:</strong> <span id="fundingWalletStatus" class="state-badge draft">Not created</span></p>
+              <div id="fundingWalletDetails" hidden>
+                <p><strong>Wallet address:</strong> <span id="fundingWalletAddress"></span></p>
+                <p><strong>Balance:</strong> <span id="fundingWalletBalance">0</span> USDC</p>
+                <p class="issuer-helper">Send Arc Testnet USDC to this issuer wallet before funding escrow.</p>
+              </div>
+              <div class="funding-actions">
+                <button class="primary" id="createIssuerWalletBtn" type="button">Create Circle wallet</button>
+                <button class="secondary" id="refreshWalletBtn" type="button" hidden>Refresh balance</button>
+              </div>
+            </div>
+          </section>
           <section class="workbench-block"><h3>Overview</h3><div class="workbench-stats" id="issuerOverview"><div class="workbench-empty"><strong>Connect an issuer session</strong><p>Create funded jobs, validate bulk uploads, review proofs, and follow Arc Testnet payouts from one workspace.</p></div></div></section>
           <section class="workbench-block"><h3>Create Single Job</h3><form id="singleJobForm" class="workbench-form">
             <label>Job ID<input name="jobId" required placeholder="job_link_001"></label><label>Job type<select name="jobType"><option>link_verification</option><option>freshness_check</option><option>eval_labeling</option></select></label>

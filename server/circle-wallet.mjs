@@ -26,6 +26,11 @@ export async function createAgentWallet(agentId, name) {
   return { walletId: w.id, address: w.address, blockchain: w.blockchain, state: w.state, accountType: w.accountType };
 }
 
+export async function createIssuerWallet(issuerId) {
+  return createAgentWallet(issuerId, "Issuer"); // Same logic
+}
+
+
 export async function sendUsdc(opts) {
   const c = g();
   if (!c) throw new Error("Circle not configured");

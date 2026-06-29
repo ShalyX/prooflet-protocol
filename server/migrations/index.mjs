@@ -144,6 +144,15 @@ export const migrations = [
          addColumn(db, "job_claims", "claim_access_tx_hash", "TEXT");
        },
      },
+     {
+       version: 8,
+       name: "external_issuer_funding",
+       up(db) {
+         addColumn(db, "issuers", "circle_wallet_id", "TEXT");
+         addColumn(db, "jobs", "funding_source", "TEXT");
+         addColumn(db, "jobs", "treasury_tx_hash", "TEXT");
+       },
+     },
    ];
 
 export function runMigrations(db) {

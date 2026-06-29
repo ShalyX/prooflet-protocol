@@ -3,23 +3,156 @@ import { IssuerClient } from "@useful-waiting/issuer-sdk";
 export function initIssuerWorkbench({ apiUrl, onNavigate }) {
   const panel=document.querySelector("#issuerWorkbench"), toggle=document.querySelector("#toggleWorkbench");
   const issuerInput=document.querySelector("#issuerIdInput"), keyInput=document.querySelector("#issuerKeyInput"), message=document.querySelector("#workbenchMessage");
-  let client=null, preview=null;
+  let client=null, preview=null, mode="demo";
+  
   issuerInput.value=sessionStorage.getItem("uwp.issuerId")||issuerInput.value; keyInput.value=sessionStorage.getItem("uwp.issuerApiKey")||"";
+  
   if(import.meta.env.DEV){const helper=document.createElement("button");helper.className="ghost dev-issuer-helper";helper.type="button";helper.textContent="Use local dev issuer";helper.addEventListener("click",()=>{issuerInput.value="useful_waiting_protocol";keyInput.value="uwp_issuer_useful_waiting_protocol_dev";message.textContent="Local development credentials loaded. Select Connect to start the issuer session.";message.dataset.state="ok";document.querySelector("#workbenchConnection").textContent="Credentials loaded";});document.querySelector("#issuerCol").append(helper);}
+  
+  document.querySelectorAll(".mode-tab").forEach(btn => btn.addEventListener("click", (e) => {
+    document.querySelectorAll(".mode-tab").forEach(b => b.classList.remove("active"));
+    e.target.classList.add("active");
+    mode = e.target.dataset.mode;
+    document.querySelector("#fundingModeLabel").textContent = mode === "external" ? "External Issuer" : "Prooflet Demo Issuer";
+    if (mode === "external") {
+      document.querySelector("#issuerFundingPanel").hidden = false;
+      document.querySelector("#issuerIdInput").value = sessionStorage.getItem("uwp.extIssuerId")||"";
+      document.querySelector("#issuerKeyInput").value = sessionStorage.getItem("uwp.extIssuerApiKey")||"";
+      document.querySelector("#issuerHelperText").textContent = "External issuers require a Circle wallet for funding.";
+    } else {
+      document.querySelector("#issuerFundingPanel").hidden = true;
+      document.querySelector("#issuerIdInput").value = sessionStorage.getItem("uwp.issuerId")||"useful_waiting_protocol";
+      document.querySelector("#issuerKeyInput").value = sessionStorage.getItem("uwp.issuerApiKey")||"";
+      document.querySelector("#issuerHelperText").textContent = "Internal compatibility ID retained from the original build.";
+    }
+    client = null;
+    renderUnauthenticated();
+  }));
+
   toggle.addEventListener("click",()=>onNavigate(location.pathname==="/issuer"?"/dashboard":"/issuer"));
   document.querySelector("#connectIssuer").addEventListener("click",connect);
-  document.querySelector("#clearIssuer").addEventListener("click",()=>{sessionStorage.removeItem("uwp.issuerId");sessionStorage.removeItem("uwp.issuerApiKey");keyInput.value="";client=null;renderUnauthenticated();setStatus("Session cleared. Connect to manage funded jobs and payouts.",false);});
+  document.querySelector("#clearIssuer").addEventListener("click",()=>{
+    if (mode === "demo") { sessionStorage.removeItem("uwp.issuerId"); sessionStorage.removeItem("uwp.issuerApiKey"); }
+    else { sessionStorage.removeItem("uwp.extIssuerId"); sessionStorage.removeItem("uwp.extIssuerApiKey"); }
+    keyInput.value="";client=null;renderUnauthenticated();setStatus("Session cleared. Connect to manage funded jobs and payouts.",false);
+  });
   document.querySelector("#singleJobForm").addEventListener("submit",createJob);
   document.querySelector("#uploadForm").addEventListener("submit",validateFile);
+  document.querySelector("#createIssuerWalletBtn").addEventListener("click", createWallet);
+  document.querySelector("#refreshWalletBtn").addEventListener("click", fetchWallet);
+  
   if(!keyInput.value)renderUnauthenticated();
 
-  async function connect(){try{sessionStorage.setItem("uwp.issuerId",issuerInput.value.trim());sessionStorage.setItem("uwp.issuerApiKey",keyInput.value);client=new IssuerClient({baseUrl:apiUrl,issuerId:issuerInput.value.trim(),apiKey:keyInput.value});await refresh();setStatus("Issuer session connected.",true);}catch(error){client=null;renderUnauthenticated();setStatus(error.message,false);}}
+  async function connect(){
+    try {
+      if (mode === "demo") { sessionStorage.setItem("uwp.issuerId",issuerInput.value.trim()); sessionStorage.setItem("uwp.issuerApiKey",keyInput.value); }
+      else { sessionStorage.setItem("uwp.extIssuerId",issuerInput.value.trim()); sessionStorage.setItem("uwp.extIssuerApiKey",keyInput.value); }
+      client=new IssuerClient({baseUrl:apiUrl,issuerId:issuerInput.value.trim(),apiKey:keyInput.value});
+      await refresh();
+      setStatus("Issuer session connected.",true);
+      if (mode === "external") await fetchWallet();
+    } catch(error) { client=null;renderUnauthenticated();setStatus(error.message,false); }
+  }
+
+  async function fetchWallet() {
+    try {
+      const res = await fetch(`${apiUrl}/issuers/${encodeURIComponent(client.issuerId)}/wallet`, { headers: { "X-API-Key": client.apiKey } });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      renderWallet(data.wallet);
+    } catch (error) { setStatus(error.message, false); }
+  }
+
+  async function createWallet() {
+    try {
+      setStatus("Creating Circle wallet...", true);
+      const res = await fetch(`${apiUrl}/issuers/${encodeURIComponent(client.issuerId)}/wallet`, { method: "POST", headers: { "X-API-Key": client.apiKey } });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      renderWallet(data.wallet);
+      setStatus("Wallet created.", true);
+    } catch (error) { setStatus(error.message, false); }
+  }
+
+  function renderWallet(wallet) {
+    if (!wallet) {
+      document.querySelector("#fundingWalletStatus").textContent = "Not created";
+      document.querySelector("#fundingWalletStatus").className = "state-badge draft";
+      document.querySelector("#fundingWalletDetails").hidden = true;
+      document.querySelector("#createIssuerWalletBtn").hidden = false;
+      document.querySelector("#refreshWalletBtn").hidden = true;
+    } else {
+      document.querySelector("#fundingWalletStatus").textContent = "Created";
+      document.querySelector("#fundingWalletStatus").className = "state-badge escrow_funded";
+      document.querySelector("#fundingWalletDetails").hidden = false;
+      document.querySelector("#fundingWalletAddress").textContent = wallet.address || wallet.walletId;
+      document.querySelector("#fundingWalletBalance").textContent = money(wallet.balance);
+      document.querySelector("#createIssuerWalletBtn").hidden = true;
+      document.querySelector("#refreshWalletBtn").hidden = false;
+    }
+  }
+
+  async function fundJob(jobId) {
+    try {
+      setStatus(`Funding escrow for ${jobId}...`, true);
+      const res = await fetch(`${apiUrl}/jobs/${encodeURIComponent(jobId)}/fund-escrow`, {
+        method: "POST",
+        headers: { "X-API-Key": client.apiKey, "Content-Type": "application/json" },
+        body: JSON.stringify({ issuerId: client.issuerId })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setStatus(`Escrow funded for ${jobId}.`, true);
+      await refresh();
+      await fetchWallet();
+    } catch (error) { setStatus(error.message, false); }
+  }
+
+  window.fundJobAction = fundJob;
+
   async function refresh(){const [overview,jobs,proofs,settlements]=await Promise.all([client.overview(),client.listJobs(),client.listProofs(),client.listSettlements()]);renderOverview(overview);renderJobs(jobs.jobs);renderProofs(proofs.proofs);renderSettlements(settlements);}
-  async function createJob(event){event.preventDefault();if(!client)return setStatus("Connect an issuer session first.",false);try{const data=new FormData(event.currentTarget);let input, proofReq;try{input=JSON.parse(data.get("input"));proofReq=JSON.parse(data.get("proofRequirements"))}catch{return setStatus("Invalid JSON in input or proofRequirements field.",false)}const job=await client.createJob({jobId:data.get("jobId"),jobType:data.get("jobType"),rewardAmount:data.get("rewardAmount"),verificationMode:data.get("verificationMode"),input,proofRequirements:proofReq});setStatus(`Reserved ${job.jobId} at ${job.rewardAmount} testnet USDC.`,true);await refresh();}catch(error){setStatus(error.message,false);}}
+  
+  async function createJob(event){
+    event.preventDefault();if(!client)return setStatus("Connect an issuer session first.",false);
+    try{
+      const data=new FormData(event.currentTarget);
+      let input, proofReq;
+      try{input=JSON.parse(data.get("input"));proofReq=JSON.parse(data.get("proofRequirements"))}catch{return setStatus("Invalid JSON in input or proofRequirements field.",false)}
+      
+      const payload = {
+        jobId:data.get("jobId"),jobType:data.get("jobType"),rewardAmount:data.get("rewardAmount"),verificationMode:data.get("verificationMode"),
+        input,proofRequirements:proofReq
+      };
+      
+      if (mode === "external") {
+        payload.fundingStatus = "awaiting_wallet_funding";
+        payload.fundingRail = "arc_usdc_escrow";
+      }
+      
+      const job=await client.createJob(payload);
+      setStatus(`Created ${job.jobId} at ${job.rewardAmount} testnet USDC.`,true);
+      await refresh();
+    }catch(error){setStatus(error.message,false);}
+  }
+  
   async function validateFile(event){event.preventDefault();if(!client)return setStatus("Connect an issuer session first.",false);const file=document.querySelector("#uploadFile").files[0];if(!file)return;try{preview=await client.validateUpload({filename:file.name,format:file.name.toLowerCase().endsWith(".csv")?"csv":"json",content:await file.text()});renderPreview(preview);setStatus("Validation finished. No jobs have been created yet.",true);}catch(error){setStatus(error.message,false);}}
-  function renderPreview(upload){const root=document.querySelector("#uploadPreview");root.innerHTML=`<div class="preview-total"><strong>${upload.totalRewardRequired} USDC</strong><span>${upload.validRows} valid / ${upload.invalidRows} invalid</span></div>${upload.rows.map((row)=>`<p class="${row.valid?"valid":"invalid"}">Row ${row.rowNumber}: ${escape(row.job?.jobId||"invalid row")} ${row.errors.length?`· ${escape(row.errors.join(" "))}`:"· ready"}</p>`).join("")}${upload.status === "confirmed" ? '<div class="preview-actions"><strong>✅ Upload Confirmed & Jobs Created</strong></div>' : `<div class="preview-actions"><button class="primary" data-confirm="strict">Create jobs (Requires 0 invalid)</button>${upload.invalidRows?'<button class="secondary" data-confirm="validOnly">Skip invalid & create good jobs</button>':""}</div>`}`;root.querySelectorAll("[data-confirm]").forEach((button)=>button.addEventListener("click",async()=>{try{const mode=button.dataset.confirm;const result=await client.confirmUpload(upload.uploadId,{mode,acknowledgeInvalidRows:mode==="validOnly"});setStatus(`Created ${result.createdJobIds.length} jobs.`,true);renderPreview(result);await refresh();}catch(error){setStatus(error.message,false);}}));}
+  function renderPreview(upload){const root=document.querySelector("#uploadPreview");root.innerHTML=`<div class="preview-total"><strong>${upload.totalRewardRequired} USDC</strong><span>${upload.validRows} valid / ${upload.invalidRows} invalid</span></div>${upload.rows.map((row)=>`<p class="${row.valid?"valid":"invalid"}">Row ${row.rowNumber}: ${escape(row.job?.jobId||"invalid row")} ${row.errors.length?`· ${escape(row.errors.join(" "))}`:"· ready"}</p>`).join("")}${upload.status === "confirmed" ? '<div class="preview-actions"><strong>✅ Upload Confirmed & Jobs Created</strong></div>' : `<div class="preview-actions"><button class="primary" data-confirm="strict">Create jobs (Requires 0 invalid)</button>${upload.invalidRows?'<button class="secondary" data-confirm="validOnly">Skip invalid & create good jobs</button>':""}</div>`}`;root.querySelectorAll("[data-confirm]").forEach((button)=>button.addEventListener("click",async()=>{try{const confirmMode=button.dataset.confirm;const result=await client.confirmUpload(upload.uploadId,{mode:confirmMode,acknowledgeInvalidRows:confirmMode==="validOnly"});setStatus(`Created ${result.createdJobIds.length} jobs.`,true);renderPreview(result);await refresh();}catch(error){setStatus(error.message,false);}}));}
   function renderOverview(value){document.querySelector("#issuerOverview").innerHTML=[["Jobs",value.jobs],["Proofs",value.proofs],["Reserved",`${money(value.reservedRewards)} USDC`],["Payable",`${money(value.payableRewards)} USDC`],["Paid proofs",value.paidProofs],["Pending review",value.pendingAdjudication]].map(([label,val])=>`<div><span>${label}</span><strong>${val}</strong></div>`).join("");}
-  function renderJobs(rows){document.querySelector("#issuerJobs").innerHTML=rows.length?table(["Job","Type","Reward","Status","Funding","Claimed by","Access"],rows.map((row)=>[row.jobId,row.jobType,`${row.rewardAmount} USDC`,jobState(row),fundingState(row.fundingStatus),row.claimedBy||"—",row.requiredAccessLevel])):empty("No funded jobs yet","Create a single job or validate a bulk upload to begin.");}
+  
+  function renderJobs(rows){
+    document.querySelector("#issuerJobs").innerHTML=rows.length?table(["Job","Type","Reward","Status","Funding","Claimed by","Access"],rows.map((row)=>[
+      row.jobId,
+      row.jobType,
+      `${row.rewardAmount} USDC`,
+      jobState(row),
+      row.fundingStatus === "awaiting_wallet_funding" 
+        ? `${pill("Awaiting wallet funding")} <button type="button" class="funding-action-btn primary" onclick="fundJobAction('${escape(row.jobId)}')">Fund Escrow</button>` 
+        : pill(fundingState(row.fundingStatus)),
+      row.claimedBy||"—",
+      row.requiredAccessLevel
+    ]),true):empty("No funded jobs yet","Create a single job or validate a bulk upload to begin.");
+  }
+  
   function renderProofs(rows){document.querySelector("#issuerProofs").innerHTML=rows.length?table(["Proof","Agent","Route","Verification","Adjudication","Funding","Settlement","Transaction"],rows.map((row)=>[truncateId(row.proofId),truncateId(row.agentId),row.verificationRoute,pill(row.verificationStatus),adjudicationState(row),pill(fundingState(row.fundingStatus)),settlementState(row),row.txHash?`<a href="${escape(row.explorer)}" target="_blank" rel="noreferrer">Arcscan</a>`:"—"]),true):empty("No proofs submitted","Verified agent work will appear here with its payout state.");}
   function renderSettlements(value){document.querySelector("#issuerSettlements").innerHTML=table(["Batch","Status","Payout","Created","Settled"],value.batches.map((row)=>[row.batch_id,row.status,`${row.total_payout} USDC`,date(row.created_at),row.settled_at?date(row.settled_at):"—"]));}
   function setStatus(text,ok){message.textContent=text;message.dataset.state=ok?"ok":"error";document.querySelector("#workbenchConnection").textContent=ok?"Session active":"Not authenticated";}
@@ -32,7 +165,7 @@ function truncateId(id){if(!id)return "—";return `<span title="${escape(id)}" 
 function pill(status){const cssClass = String(status).toLowerCase().split(" ")[0]; return `<span class="state-badge ${escape(cssClass)}">${escape(status)}</span>`;}
 function money(value){return Number(value||0).toFixed(3);} function date(value){return new Date(value).toLocaleString();}
 function empty(title,copy){return `<div class="workbench-empty"><strong>${escape(title)}</strong><p>${escape(copy)}</p></div>`;}
-function fundingState(value){return ({reserved:"Reserved",payable:"Payable",paid:"Paid",rejected:"Rejected",pending_adjudication:"Pending review",settlement_failed:"Settlement review"})[value]||value;}
+function fundingState(value){return ({reserved:"Reserved",payable:"Payable",paid:"Paid",rejected:"Rejected",pending_adjudication:"Pending review",settlement_failed:"Settlement review",escrow_funded:"Escrow funded",escrow_deposited:"Escrow deposited",awaiting_wallet_funding:"Awaiting wallet funding"})[value]||value;}
 function jobState(row){return ({open:"Open",claimed:"Claimed",completed:"Completed",rejected:"Rejected",pending_adjudication:"Pending review"})[row.status]||row.status;}
 function settlementState(row){if(row.fundingStatus==="paid")return "Paid · Settled on Arc";if(row.fundingStatus==="payable")return "Payable · Approved";if(row.fundingStatus==="rejected")return "Rejected · No payout";return escape(row.settlementStatus);}
 function adjudicationState(row){if(row.adjudicationRoute==="deterministic")return "Deterministic";if(row.adjudicationRoute==="manual_adapter")return "Manual Adapter";const decision=row.genlayer?.decision;const status=row.genlayer?.status||"pending";return `${pill(status)}${decision?`<div class="reason-cell">${escape(decision.decision)}: ${escape(decision.reason)}</div>`:""}`;}

@@ -1,9 +1,11 @@
 import express from "express";
 import { fileURLToPath } from "node:url";
-import { formatUnits, isAddress, parseUnits } from "viem";
+import { formatUnits, isAddress, parseUnits, createPublicClient, createWalletClient, http, parseAbi, stringToHex, pad } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
+import { arcTestnet } from "viem/chains";
 import { authenticate, generateApiKey, storeApiKey } from "./auth.mjs";
 import { authenticateAdjudicator } from "./auth.mjs";
-import { createAgentWallet, getCircleStatus, isCircleConfigured } from "./circle-wallet.mjs";
+import { createAgentWallet, createIssuerWallet, getCircleStatus, isCircleConfigured, getWalletBalance, sendUsdc } from "./circle-wallet.mjs";
 import { expireLeases, json, openDatabase, parseJson, withTransaction } from "./db.mjs";
 import { seedDatabase } from "./seed.mjs";
 import { createSettlementBatch, recordSettledBatch, settlementSummary } from "./settlement.mjs";
@@ -54,6 +56,60 @@ export function createApp({ db = openDatabase() } = {}) {
       throw error;
     }
     response.status(201).json({ issuer: { issuerId, name, treasuryAddress, status: "active" }, apiKey });
+  });
+
+  app.get("/issuers/:issuerId/wallet", async (request, response) => {
+    const { issuerId } = request.params;
+    if (!authenticate(db, request, "issuer", issuerId)) throw httpError(401, "Valid issuer API key required.");
+    const issuer = db.prepare("SELECT * FROM issuers WHERE issuer_id = ?").get(issuerId);
+    if (!issuer) throw httpError(404, "Issuer not found");
+    if (!issuer.circle_wallet_id) return response.json({ wallet: null });
+    const balance = await getWalletBalance(issuer.circle_wallet_id);
+    response.json({ wallet: { walletId: issuer.circle_wallet_id, balance: balance?.amount || "0" } });
+  });
+
+  app.post("/issuers/:issuerId/wallet", async (request, response) => {
+    const { issuerId } = request.params;
+    if (!authenticate(db, request, "issuer", issuerId)) throw httpError(401, "Valid issuer API key required.");
+    const issuer = db.prepare("SELECT * FROM issuers WHERE issuer_id = ?").get(issuerId);
+    if (!issuer) throw httpError(404, "Issuer not found");
+    if (issuer.circle_wallet_id) throw httpError(400, "Wallet already exists");
+    
+    if (!isCircleConfigured()) throw httpError(500, "Circle not configured");
+    const wallet = await createIssuerWallet(issuerId);
+    if (!wallet) throw httpError(500, "Failed to create Circle Wallet");
+    db.prepare("UPDATE issuers SET circle_wallet_id = ? WHERE issuer_id = ?").run(wallet.walletId, issuerId);
+    response.json({ wallet: { walletId: wallet.walletId, address: wallet.address, balance: "0" } });
+  });
+
+  app.post("/jobs/:jobId/fund-escrow", async (request, response) => {
+    const { jobId } = request.params;
+    const { issuerId } = request.body || {};
+    if (!issuerId) throw httpError(400, "issuerId required.");
+    if (!authenticate(db, request, "issuer", issuerId)) throw httpError(401, "Valid issuer API key required.");
+    
+    const job = db.prepare("SELECT * FROM jobs WHERE job_id = ? AND issuer_id = ?").get(jobId, issuerId);
+    if (!job) throw httpError(404, "Job not found");
+    if (job.funding_status !== "awaiting_wallet_funding") throw httpError(400, `Cannot fund job in state ${job.funding_status}`);
+    if (job.funding_rail !== "arc_usdc_escrow") throw httpError(400, "Job does not require escrow funding");
+
+    const issuer = db.prepare("SELECT * FROM issuers WHERE issuer_id = ?").get(issuerId);
+    if (!issuer.circle_wallet_id) throw httpError(400, "Issuer has no Circle Wallet. Create one first.");
+
+    const treasury = process.env.TREASURY_ADDRESS;
+    if (!treasury) throw httpError(500, "Missing TREASURY_ADDRESS");
+
+    const tx = await sendUsdc({
+      sourceWalletId: issuer.circle_wallet_id,
+      amount: job.reward_amount,
+      destinationAddress: treasury,
+      idempotencyKey: `fund-job-${jobId}-${Date.now()}`
+    });
+    if (!tx) throw httpError(500, "Circle transfer failed");
+
+    db.prepare(`UPDATE jobs SET funding_status = 'escrow_funded', funding_source = 'circle_wallet', treasury_tx_hash = ? WHERE job_id = ?`).run(tx.hash, jobId);
+
+    response.json({ fundingStatus: "escrow_funded", txHash: tx.hash });
   });
 
   app.post("/agents/register", (request, response) => {
@@ -136,6 +192,7 @@ export function createApp({ db = openDatabase() } = {}) {
     const {
       jobId, issuerId, jobType, input, rewardAmount, rewardAsset = "USDC",
       network = "Arc Testnet", fundingStatus = "reserved", status = "open", proofRequirements, verificationMode = "deterministic",
+      fundingRail = "direct_treasury"
     } = request.body || {};
     requireId(jobId, "jobId");
     requireId(issuerId, "issuerId");
@@ -145,7 +202,7 @@ export function createApp({ db = openDatabase() } = {}) {
     validateReward(rewardAmount);
     if (rewardAsset !== "USDC") throw httpError(400, "rewardAsset must be USDC.");
     if (network !== "Arc Testnet") throw httpError(400, "network must be Arc Testnet.");
-    if (fundingStatus !== "reserved" || status !== "open") throw httpError(400, "New jobs must be reserved and open.");
+    if (!["reserved", "awaiting_wallet_funding"].includes(fundingStatus) || status !== "open") throw httpError(400, "New jobs must be reserved/awaiting_wallet_funding and open.");
     if (!proofRequirements || typeof proofRequirements !== "object") throw httpError(400, "proofRequirements must be an object.");
     if (!["deterministic", "subjective"].includes(verificationMode)) throw httpError(400, "verificationMode must be deterministic or subjective.");
     const accessLevel = requiredAccessLevel(rewardAmount, verificationMode);
@@ -155,9 +212,9 @@ export function createApp({ db = openDatabase() } = {}) {
       db.prepare(`
         INSERT INTO jobs
           (job_id, issuer_id, job_type, input_json, reward_amount, reward_asset, network,
-           funding_status, status, proof_requirements_json, verification_mode, required_access_level, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, 'USDC', 'Arc Testnet', 'reserved', 'open', ?, ?, ?, ?, ?)
-      `).run(jobId, issuerId, jobType, json(input), normalizedReward(rewardAmount), json(proofRequirements), verificationMode, accessLevel, now, now);
+           funding_status, status, proof_requirements_json, verification_mode, required_access_level, funding_rail, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, 'USDC', 'Arc Testnet', ?, 'open', ?, ?, ?, ?, ?, ?)
+      `).run(jobId, issuerId, jobType, json(input), normalizedReward(rewardAmount), fundingStatus, json(proofRequirements), verificationMode, accessLevel, fundingRail, now, now);
     } catch (error) {
       if (String(error.message).includes("UNIQUE")) throw httpError(409, `Job ${jobId} already exists.`);
       throw error;
@@ -226,6 +283,30 @@ export function createApp({ db = openDatabase() } = {}) {
       appendReputationEvent(db, { agentId, eventType: "job_claimed", jobId: job.job_id, issuerId: job.issuer_id, createdAt: claimedAt.toISOString() });
       return db.prepare("SELECT * FROM jobs WHERE job_id = ?").get(job.job_id);
     });
+
+    if (claimed.funding_status === "escrow_funded" && claimed.funding_rail === "arc_usdc_escrow") {
+      const operatorKey = process.env.SETTLEMENT_OPERATOR_PRIVATE_KEY;
+      const escrowAddress = process.env.ESCROW_CONTRACT_ADDRESS;
+      if (operatorKey && escrowAddress) {
+        const formattedKey = operatorKey.startsWith("0x") ? operatorKey : ("0x" + operatorKey);
+        const account = privateKeyToAccount(formattedKey);
+        const walletClient = createWalletClient({ account, chain: arcTestnet, transport: http(process.env.ARC_RPC_URL || "https://rpc-testnet.arc.tech") });
+        const escrowAbi = parseAbi(["function deposit(bytes32 jobId, address agent, uint256 amount) external"]);
+        const jobIdBytes32 = pad(stringToHex(claimed.job_id), { size: 32 });
+        const agentRecord = db.prepare("SELECT payout_address FROM agents WHERE agent_id = ?").get(claimed.claimed_by);
+        if (agentRecord?.payout_address) {
+          walletClient.writeContract({
+            address: escrowAddress,
+            abi: escrowAbi,
+            functionName: "deposit",
+            args: [jobIdBytes32, agentRecord.payout_address, BigInt(claimed.reward_amount)]
+          }).then(hash => {
+            db.prepare("UPDATE jobs SET escrow_tx_hash = ?, funding_status = 'escrow_deposited' WHERE job_id = ?").run(hash, claimed.job_id);
+          }).catch(console.error);
+        }
+      }
+    }
+
     response.json({ job: serializeJob(claimed) });
   });
 
