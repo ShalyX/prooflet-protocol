@@ -360,6 +360,15 @@ h1 {
   background: rgba(110, 231, 255, 0.08);
 }
 
+.panel-source {
+  padding: 8px 10px 0;
+  color: var(--cyan);
+  font-size: 0.68rem;
+  font-weight: 850;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
 .agent-grid,
 .event-list,
 .job-list,
@@ -421,6 +430,19 @@ h1 {
 .agent-head span {
   color: var(--green);
   font-size: 0.68rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.agent-kind {
+  display: inline-flex;
+  margin-top: 8px;
+  border: 1px solid rgba(110, 231, 255, 0.22);
+  border-radius: 999px;
+  padding: 3px 7px;
+  color: var(--cyan);
+  background: rgba(110, 231, 255, 0.06);
+  font-size: 0.62rem;
   font-weight: 900;
   text-transform: uppercase;
 }

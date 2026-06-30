@@ -40,6 +40,8 @@ const SETTLED_BATCH = {
   },
 };
 
+const SEEDED_DEMO_AGENT_IDS = new Set(["agent_lynx", "agent_mira", "agent_byte", "agent_vera"]);
+
 const agents = [
   { id: "lynx", agentId: "agent_lynx", name: "Link Sentinel", skill: "Verifies stale links and redirect chains", icon: "LK", payoutWallet: "0xC2094270dc7d17C1578a975dd1Aa50578c034Be4", status: "idle", earned: 0.084, score: 97 },
   { id: "mira", agentId: "agent_mira", name: "Freshness Clerk", skill: "Checks source recency and cache freshness", icon: "FR", payoutWallet: "0x1DcB045123730e606A88380BCe534332F50332d2", status: "idle", earned: 0.062, score: 94 },
@@ -291,18 +293,26 @@ function render() {
     button.dataset.count = count;
   });
 
-  $("#agents").innerHTML = agents.map((agent) => `
+  const workforceSource = apiConnected ? "Source: API / registered agents" : "Source: demo fallback data";
+  const workforceCount = `${agents.length} registered ${agents.length === 1 ? "agent" : "agents"}`;
+  const agentsSource = $("#agentsSource");
+  if (agentsSource) agentsSource.textContent = `${workforceSource} · ${workforceCount}`;
+
+  $("#agents").innerHTML = agents.map((agent) => {
+    const agentKind = SEEDED_DEMO_AGENT_IDS.has(agent.agentId) ? "Seeded demo agent" : "Registered live agent";
+    return `
     <article class="agent ${agent.status}">
       <div class="agent-head">
-        <div class="agent-icon">${agent.icon}</div>
-        <span>${agent.status}</span>
+        <div class="agent-icon">${escapeHtml(agent.icon)}</div>
+        <span>${escapeHtml(agent.status)}</span>
       </div>
-      <h3>${agent.name}</h3>
-      <p>${agent.skill}</p>
+      <div class="agent-kind">${agentKind}</div>
+      <h3>${escapeHtml(agent.name)}</h3>
+      <p>${escapeHtml(agent.skill)}</p>
       <div class="agent-stats"><span>${money(agent.earned)} USDC</span><span>${Math.round(agent.score)} trust</span></div>
-      <code>${agent.payoutWallet}</code>
-    </article>
-  `).join("");
+      <code>${escapeHtml(agent.payoutWallet || "No payout wallet")}</code>
+    </article>`;
+  }).join("");
 
   const visibleLedgerItems = ledger.filter(item => !item.job?.includes("Fixture") && !item.job?.includes("fixture"));
   $("#ledger").innerHTML = visibleLedgerItems.map((item) => `
@@ -609,6 +619,7 @@ function applyDashboard(dashboard) {
       status: agent.status,
       earned: paidByAgent.get(agent.agentId) || 0,
       score: agent.reputationScore,
+      source: SEEDED_DEMO_AGENT_IDS.has(agent.agentId) ? "seeded" : "registered",
     };
   }));
 

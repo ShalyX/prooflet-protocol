@@ -27,6 +27,8 @@ npm run dev
 
 Open the landing page, then keep `/dashboard` ready in the browser. Confirm the system strip says the API is connected. The seeded historical settlement remains available even if a live execute is not performed.
 
+The dashboard workforce list is hydrated from `/dashboard` when the API is connected. The default database seeds demo agents, so the first connected view may look similar to fallback data until new agents register. The Agent Workforce panel shows `Source: API / registered agents` in connected mode, `Source: demo fallback data` in fallback mode, and labels seeded agents separately from registered live agents.
+
 Hosted API option:
 
 ```bash

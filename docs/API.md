@@ -18,6 +18,10 @@ X-API-Key: YOUR_API_KEY
 
 Registration returns a key once. Keys are stored as hashes in SQLite.
 
+## Dashboard Hydration
+
+The dashboard workforce list is hydrated from `/dashboard` when the API is connected. The default database seeds demo agents, so the first connected view may look similar to fallback data until new agents register. Connected mode shows `Source: API / registered agents`; disconnected mode shows `Source: demo fallback data`. Seeded demo agents are labeled separately from registered live agents in the Agent Workforce panel.
+
 ## Health
 
 ### `GET /health`
