@@ -156,17 +156,26 @@
           <button class="mode-tab active" data-mode="demo">Prooflet Demo Issuer</button>
           <button class="mode-tab" data-mode="external">External Issuer</button>
         </div>
-        <div class="issuer-session-panel workbench-auth" id="returningIssuerPanel">
+        
+        <div class="issuer-session-panel workbench-auth demo-only" id="demoIssuerPanel">
+          <div style="width: 100%;">
+            <h3 style="color: var(--amber); margin-bottom: 8px;">Prooflet Demo Issuer</h3>
+            <p style="margin-bottom: 12px; color: var(--muted);">Seeded issuer used for local/testnet demos.</p>
+            <button class="primary" id="connectDemoIssuer" type="button">Connect Demo Issuer</button>
+          </div>
+        </div>
+
+        <div class="issuer-session-panel workbench-auth external-only" id="returningIssuerPanel" hidden>
           <div class="issuer-session-column" id="issuerCol">
-            <label>Issuer ID<input id="issuerIdInput" value="useful_waiting_protocol" autocomplete="username"></label>
-            <p class="issuer-helper" id="issuerHelperText">Internal compatibility ID retained from the original build.</p>
+            <h3 style="color: var(--amber); margin-bottom: 8px;">Returning Issuer</h3>
+            <label>Issuer ID<input id="issuerIdInput" autocomplete="username"></label>
           </div>
           <div class="issuer-key-column">
             <label>Issuer API Key<input id="issuerKeyInput" type="password" placeholder="Stored for this tab only" autocomplete="current-password"></label>
-            <div class="issuer-session-actions">
+            <div class="issuer-session-actions" style="margin-top: 12px;">
               <button class="primary" id="connectIssuer" type="button">Connect Issuer</button>
               <button class="ghost" id="clearIssuer" type="button">Clear session</button>
-              <button class="ghost external-only" id="showRegisterBtn" type="button" hidden>Register New Issuer</button>
+              <button class="ghost" id="showRegisterBtn" type="button">Register New Issuer</button>
             </div>
           </div>
         </div>
@@ -174,8 +183,9 @@
         <div class="issuer-session-panel workbench-auth external-only" id="registerIssuerPanel" hidden>
           <form id="registerIssuerForm" style="display:flex; width:100%; gap: 24px;">
             <div class="issuer-session-column">
-              <label>Issuer ID<input id="regIssuerId" required placeholder="my_platform_001"></label>
+              <h3 style="color: var(--amber); margin-bottom: 8px;">Register New Issuer</h3>
               <label>Platform / Issuer name<input id="regIssuerName" required placeholder="My Agent Platform"></label>
+              <label>Issuer ID<input id="regIssuerId" required placeholder="my_platform_001"></label>
             </div>
             <div class="issuer-key-column">
               <label>Contact email / handle (optional)<input id="regIssuerEmail" placeholder="team@platform.com"></label>
@@ -227,7 +237,7 @@
                 </div>
               </div>
               <div class="funding-actions" style="margin-top: 12px;">
-                <button class="primary" id="createIssuerWalletBtn" type="button">Create Circle wallet</button>
+                <button class="primary" id="retryIssuerWalletBtn" type="button" hidden>Retry wallet provisioning</button>
                 <button class="secondary" id="refreshWalletBtn" type="button" hidden>Refresh balance</button>
               </div>
             </div>
@@ -238,10 +248,10 @@
           <section class="workbench-block" id="demoEvidencePanel">
             <h3>Demo Evidence</h3>
             <div style="display: flex; flex-direction: column; gap: 8px; font-size: 0.85rem; padding: 12px; background: rgba(255,255,255,0.02); border: 1px solid var(--line-strong); border-radius: 8px;">
-              <p><strong>Escrow Contract:</strong> <code style="font-size:0.8em">0xb3397ce196ebf553b8e951abaf75c18785c7e69a</code> <a href="https://testnet.arcscan.io/address/0xb3397ce196ebf553b8e951abaf75c18785c7e69a" target="_blank" rel="noreferrer" style="color: var(--amber);">Arcscan</a></p>
-              <p><strong>Circle Wallet Provisioning:</strong> <span class="state-badge claimed">Active</span></p>
+              <p><strong>Escrow Contract V1:</strong> <span class="state-badge completed">Deployed / Proven</span> <code style="font-size:0.8em">0xb3397ce196ebf553b8e951abaf75c18785c7e69a</code> <a href="https://testnet.arcscan.io/address/0xb3397ce196ebf553b8e951abaf75c18785c7e69a" target="_blank" rel="noreferrer" style="color: var(--amber);">Arcscan</a></p>
+              <p><strong>Circle Wallet Provisioning:</strong> <span class="state-badge claimed">Active / Configured</span></p>
               <p><strong>Nanopayment Mode:</strong> <span class="state-badge completed">Config-ready Sandbox</span></p>
-              <p><strong>Environment:</strong> Arc Testnet / Off-chain Proofs</p>
+              <p><strong>External open escrow funding:</strong> <span class="state-badge pending_adjudication">Requires ProofletEscrowV2</span></p>
             </div>
           </section>
           <section class="workbench-block"><h3>Create Single Job</h3><form id="singleJobForm" class="workbench-form">

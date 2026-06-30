@@ -36,26 +36,46 @@ export function createApp({ db = openDatabase() } = {}) {
 
   app.get("/health", (_request, response) => response.json({ ok: true, protocol: "Prooflet", version: "v0" }));
 
-  app.post("/issuers/register", (request, response) => {
+  app.post("/issuers/register", async (request, response) => {
     const { issuerId, name, treasuryAddress = null, email = null, description = null } = request.body || {};
     requireId(issuerId, "issuerId");
     requireString(name, "name");
     if (treasuryAddress && !isAddress(treasuryAddress)) throw httpError(400, "treasuryAddress must be a valid EVM address.");
     const apiKey = generateApiKey("issuer");
     const now = new Date().toISOString();
+    
+    let walletCreated = null;
+    let walletError = null;
+    if (isCircleConfigured()) {
+      try {
+        walletCreated = await createIssuerWallet(issuerId);
+      } catch (err) {
+        walletError = err.message;
+      }
+    } else {
+      walletError = "Circle not configured";
+    }
+
     try {
       withTransaction(db, () => {
         db.prepare(`
-          INSERT INTO issuers (issuer_id, name, treasury_address, email, description, status, created_at)
-          VALUES (?, ?, ?, ?, ?, 'active', ?)
-        `).run(issuerId, name, treasuryAddress, email, description, now);
+          INSERT INTO issuers (issuer_id, name, treasury_address, email, description, status, created_at, circle_wallet_id)
+          VALUES (?, ?, ?, ?, ?, 'active', ?, ?)
+        `).run(issuerId, name, treasuryAddress, email, description, now, walletCreated ? walletCreated.walletId : null);
         storeApiKey(db, "issuer", issuerId, apiKey, now);
       });
     } catch (error) {
       if (String(error.message).includes("UNIQUE")) throw httpError(409, `Issuer ${issuerId} already exists.`);
       throw error;
     }
-    response.status(201).json({ issuer: { issuerId, name, treasuryAddress, email, description, status: "active" }, apiKey });
+    
+    const resPayload = { issuer: { issuerId, name, treasuryAddress, email, description, status: "active", circle_wallet_id: walletCreated ? walletCreated.walletId : null }, apiKey };
+    if (walletCreated) {
+      resPayload.wallet = { walletId: walletCreated.walletId, address: walletCreated.address, balance: "0" };
+    } else {
+      resPayload.walletError = walletError || "Circle wallet provisioning unavailable";
+    }
+    response.status(201).json(resPayload);
   });
 
   app.get("/issuers/:issuerId/wallet", async (request, response) => {
@@ -63,7 +83,21 @@ export function createApp({ db = openDatabase() } = {}) {
     if (!authenticate(db, request, "issuer", issuerId)) throw httpError(401, "Valid issuer API key required.");
     const issuer = db.prepare("SELECT * FROM issuers WHERE issuer_id = ?").get(issuerId);
     if (!issuer) throw httpError(404, "Issuer not found");
-    if (!issuer.circle_wallet_id) return response.json({ wallet: null });
+    
+    if (!issuer.circle_wallet_id && isCircleConfigured()) {
+       try {
+         const wallet = await createIssuerWallet(issuerId);
+         if (wallet) {
+           db.prepare("UPDATE issuers SET circle_wallet_id = ? WHERE issuer_id = ?").run(wallet.walletId, issuerId);
+           issuer.circle_wallet_id = wallet.walletId;
+           return response.json({ wallet: { walletId: wallet.walletId, address: wallet.address, balance: "0" } });
+         }
+       } catch (e) {
+         return response.json({ wallet: null, error: "Circle wallet provisioning unavailable: " + e.message });
+       }
+    }
+
+    if (!issuer.circle_wallet_id) return response.json({ wallet: null, error: "Circle wallet provisioning unavailable" });
     const balance = await getWalletBalance(issuer.circle_wallet_id);
     response.json({ wallet: { walletId: issuer.circle_wallet_id, balance: balance?.amount || "0" } });
   });

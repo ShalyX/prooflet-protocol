@@ -16,23 +16,22 @@ export function initIssuerWorkbench({ apiUrl, onNavigate }) {
     document.querySelector("#fundingModeLabel").textContent = mode === "external" ? "External Issuer" : "Prooflet Demo Issuer";
     
     // Reset panels
-    document.querySelector("#returningIssuerPanel").hidden = false;
+    document.querySelector("#demoIssuerPanel").hidden = true;
+    document.querySelector("#returningIssuerPanel").hidden = true;
     document.querySelector("#registerIssuerPanel").hidden = true;
     document.querySelector("#registerSuccessPanel").hidden = true;
 
     if (mode === "external") {
+      document.querySelector("#returningIssuerPanel").hidden = false;
       document.querySelector("#issuerFundingPanel").hidden = false;
-      document.querySelector("#showRegisterBtn").hidden = false;
       document.querySelector("#issuerIdInput").value = sessionStorage.getItem("uwp.extIssuerId")||"";
       document.querySelector("#issuerKeyInput").value = sessionStorage.getItem("uwp.extIssuerApiKey")||"";
-      document.querySelector("#issuerHelperText").textContent = "External issuers require a Circle wallet for funding.";
       document.querySelector("#demoEvidencePanel").hidden = true;
     } else {
+      document.querySelector("#demoIssuerPanel").hidden = false;
       document.querySelector("#issuerFundingPanel").hidden = true;
-      document.querySelector("#showRegisterBtn").hidden = true;
       document.querySelector("#issuerIdInput").value = sessionStorage.getItem("uwp.issuerId")||"useful_waiting_protocol";
       document.querySelector("#issuerKeyInput").value = sessionStorage.getItem("uwp.issuerApiKey")||"";
-      document.querySelector("#issuerHelperText").textContent = "Internal compatibility ID retained from the original build.";
       document.querySelector("#demoEvidencePanel").hidden = false;
     }
     client = null;
@@ -64,17 +63,9 @@ export function initIssuerWorkbench({ apiUrl, onNavigate }) {
       document.querySelector("#successIssuerId").textContent = issuerId;
       document.querySelector("#successApiKey").textContent = apiKey;
       
-      // Auto create wallet
-      let wallet = null;
-      try {
-        const res = await fetch(`${apiUrl}/issuers/${encodeURIComponent(issuerId)}/wallet`, { method: "POST", headers: { "X-API-Key": apiKey } });
-        const wData = await res.json();
-        if (res.ok) wallet = wData.wallet;
-      } catch (wErr) { console.error("Wallet creation failed", wErr); }
-
-      if (wallet) {
-        document.querySelector("#successWalletId").textContent = wallet.walletId;
-        document.querySelector("#successWalletAddress").textContent = wallet.address;
+      if (result.wallet) {
+        document.querySelector("#successWalletId").textContent = result.wallet.walletId;
+        document.querySelector("#successWalletAddress").textContent = result.wallet.address;
       } else {
         document.querySelector("#successWalletId").textContent = "Failed";
         document.querySelector("#successWalletAddress").textContent = "Failed";
@@ -127,8 +118,14 @@ export function initIssuerWorkbench({ apiUrl, onNavigate }) {
   });
   document.querySelector("#singleJobForm").addEventListener("submit",createJob);
   document.querySelector("#uploadForm").addEventListener("submit",validateFile);
-  document.querySelector("#createIssuerWalletBtn").addEventListener("click", createWallet);
+  document.querySelector("#retryIssuerWalletBtn").addEventListener("click", retryWallet);
   document.querySelector("#refreshWalletBtn").addEventListener("click", fetchWallet);
+  
+  document.querySelector("#connectDemoIssuer").addEventListener("click", () => {
+    issuerInput.value = "useful_waiting_protocol";
+    keyInput.value = "uwp_issuer_useful_waiting_protocol_dev";
+    connect();
+  });
   
   if(!keyInput.value)renderUnauthenticated();
 
@@ -149,30 +146,39 @@ export function initIssuerWorkbench({ apiUrl, onNavigate }) {
       const res = await fetch(`${apiUrl}/issuers/${encodeURIComponent(client.issuerId)}/wallet`, { headers: { "X-API-Key": client.apiKey } });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      renderWallet(data.wallet);
+      renderWallet(data.wallet, data.error);
     } catch (error) { setStatus(error.message, false); document.querySelector("#fundingBalanceStatus").textContent = "Config unavailable"; document.querySelector("#fundingBalanceStatus").className = "state-badge rejected"; }
   }
 
-  async function createWallet() {
+  async function retryWallet() {
     try {
-      setStatus("Creating Circle wallet...", true);
+      setStatus("Retrying wallet provisioning...", true);
       const res = await fetch(`${apiUrl}/issuers/${encodeURIComponent(client.issuerId)}/wallet`, { method: "POST", headers: { "X-API-Key": client.apiKey } });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-      renderWallet(data.wallet);
-      setStatus("Wallet created.", true);
+      if (!res.ok) throw new Error(data.error || "Failed to provision wallet");
+      renderWallet(data.wallet, null);
+      setStatus("Wallet provisioning successful.", true);
     } catch (error) { setStatus(error.message, false); }
   }
 
-  function renderWallet(wallet) {
+  function renderWallet(wallet, errorMsg) {
     if (!wallet) {
-      document.querySelector("#fundingWalletStatus").textContent = "Not created";
-      document.querySelector("#fundingWalletStatus").className = "state-badge draft";
+      document.querySelector("#fundingWalletStatus").textContent = errorMsg ? "Failed" : "Config unavailable";
+      document.querySelector("#fundingWalletStatus").className = "state-badge rejected";
       document.querySelector("#fundingWalletDetails").hidden = true;
-      document.querySelector("#createIssuerWalletBtn").hidden = false;
+      document.querySelector("#retryIssuerWalletBtn").hidden = false;
       document.querySelector("#refreshWalletBtn").hidden = true;
+      
+      const uploadBtn = document.querySelector("#uploadForm button[type=submit]");
+      const jobBtn = document.querySelector("#singleJobForm button[type=submit]");
+      if (mode === "external") {
+        uploadBtn.disabled = true;
+        jobBtn.disabled = true;
+        uploadBtn.textContent = "Funding requires Circle issuer wallet configuration";
+        jobBtn.textContent = "Funding requires Circle issuer wallet configuration";
+      }
     } else {
-      document.querySelector("#fundingWalletStatus").textContent = "Created";
+      document.querySelector("#fundingWalletStatus").textContent = "Active";
       document.querySelector("#fundingWalletStatus").className = "state-badge escrow_funded";
       document.querySelector("#fundingWalletDetails").hidden = false;
       document.querySelector("#fundingWalletAddress").textContent = wallet.address || wallet.walletId;
@@ -187,7 +193,7 @@ export function initIssuerWorkbench({ apiUrl, onNavigate }) {
         balSpan.className = "state-badge draft";
       }
       
-      document.querySelector("#createIssuerWalletBtn").hidden = true;
+      document.querySelector("#retryIssuerWalletBtn").hidden = true;
       document.querySelector("#refreshWalletBtn").hidden = false;
     }
   }
@@ -212,7 +218,21 @@ export function initIssuerWorkbench({ apiUrl, onNavigate }) {
 
 
 
-  async function refresh(){const [overview,jobs,proofs,settlements]=await Promise.all([client.overview(),client.listJobs(),client.listProofs(),client.listSettlements()]);renderOverview(overview);renderJobs(jobs.jobs);renderProofs(proofs.proofs);renderSettlements(settlements);}
+  async function refresh(){
+    const [overview,jobs,proofs,settlements]=await Promise.all([client.overview(),client.listJobs(),client.listProofs(),client.listSettlements()]);
+    renderOverview(overview);renderJobs(jobs.jobs);renderProofs(proofs.proofs);renderSettlements(settlements);
+    
+    const jobBtn = document.querySelector("#singleJobForm button[type=submit]");
+    jobBtn.disabled = false;
+    jobBtn.textContent = mode === "demo" ? "Create demo-funded job" : "Create draft job";
+    const uploadBtn = document.querySelector("#uploadForm button[type=submit]");
+    uploadBtn.disabled = false;
+    uploadBtn.textContent = "Validate Batch CSV / JSON";
+    
+    if (mode === "demo") {
+      document.querySelector("#demoIssuerPanel").hidden = true;
+    }
+  }
   
   async function createJob(event){
     event.preventDefault();if(!client)return setStatus("Connect an issuer session first.",false);
@@ -244,8 +264,8 @@ export function initIssuerWorkbench({ apiUrl, onNavigate }) {
   function renderJobs(rows){
     document.querySelector("#issuerJobs").innerHTML=rows.length?table(["Job","Type","Reward","Status","Funding","Claimed by","Access"],rows.map((row)=>{
       let fundingCol = pill(fundingState(row.fundingStatus));
-      if (row.fundingStatus === "awaiting_wallet_funding") {
-        fundingCol = `${pill("Awaiting wallet funding")} <br><span class="issuer-helper" style="display:inline-block; margin-top:4px; max-width: 140px; color: var(--amber);">Open marketplace funding requires ProofletEscrowV2.</span>`;
+      if (row.fundingStatus === "awaiting_wallet_funding" || (mode === "external" && row.fundingStatus === "awaiting_escrow_funding")) {
+        fundingCol = `${pill("Awaiting wallet funding")} <br><button class="secondary" disabled style="margin-top:6px; font-size:0.7rem; padding:4px 8px;">Requires ProofletEscrowV2</button> <br><span class="issuer-helper" style="display:inline-block; margin-top:4px; max-width: 140px; color: var(--amber);">Open marketplace escrow funding requires ProofletEscrowV2.</span>`;
       }
       return [
         row.jobId,
@@ -262,7 +282,19 @@ export function initIssuerWorkbench({ apiUrl, onNavigate }) {
   function renderProofs(rows){document.querySelector("#issuerProofs").innerHTML=rows.length?table(["Proof","Agent","Route","Verification","Adjudication","Funding","Settlement","Transaction"],rows.map((row)=>[truncateId(row.proofId),truncateId(row.agentId),row.verificationRoute,pill(row.verificationStatus),adjudicationState(row),pill(fundingState(row.fundingStatus)),settlementState(row),row.txHash?`<a href="${escape(row.explorer)}" target="_blank" rel="noreferrer">Arcscan</a>`:"—"]),true):empty("No proofs submitted","Verified agent work will appear here with its payout state.");}
   function renderSettlements(value){document.querySelector("#issuerSettlements").innerHTML=table(["Batch","Status","Payout","Created","Settled"],value.batches.map((row)=>[row.batch_id,row.status,`${row.total_payout} USDC`,date(row.created_at),row.settled_at?date(row.settled_at):"—"]));}
   function setStatus(text,ok){message.textContent=text;message.dataset.state=ok?"ok":"error";document.querySelector("#workbenchConnection").textContent=ok?"Session active":"Not authenticated";}
-  function renderUnauthenticated(){document.querySelector("#issuerOverview").innerHTML=empty("Connect an issuer session","Create funded jobs, validate uploads, review proofs, and follow Arc Testnet payouts.");document.querySelector("#issuerJobs").innerHTML=empty("Issuer access required","Connect to inspect and manage funded jobs.");document.querySelector("#issuerProofs").innerHTML=empty("Issuer access required","Connect to review proof and payout states.");document.querySelector("#issuerSettlements").innerHTML=empty("Issuer access required","Connect to follow settlement batches and Arcscan receipts.");}
+  function renderUnauthenticated() {
+    document.querySelector("#issuerOverview").innerHTML=empty("Connect an issuer session","Create funded jobs, validate uploads, review proofs, and follow Arc Testnet payouts.");
+    document.querySelector("#issuerJobs").innerHTML=empty("Issuer access required","Connect to inspect and manage funded jobs.");
+    document.querySelector("#issuerProofs").innerHTML=empty("Issuer access required","Connect to review proof and payout states.");
+    document.querySelector("#issuerSettlements").innerHTML=empty("Issuer access required","Connect to follow settlement batches and Arcscan receipts.");
+    
+    const jobBtn = document.querySelector("#singleJobForm button[type=submit]");
+    jobBtn.disabled = true;
+    jobBtn.textContent = "Connect issuer to create jobs";
+    const uploadBtn = document.querySelector("#uploadForm button[type=submit]");
+    uploadBtn.disabled = true;
+    uploadBtn.textContent = "Connect issuer to validate batch";
+  }
   return {show(){panel.hidden=false;if(keyInput.value)connect();},hide(){panel.hidden=true;}};
 }
 function table(headers,rows,allowHtml=false){return `<table><thead><tr>${headers.map((value)=>`<th>${escape(value)}</th>`).join("")}</tr></thead><tbody>${rows.map((row)=>`<tr>${row.map((value)=>`<td>${allowHtml?value:escape(value)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;}

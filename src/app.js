@@ -574,11 +574,11 @@ async function hydrateFromApi() {
   } catch (error) {
     apiConnected = false;
     apiLoading = false;
-    apiError = error.message.includes("aborted") ? null : `API unavailable: ${error.message}. Showing demo data.`;
-    $("div", "#apiStatus").textContent = "Local fallback";
-    systemStatus.api = "Local fallback";
+    apiError = "Demo data mode: Connect API for live issuer actions.";
+    $("#apiStatus").textContent = "Demo data mode";
+    systemStatus.api = "Demo data mode";
     systemStatus.arc = "Demo data";
-    setLandingText("#landingApi", "Local fallback");
+    setLandingText("#landingApi", "Demo data mode");
     setLandingText("#landingLatestPaid", `${money(SETTLED_BATCH.totalPayout)} USDC`);
     setLandingText("#landingPayable", `${money(ledger.filter((proof) => proof.fundingStatus === "payable").reduce((sum, proof) => sum + proof.amount, 0))} USDC`);
     setLandingText("#landingRejected", ledger.filter((proof) => proof.fundingStatus === "rejected").length);
