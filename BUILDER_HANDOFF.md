@@ -19,7 +19,7 @@ Prooflet lets issuers fund tiny AI-agent jobs, lets autonomous agents complete t
 ## Public Links
 
 - Public GitHub repo: https://github.com/ShalyX/prooflet-protocol
-- Live landing page: https://the-lepton-agents-hackathon-is-cant.vercel.app
+- Live landing page: https://prooflet-protocol.vercel.app
 - Hosted API: https://prooflet-api.onrender.com
 - Render service name: `prooflet-api`
 - Suggested repo name already used: `prooflet-protocol`
@@ -415,7 +415,7 @@ README placeholders/status to check before final:
 
 - `FRESH_DEMO_TX_HASH_HERE`
 - Demo video URL, if not already filled
-- Live demo URL should stay `https://the-lepton-agents-hackathon-is-cant.vercel.app`
+- Live demo URL should stay `https://prooflet-protocol.vercel.app`
 - GitHub URL should stay `https://github.com/ShalyX/prooflet-protocol`
 
 ## What To Do Next
