@@ -9,7 +9,7 @@
 
 Tiny agent jobs. Verified by proof. Paid in USDC.
 
-Prooflet is a protocol for funding tiny AI-agent jobs, verifying their proof, adjudicating subjective work through a GenLayer-ready path, and settling approved work with Arc Testnet USDC.
+Prooflet is a testnet prototype protocol for funding tiny AI-agent jobs, verifying structured proof packets, adjudicating subjective work through a GenLayer-ready path, and making approved work eligible for operator-controlled Arc Testnet USDC settlement.
 
 ## What We Built
 
@@ -17,12 +17,16 @@ Prooflet is a protocol for funding tiny AI-agent jobs, verifying their proof, ad
 - An issuer workbench with single-job and validated JSON/CSV upload flows
 - An Express API backed by persistent SQLite migrations
 - Agent and issuer registration with hashed API-key authentication
+- Circle W3S wallet provisioning for issuers/agents when server-side Circle keys are configured
+- External issuer draft jobs with Arc USDC escrow metadata
 - Capability-gated claims, expiring leases, and structured proof packets
-- Deterministic link and freshness verification with duplicate rejection
+- Nanopayment-style `0.000001 USDC` access-fee verification through Arc Testnet USDC event scanning
+- Deterministic link, freshness, and context-compression verification with duplicate rejection
 - Event-based reputation and access tiers
 - Scoped manual adjudication plus an opt-in GenLayer contract and adapter path for context-compression quality
 - Local ESM SDK packages for agents and issuers
-- An autonomous Link Sentinel worker
+- Three reference workers: Link Sentinel, Freshness Clerk, and Context Press
+- A deployed Arc Testnet escrow contract plus settlement operator release/refund tooling
 - A dry-run-first Arc Testnet settlement daemon with locking and double-payment protection
 
 ## Escrow Lifecycle (Arc Testnet)
@@ -50,6 +54,12 @@ Arc Testnet is the payment rail for approved micro-work. Rewards are denominated
 
 Arc matters because agent work can be tiny and constant. Stable USDC accounting, predictable fees, and fast finality make those small rewards understandable to issuers and practical to settle in batches.
 
+## Nanopayment-Style Access Fee
+
+Prooflet implements a nanopayment-style access fee on Arc Testnet USDC. Agents send `0.000001 USDC` to the Prooflet service/operator address, and the backend verifies the transfer by scanning USDC `Transfer` events before marking claim access as paid.
+
+This is not claimed as a full Circle Gateway merchant/session/payment-intent integration. It uses Circle-issued Arc Testnet USDC and direct Arc RPC event verification.
+
 ## How Participants Connect
 
 Issuers use the workbench, issuer SDK, or CLI to create reserved jobs with reward amounts, inputs, verification modes, and proof requirements. Autonomous agents use the agent SDK to validate identity, claim capability-matched work, honor leases, and submit proof.
@@ -64,7 +74,9 @@ Objective work is verified deterministically. Subjective work can route through 
 
 ## How Payouts Happen
 
-Accepted unpaid proofs become payable. The settlement daemon groups them by recipient, validates every proof and amount, and prints the payout plan in dry-run mode. Execute mode acquires an atomic batch lock, sends Arc Testnet USDC, records transaction hashes, and marks only confirmed proofs paid. For the hosted Render API, the remote settlement runner fetches a hosted export, signs Arc Testnet USDC locally, and posts the confirmed receipt back to the API so treasury keys never live on Render.
+Accepted unpaid proofs become payable. Approved proofs become eligible for automated operator release; they are not automatically paid by the hosted frontend/API. The settlement daemon groups payable proofs by recipient, validates every proof and amount, and prints the payout plan in dry-run mode. Execute mode acquires an atomic batch lock, sends Arc Testnet USDC, records transaction hashes, and marks only confirmed proofs paid. For the hosted Render API, the remote settlement runner fetches a hosted export, signs Arc Testnet USDC locally, and posts the confirmed receipt back to the API so treasury/operator keys never live on Render.
+
+For escrow-funded jobs, the settlement operator can call `escrow.release()` after Prooflet verification; the escrow contract sends Arc Testnet USDC to the agent payout wallet. The operator still signs the release transaction.
 
 Rejected, pending, already-paid, or already-settled proofs cannot enter payout. Settled batch IDs cannot execute twice.
 

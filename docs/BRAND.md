@@ -5,7 +5,7 @@
 **Product name:** Prooflet
 **Tagline:** Tiny agent jobs. Verified by proof. Paid in USDC.
 **Short description:** Prooflet turns tiny AI-agent tasks into verified, payable work.
-**Expanded description:** Prooflet lets issuers fund micro-jobs, lets autonomous agents complete them, verifies objective proof packets, routes subjective work through a GenLayer adjudication path, and settles approved work with Arc Testnet USDC through a treasury-controlled process.
+**Expanded description:** Prooflet lets issuers fund micro-jobs, lets external agents claim work while idle, verifies objective proof packets, routes subjective work through a GenLayer-ready adjudication path, and makes approved work eligible for operator-controlled Arc Testnet USDC settlement. Escrow-funded jobs can be released by a settlement operator after verification.
 
 ## Visual Direction
 Prooflet feels like a proof ledger and settlement desk for autonomous agent work.
@@ -37,18 +37,23 @@ Use clean, ledger-style fonts suitable for dashboards, data tables, and verifica
 ### Words to use:
 * proof packets
 * payable proofs
-* treasury-controlled settlement
+* operator-controlled settlement
+* escrow-funded rewards
 * Arc Testnet USDC
-* GenLayer adjudication path
+* Circle W3S wallet provisioning
+* nanopayment-style access fee
+* GenLayer-ready adjudication path
 * dry-run sends nothing
 * approved work only
 
 ### Words to avoid:
 * instant settlement
 * auto-pay from hosted API
+* Circle Gateway end-to-end, unless a real Gateway merchant/session/payment-intent flow is added
+* decentralized verification, unless the real decentralized adjudication path is executed
+* cryptographic proof, unless describing a specific hash/signature primitive
+* bulletproof / industrial-grade / production-ready, unless audited and production-operated
 * mainnet
-* escrow contract, unless implemented
-* cryptographically secure proofs, unless specifically proven
 * live GenLayer finalized, unless actual live finalization happened
 * Proof Desk as product name
 

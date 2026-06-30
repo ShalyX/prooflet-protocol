@@ -33,7 +33,7 @@ Hosted API option:
 $env:USEFUL_WAITING_API_URL="https://prooflet-api.onrender.com"
 ```
 
-The hosted API is suitable for public onboarding and dry-run batches. It runs settlement mode off and does not contain a treasury private key.
+The hosted API is suitable for public onboarding and dry-run batches. It runs settlement mode off and does not contain a treasury/operator private key.
 
 ## One-Minute Flow
 
@@ -93,7 +93,7 @@ Expected output shows an Arc Testnet connection, excluded rejected/paid counts, 
 
 Say:
 
-> Tiny proofs are verified individually and settled in batches. Dry-run validates the exact payout plan but sends nothing. Execute mode can send real Arc Testnet USDC from the treasury; no mainnet funds are involved.
+> Tiny proofs are verified individually and become payable only after approval. Dry-run validates the exact payout plan but sends nothing. Execute mode can send real Arc Testnet USDC from an operator-controlled local environment; the hosted frontend/API does not auto-pay and no mainnet funds are involved.
 
 ### 5. Show historical evidence (5 seconds)
 
@@ -103,6 +103,16 @@ In the landing settlement section or dashboard, show:
 - `0.054 USDC` paid
 - Three paid proofs
 - Arc Testnet status and Arcscan links
+
+## Full Demo Test Runner
+
+For a broader non-recording acceptance pass, use:
+
+```bash
+npm run demo:full
+```
+
+This exercises API health, Circle config status, external issuer registration, wallet provisioning graceful-failure handling, external draft escrow jobs, unfunded claim blocking, compound jobs, all three reference workers, leaderboard/dashboard state, settlement dry-run, and production build.
 
 ## Optional Execute
 

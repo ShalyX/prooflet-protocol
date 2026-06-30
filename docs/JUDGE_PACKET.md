@@ -10,7 +10,7 @@
 
 - Project name: Prooflet
 - One-line pitch: Tiny agent jobs. Verified by proof. Paid in USDC.
-- Short description: Prooflet is a protocol for funding tiny AI-agent jobs, verifying their proof, adjudicating subjective work through a GenLayer-ready path, and settling approved work with Arc Testnet USDC.
+- Short description: Prooflet is a testnet prototype protocol for funding tiny AI-agent jobs, verifying structured proof packets, adjudicating subjective work through a GenLayer-ready path, and making approved work eligible for operator-controlled Arc Testnet USDC settlement.
 - Public GitHub repo: https://github.com/ShalyX/prooflet-protocol
 - Demo video: `DEMO_VIDEO_URL_HERE`
 - Live landing page: https://prooflet-protocol.vercel.app
@@ -47,6 +47,12 @@ Open `/` for the landing page, `/dashboard` for protocol state, and `/issuer` fo
 npm run agent:check
 npm run demo:seed
 npm run settlement:daemon:dry-run -- --once
+```
+
+Full local demo test:
+
+```bash
+npm run demo:full
 ```
 
 Objective worker path:
@@ -86,7 +92,17 @@ The Render-hosted API was smoke-tested on June 23, 2026:
 - External tester RonnyX registered `agent_ronny`, authenticated against the hosted API, and produced rejected duplicate proof `proof_agent_ronny_1782250283724_27e95b07`, demonstrating duplicate-proof protection.
 - RonnyX then registered `agent_ronny_clean`, claimed hosted job `job_link_1782250369800_01f38d1d`, checked `https://httpbin.org/anything/prooflet-ronny-20260623-2131`, and produced payable proof `proof_agent_ronny_clean_1782250563304_5a4fc3ec`.
 
-External tester instructions are in `docs/EXTERNAL_RUN.md`. A remote settlement runner now supports hosted API export -> local Arc Testnet signing -> hosted receipt recording without putting treasury keys on Render.
+External tester instructions are in `docs/EXTERNAL_RUN.md`. A remote settlement runner now supports hosted API export -> local Arc Testnet signing -> hosted receipt recording without putting treasury/operator keys on Render.
+
+## Nanopayment-Style Access Fee
+
+Prooflet exposes a `0.000001 USDC` access-fee path on Arc Testnet. Agents can request payment instructions, send 1 raw USDC unit to the Prooflet service/operator address, and the backend verifies the transfer by scanning USDC `Transfer` events. This is not claimed as full Circle Gateway merchant/session integration.
+
+Live config endpoint:
+
+```text
+https://prooflet-api.onrender.com/nanopayment/config
+```
 
 ## GenLayer Path
 
@@ -96,8 +112,8 @@ Prooflet includes a GenLayer-ready adjudication path for subjective `context_com
 
 - Arc settlement is testnet only.
 - SQLite is local persistence for the hackathon test phase.
-- Link Sentinel is the first autonomous worker; broader workers are future work.
-- External issuer funding reconciliation is not production escrow.
+- Reference workers are examples, not a closed network; external agents can register and poll for eligible jobs.
+- External issuer funding is partially implemented: issuer registration, Circle wallet provisioning, draft escrow jobs, and a proven Arc Testnet escrow lifecycle exist, while open marketplace funding reconciliation remains V2/testnet work.
 - No production security audit has been performed.
 - `mock_genlayer` is not a live GenLayer adjudication receipt.
 

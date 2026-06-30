@@ -5,7 +5,7 @@ Prooflet is a test-phase protocol and has not received a production security aud
 ## Secret Handling
 
 - Never commit `.env`. It is ignored by Git; `.env.example` contains placeholders only.
-- Never expose `TREASURY_PRIVATE_KEY` in frontend code, SDKs, logs, uploads, API responses, command arguments, screenshots, or support messages.
+- Never expose `TREASURY_PRIVATE_KEY`, escrow operator private keys, Circle entity secrets, or Circle API keys in frontend code, SDKs, logs, uploads, API responses, command arguments, screenshots, or support messages.
 - Keep agent, issuer, and adjudicator keys server-side or in local session memory. The issuer workbench uses `sessionStorage`, not persistent `localStorage`.
 - API keys are hashed before SQLite storage. Registration returns a raw key once.
 - Public examples use dummy addresses. Real recipient mappings and settlement state files remain ignored.
@@ -17,8 +17,8 @@ Prooflet is a test-phase protocol and has not received a production security aud
 - Adjudicator keys require explicit `manual_adjudication:read` or `manual_adjudication:write` scope.
 - GenLayer operators require explicit `genlayer:read` or `genlayer:write` scope. Issuer and agent keys cannot submit or sync network decisions.
 - `GENLAYER_PRIVATE_KEY` is server-side only and must never enter frontend builds, SDK options, logs, or API responses.
-- Adjudicator keys cannot create issuer jobs, access treasury keys, execute settlement, or modify deterministic approvals.
-- Settlement authority remains in the server-side treasury environment and is not exposed by the API.
+- Adjudicator keys cannot create issuer jobs, access settlement/operator keys, execute settlement, or modify deterministic approvals.
+- Settlement authority remains in a server-side/local operator environment and is not exposed by the hosted API or frontend.
 
 ## Settlement Safety
 
@@ -26,7 +26,7 @@ Prooflet is a test-phase protocol and has not received a production security aud
 - Dry-run sends no transaction.
 - Execute mode targets Arc Testnet chain ID `5042002` and testnet USDC only. Mainnet is unsupported.
 - Execute mode requires explicit confirmation in addition to the execute command.
-- The runner validates network, token, treasury identity, balances, recipients, proof states, and payout totals.
+- The runner validates network, token, operator/treasury identity, balances, recipients, proof states, and payout totals.
 - Paid proofs cannot be modified back to payable by settlement recording.
 - Rejected proofs cannot be included in payout.
 - Pending subjective proofs cannot be included in payout.
@@ -51,7 +51,7 @@ Prooflet is a test-phase protocol and has not received a production security aud
 1. Review payout plans in dry-run before every execute session.
 2. Use tiny Arc Testnet amounts and separately controlled recipient wallets.
 3. Stop API, workers, and daemon before copying SQLite backups; copy the database with its `-wal` and `-shm` companions.
-4. Rotate any API or treasury credential that appears in logs or screenshots.
+4. Rotate any API, Circle, treasury, or operator credential that appears in logs or screenshots.
 5. Run `npm run submission:check` and `npm audit` before demos and releases.
 
 Report a suspected issue privately to the project maintainers. Do not include private keys or raw API credentials in the report.

@@ -18,11 +18,26 @@ The Blueprint deploys one service:
 
 This is intentionally safe for public onboarding:
 
-- No treasury private key is configured.
+- No treasury/operator private key is configured.
 - No Arc Testnet execute flow runs on Render.
-- The API can register issuers/agents, create jobs, claim work, submit proofs, and export dry-run settlement batches.
+- The API can register issuers/agents, attempt Circle W3S wallet provisioning when configured, create jobs, claim work, submit proofs, verify nanopayment-style access fees, and export dry-run settlement batches.
 
 The free service uses ephemeral SQLite storage. It is enough for a public testnet onboarding session, but records may be reset after deploys or service restarts. For durable hosted usage, move persistence to Neon Postgres or attach a paid Render disk before inviting sustained external users.
+
+## Render Environment Variables
+
+Recommended public-test variables:
+
+```bash
+CIRCLE_API_KEY=...
+CIRCLE_ENTITY_SECRET=...
+# Optional if the Circle account already has a wallet set; otherwise set explicitly.
+CIRCLE_WALLET_SET_ID=...
+TREASURY_ADDRESS=0x709F18F797347FbB8D53Fb60567892751dd14B11
+ARC_RPC_URL=https://rpc.testnet.arc.network
+```
+
+Do **not** put private signing keys on Render for the public test deployment. Settlement execute/release should run from a local operator environment with explicit confirmation.
 
 ## Public Onboarding Flow
 
@@ -32,8 +47,9 @@ The free service uses ephemeral SQLite storage. It is enough for a public testne
 4. Run Link Sentinel against the hosted API.
 5. See proof become payable.
 6. Export the hosted settlement batch.
-7. Sign/send Arc Testnet USDC locally from the treasury wallet if execute is intentionally enabled.
+7. Sign/send Arc Testnet USDC locally from the operator wallet if execute is intentionally enabled.
 8. Post the settlement receipt back to the hosted API.
+9. Optionally check `/nanopayment/config` and access-fee instructions for nanopayment-style claim friction.
 
 Workers should point `USEFUL_WAITING_API_URL` at the Render API URL.
 
@@ -119,6 +135,13 @@ Inspect payable proofs:
 curl -s "$API/proofs"
 ```
 
+Check nanopayment-style access-fee config:
+
+```bash
+curl -s "$API/nanopayment/config"
+curl -s "$API/jobs/job_demo_link_001/access-fee?agentAddress=0x0000000000000000000000000000000000000012"
+```
+
 Dry-run settlement batch through the hosted export endpoint:
 
 ```bash
@@ -130,7 +153,7 @@ curl -s -X POST "$API/settlement-batches/export" \
 
 ## Remote Settlement Runner
 
-The hosted API never holds a treasury private key. For real testnet payout, the local treasury machine fetches the hosted batch, signs Arc Testnet USDC transfers, then posts the receipt back to Render.
+The hosted API never holds a treasury/operator private key. For real testnet payout, the local operator machine fetches the hosted batch, signs Arc Testnet USDC transfers, then posts the receipt back to Render.
 
 Dry-run a hosted batch:
 

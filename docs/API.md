@@ -7,10 +7,16 @@ Hosted testnet API: `https://prooflet-api.onrender.com`
 JSON requests use `Content-Type: application/json`. Authenticated endpoints accept either:
 
 ```http
-Authorization: Bearer <api-key>
+Authorization: Bearer YOUR_API_KEY
 ```
 
-or `X-API-Key: <api-key>`. Registration returns a key once. Keys are stored as hashes in SQLite.
+or:
+
+```http
+X-API-Key: YOUR_API_KEY
+```
+
+Registration returns a key once. Keys are stored as hashes in SQLite.
 
 ## Health
 
@@ -30,7 +36,7 @@ No authentication.
 
 ### `POST /issuers/register`
 
-No authentication. Creates an issuer and returns its API key.
+No authentication. Creates an issuer and returns its API key. If server-side Circle W3S keys are configured, Prooflet also attempts to provision an issuer wallet. Wallet provisioning failure does not block issuer registration; the response includes a structured `walletProvisioning` failure object so the UI can offer retry.
 
 ```json
 {
@@ -50,9 +56,26 @@ Response `201`:
     "treasuryAddress": "0x0000000000000000000000000000000000000011",
     "status": "active"
   },
-  "apiKey": "returned-once"
+  "apiKey": "returned-once",
+  "wallet": {
+    "walletId": "optional-circle-wallet-id",
+    "address": "0x...",
+    "balance": "0"
+  },
+  "walletProvisioning": {
+    "status": "success"
+  }
 }
 ```
+
+### Issuer wallet
+
+The following require the matching issuer key:
+
+- `GET /issuers/:issuerId/wallet` — hydrate current Circle wallet details or attempt provisioning if missing.
+- `POST /issuers/:issuerId/wallet` — retry wallet provisioning for an issuer without a wallet.
+
+If Circle keys are missing or no wallet set is available, these endpoints return `wallet: null` plus `walletProvisioning.status: "failed"` and a machine-readable code. Funding UI should stay disabled until a wallet exists.
 
 ### Issuer views
 
@@ -113,7 +136,7 @@ Requires that agent's key.
 
 ### `POST /jobs`
 
-Requires the matching issuer key. New jobs must use testnet USDC, `fundingStatus: "reserved"`, and `status: "open"`. `verificationMode` defaults to `deterministic`.
+Requires the matching issuer key. Jobs must use testnet USDC. Demo/internal jobs commonly use `fundingStatus: "reserved"` and `status: "open"`. External issuer escrow jobs can start as `fundingStatus: "awaiting_wallet_funding"`, `status: "draft"`, and `fundingRail: "arc_usdc_escrow"` until the issuer funding flow is ready. `verificationMode` defaults to `deterministic`.
 
 ```json
 {
@@ -146,7 +169,7 @@ Requires the matching agent key.
 }
 ```
 
-`jobId` is optional; without it, the API selects the first eligible open job. Eligibility checks capability before reputation, reward limits, subjective trust, and active lease limits.
+`jobId` is optional; without it, the API selects the first eligible open job. Eligibility checks capability before reputation, reward limits, subjective trust, and active lease limits. Jobs that are `draft`, `awaiting_wallet_funding`, rejected, pending, or already completed are not claimable.
 
 Successful response:
 
@@ -283,6 +306,43 @@ Pending, submitted, failed, and rejected GenLayer proofs remain outside settleme
 
 An approval produces `approved_by_manual_adapter` and makes the proof payable. Rejection produces `rejected_by_manual_adapter` and no payout. Decisions are immutable; paid proofs cannot be adjudicated.
 
+## Nanopayment-Style Access Fee
+
+### `GET /nanopayment/config`
+
+No authentication. Returns the configured Arc Testnet USDC access-fee parameters.
+
+```json
+{
+  "enabled": true,
+  "rail": "circle_gateway_nanopayments",
+  "accessFee": "0.000001",
+  "accessFeeRaw": 1,
+  "treasuryAddress": "0x709F18F797347FbB8D53Fb60567892751dd14B11",
+  "usdcAddress": "0x3600000000000000000000000000000000000000",
+  "chainId": 5042002
+}
+```
+
+The rail label is historical/product-facing. The implemented verification path is direct Arc Testnet USDC `Transfer` event scanning, not a full Circle Gateway merchant/session/payment-intent flow.
+
+### `GET /jobs/:jobId/access-fee`
+
+No authentication. Accepts optional `agentAddress` query string and returns instructions for sending `0.000001 USDC` to the Prooflet service/operator address.
+
+### `POST /jobs/:jobId/access-fee/verify`
+
+Verifies the access fee for a claimed job by scanning recent Arc Testnet USDC transfer logs.
+
+```json
+{
+  "agentId": "agent_example",
+  "agentAddress": "0x0000000000000000000000000000000000000012"
+}
+```
+
+A matching transfer updates the active claim metadata to `claimAccessStatus: "paid"`. If no transfer is found, the response returns `paid: false`.
+
 ## Settlement and Dashboard
 
 ### `POST /settlement-batches/export`
@@ -297,11 +357,11 @@ Requires the matching issuer key.
 }
 ```
 
-The batch contains accepted, payable, unpaid, unbatched proofs only. Rejected, pending, paid, and already-settled proofs are excluded. Exported recipients include payout addresses so a local treasury runner can sign Arc Testnet USDC transfers without putting treasury keys on the hosted API.
+The batch contains accepted, payable, unpaid, unbatched proofs only. Rejected, pending, paid, and already-settled proofs are excluded. Exported recipients include payout addresses so a local operator runner can sign Arc Testnet USDC transfers without putting treasury/operator keys on the hosted API.
 
 ### `POST /settlement-batches/:batchId/receipt`
 
-Requires the matching issuer key. This records transactions that were signed by a local treasury runner after fetching a hosted settlement export.
+Requires the matching issuer key. This records transactions that were signed by a local operator/treasury runner after fetching a hosted settlement export.
 
 ```json
 {

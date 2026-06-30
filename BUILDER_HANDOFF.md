@@ -90,7 +90,7 @@ GenLayer path:
 
 Do not break these.
 
-- Do not expose treasury private keys in frontend, docs, API responses, logs, uploads, screenshots, or commits.
+- Do not expose treasury/operator private keys, Circle entity secrets, or real API keys in frontend, docs, API responses, logs, uploads, screenshots, or commits.
 - Do not commit `.env`.
 - Do not reset the database as an upgrade path.
 - Do not alter historical batch `uwp_arc_20260618_001`.
@@ -100,7 +100,7 @@ Do not break these.
 - Paid proofs must never become payable again.
 - Rejected proofs must never be paid.
 - Pending adjudication proofs must never enter settlement.
-- Remote settlement must still require issuer auth and local treasury confirmation.
+- Remote settlement must still require issuer auth and local operator confirmation.
 - Arc settlement is Arc Testnet only, chain ID `5042002`, USDC `0x3600000000000000000000000000000000000000`.
 - No mainnet funds are supported or represented.
 
@@ -201,7 +201,7 @@ Next builder should trigger/check Render deploy before attempting remote settlem
 This was the desired shape:
 
 Render API stores payable proofs
--> local treasury runner fetches settlement export
+-> local operator runner fetches settlement export
 -> local runner signs/sends Arc Testnet USDC
 -> local runner posts settlement receipt back to Render API
 
@@ -298,7 +298,7 @@ The receipt API:
 
 6. Public docs include seeded dev issuer key for demo convenience.
    - This is not a production auth model.
-   - Do not put real treasury keys on Render.
+   - Do not put real treasury/operator keys on Render.
 
 ## Key Commands
 
@@ -391,7 +391,7 @@ Important:
 - `REMOTE_SETTLEMENT_BATCH_ID`
 - `REMOTE_SETTLEMENT_PROOF_IDS`
 
-Never put `TREASURY_PRIVATE_KEY` in frontend, Vercel, public docs, screenshots, or Render unless you are intentionally running server-side settlement there. Current intended model is local treasury signing.
+Never put `TREASURY_PRIVATE_KEY`, escrow operator private keys, Circle entity secrets, or real Circle API keys in frontend, Vercel, public docs, screenshots, or Render unless you are intentionally running server-side settlement there. Current intended model is local operator signing.
 
 ## Submission/Judging Files
 
@@ -428,7 +428,7 @@ Recommended next sequence:
    - Use `REMOTE_SETTLEMENT_PROOF_IDS=proof_agent_ronny_clean_1782250563304_5a4fc3ec`.
    - Confirm total payout is `0.001 USDC`.
 
-3. If treasury has Arc Testnet USDC and you intentionally want fresh proof:
+3. If the operator/treasury wallet has Arc Testnet USDC and you intentionally want fresh proof:
    - Run `settlement:remote:execute`.
    - Capture tx hash.
    - Confirm hosted dashboard marks the proof paid.

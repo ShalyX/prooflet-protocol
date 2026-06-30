@@ -7,8 +7,8 @@ Prooflet is a hackathon/test-phase implementation. Current limitations are expli
 - **Mock is not live adjudication.** `mock_genlayer` is a deterministic local acceptance/demo path. Real `genlayer` mode was not executed during the pre-demo audit, and no live GenLayer decision receipt is claimed.
 - **SQLite is local persistence.** It is appropriate for this single-node test phase, not a horizontally scaled production deployment.
 - **Manual adjudication is temporary.** Scoped manual decisions bridge subjective jobs until an external adjudication adapter is implemented and reviewed.
-- **Link Sentinel is the first autonomous worker.** It proves the worker/SDK contract for link verification; a broader worker ecosystem is future work.
-- **External issuer funding is protocol/testnet mode.** Prooflet is the seeded issuer, and issuer rewards are represented as reserved testnet commitments. Production escrow and external funding reconciliation are not implemented.
+- **Reference workers are examples, not a closed network.** Link Sentinel, Freshness Clerk, and Context Press prove the worker/SDK contract. The intended ecosystem is external agents registering and polling for jobs when idle.
+- **External issuer funding is partially implemented.** External issuers can register, wallet provisioning can run when Circle W3S is configured, and jobs can be created as escrow-funding drafts. A proven escrow lifecycle exists on Arc Testnet, but open marketplace funding UX/reconciliation is still testnet/V2 work.
 - **The system is not production audited.** API, database, key management, worker, and settlement code require professional security review before production use.
 - **No mainnet support.** The UI, documentation, scripts, and settlement checks describe testnet value only.
 - **Local development keys are convenience credentials.** They must not be reused in a public or production deployment.

@@ -28,11 +28,13 @@ Show the landing CTAs, protocol loop, and settlement proof section.
 Stay on `/` and point to:
 
 - API-backed job queue
-- Autonomous Link Sentinel worker
+- External issuer/agent registration path
+- Three reference workers: Link Sentinel, Freshness Clerk, and Context Press
 - Agent and issuer SDKs
 - SQLite persistence
 - Reputation-gated access
-- Arc Testnet settlement daemon
+- Arc Testnet escrow + operator-controlled settlement tooling
+- Nanopayment-style `0.000001 USDC` access-fee verification
 
 Say:
 
@@ -94,16 +96,18 @@ Say:
 
 ### 2:35-3:00: Optional objective worker path
 
-If time permits, show the commands without necessarily running them:
+If time permits, run the full local demo test after the recording or show the objective commands:
 
 ```bash
+npm run demo:full
+# or, for only the link worker path:
 npm run job:create-link -- --url https://docs.arc.network --reward 0.001
 npm run agent:link -- --once
 ```
 
 Say:
 
-> Link Sentinel is the first autonomous worker. It validates API health, claims eligible lease-bound work, performs an external HTTP check, hashes the response, submits structured proof, and waits for verification before payment eligibility.
+> Prooflet is open to external agents. The included workers are reference agents: Link Sentinel checks links, Freshness Clerk checks freshness metadata, and Context Press compresses traces. Each worker polls for eligible lease-bound work, performs the task, submits a structured proof packet, and waits for verification before payment eligibility.
 
 ## Optional Rejection Clip
 
@@ -120,4 +124,6 @@ The summary must show `rejected_by_mock_genlayer`, `Rejected · No payout`, and 
 - Do not claim live GenLayer adjudication unless real `genlayer` mode was explicitly configured and executed.
 - Do not claim mainnet funds.
 - Do not claim dry-run sent a transaction.
+- Do not claim full Circle Gateway merchant/session integration; the current access fee is Arc USDC event-scan verification.
+- Do not claim hosted API auto-pays; approved proofs become eligible for operator-controlled release/settlement.
 - Do not expose private keys, API keys, or `.env` values.

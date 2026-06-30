@@ -39,4 +39,4 @@ Ask testers to note whether the landing page, dashboard, proof packet, and dry-r
 
 External hosted run evidence has been received. Remaining item before claiming paid external usage:
 
-- Optional after proof is payable: tiny Arc Testnet USDC execute from local treasury using `npm run settlement:remote:execute`, then replace `FRESH_DEMO_TX_HASH_HERE` in submission docs.
+- Optional after proof is payable: tiny Arc Testnet USDC execute from a local operator/treasury environment using `npm run settlement:remote:execute`, then replace `FRESH_DEMO_TX_HASH_HERE` in submission docs.
