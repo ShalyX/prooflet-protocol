@@ -48,16 +48,24 @@ export function initIssuerWorkbench({ apiUrl, onNavigate }) {
     document.querySelector("#registerIssuerPanel").hidden = true;
   });
 
-  document.querySelector("#registerIssuerForm").addEventListener("submit", async (e) => {
-    e.preventDefault();
+  document.querySelector("#registerIssuerForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
     try {
-      setStatus("Registering issuer...", true);
-      const name = document.querySelector("#regIssuerName").value.trim();
-      const email = document.querySelector("#regIssuerEmail").value.trim() || undefined;
-      const description = document.querySelector("#regIssuerDesc").value.trim() || undefined;
+      setStatus("Registering new issuer...", true);
+      const data = {
+        name: document.querySelector("#regIssuerName").value.trim(),
+        email: document.querySelector("#regIssuerEmail").value.trim() || undefined,
+        description: document.querySelector("#regIssuerDesc").value.trim() || undefined
+      };
       
-      const result = await IssuerClient.register({ baseUrl: apiUrl, name, email, description });
-      
+      const res = await fetch(`${apiUrl}/issuers/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data)
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || "Registration failed");
+
       const apiKey = result.apiKey;
       document.querySelector("#successIssuerId").textContent = result.issuer.issuerId;
       document.querySelector("#successApiKey").textContent = apiKey;
@@ -74,9 +82,32 @@ export function initIssuerWorkbench({ apiUrl, onNavigate }) {
         document.querySelector("#successWalletErrorReason").textContent = provError;
       }
 
+      // Store credentials immediately
+      sessionStorage.setItem("uwp.extIssuerId", result.issuer.issuerId);
+      sessionStorage.setItem("uwp.extIssuerApiKey", apiKey);
+      issuerInput.value = result.issuer.issuerId;
+      keyInput.value = apiKey;
+
       document.querySelector("#registerIssuerPanel").hidden = true;
       document.querySelector("#registerSuccessPanel").hidden = false;
-      setStatus("Registration successful.", true);
+      
+      // Do not say "Session active" yet to avoid UI inconsistency. Say "Registration successful." without changing auth status to true if not fully hydrated.
+      // Actually, let's call connect() in the background so it hydrates while they read the success panel.
+      client = new IssuerClient({baseUrl:apiUrl,issuerId:result.issuer.issuerId,apiKey:apiKey});
+      
+      // Pre-hydrate wallet to prevent NOT CREATED flash
+      if (result.wallet) {
+        renderWallet(result.wallet, null);
+      } else {
+        renderWallet(null, result.walletProvisioning?.message || result.walletError || "Circle wallet provisioning unavailable");
+      }
+
+      await refresh();
+      await fetchWallet();
+      setStatus("Registration successful. Please save your API key.", true);
+      message.dataset.state = "ok";
+      document.querySelector("#workbenchConnection").textContent = "Session active";
+      
     } catch (error) {
       setStatus(error.message, false);
     }
@@ -85,9 +116,8 @@ export function initIssuerWorkbench({ apiUrl, onNavigate }) {
   document.querySelector("#continueWorkbenchBtn").addEventListener("click", () => {
     document.querySelector("#registerSuccessPanel").hidden = true;
     document.querySelector("#returningIssuerPanel").hidden = false;
-    document.querySelector("#issuerIdInput").value = document.querySelector("#successIssuerId").textContent;
-    document.querySelector("#issuerKeyInput").value = document.querySelector("#successApiKey").textContent;
-    connect();
+    // It's already hydrated from the background connect!
+    setStatus("Issuer session connected.", true);
   });
 
   document.querySelector("#copyCredsBtn").addEventListener("click", () => {
@@ -292,7 +322,13 @@ export function initIssuerWorkbench({ apiUrl, onNavigate }) {
   
   async function validateFile(event){event.preventDefault();if(!client)return setStatus("Connect an issuer session first.",false);const file=document.querySelector("#uploadFile").files[0];if(!file)return;try{preview=await client.validateUpload({filename:file.name,format:file.name.toLowerCase().endsWith(".csv")?"csv":"json",content:await file.text()});renderPreview(preview);setStatus("Validation finished. No jobs have been created yet.",true);}catch(error){setStatus(error.message,false);}}
   function renderPreview(upload){const root=document.querySelector("#uploadPreview");root.innerHTML=`<div class="preview-total"><strong>${upload.totalRewardRequired} USDC</strong><span>${upload.validRows} valid / ${upload.invalidRows} invalid</span></div>${upload.rows.map((row)=>`<p class="${row.valid?"valid":"invalid"}">Row ${row.rowNumber}: ${escape(row.job?.jobId||"invalid row")} ${row.errors.length?`· ${escape(row.errors.join(" "))}`:"· ready"}</p>`).join("")}${upload.status === "confirmed" ? '<div class="preview-actions"><strong>✅ Upload Confirmed & Jobs Created</strong></div>' : `<div class="preview-actions"><button class="primary" data-confirm="strict">Create jobs (Requires 0 invalid)</button>${upload.invalidRows?'<button class="secondary" data-confirm="validOnly">Skip invalid & create good jobs</button>':""}</div>`}`;root.querySelectorAll("[data-confirm]").forEach((button)=>button.addEventListener("click",async()=>{try{const confirmMode=button.dataset.confirm;const result=await client.confirmUpload(upload.uploadId,{mode:confirmMode,acknowledgeInvalidRows:confirmMode==="validOnly"});setStatus(`Created ${result.createdJobIds.length} jobs.`,true);renderPreview(result);await refresh();}catch(error){setStatus(error.message,false);}}));}
-  function renderOverview(value){document.querySelector("#issuerOverview").innerHTML=[["Jobs",value.jobs],["Proofs",value.proofs],["Reserved",`${money(value.reservedRewards)} USDC`],["Payable",`${money(value.payableRewards)} USDC`],["Paid proofs",value.paidProofs],["Pending review",value.pendingAdjudication]].map(([label,val])=>`<div><span>${label}</span><strong>${val}</strong></div>`).join("");}
+  function renderOverview(value){
+    if (value.jobs === 0 && value.proofs === 0) {
+      document.querySelector("#issuerOverview").innerHTML=empty(mode === "external" ? "External issuer connected" : "Demo issuer connected", "Create your first job or bulk upload to see metrics.");
+      return;
+    }
+    document.querySelector("#issuerOverview").innerHTML=[["Jobs",value.jobs],["Proofs",value.proofs],["Reserved",`${money(value.reservedRewards)} USDC`],["Payable",`${money(value.payableRewards)} USDC`],["Paid proofs",value.paidProofs],["Pending review",value.pendingAdjudication]].map(([label,val])=>`<div><span>${label}</span><strong>${val}</strong></div>`).join("");
+  }
   
   function renderJobs(rows){
     document.querySelector("#issuerJobs").innerHTML=rows.length?table(["Job","Type","Reward","Status","Funding","Claimed by","Access"],rows.map((row)=>{
