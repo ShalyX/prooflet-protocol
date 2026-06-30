@@ -1,8 +1,6 @@
 import express from "express";
 import { fileURLToPath } from "node:url";
-import { formatUnits, isAddress, parseUnits, createPublicClient, createWalletClient, http, parseAbi, stringToHex, pad } from "viem";
-import { privateKeyToAccount } from "viem/accounts";
-import { arcTestnet } from "viem/chains";
+import { formatUnits, isAddress, parseUnits } from "viem";
 import { authenticate, generateApiKey, storeApiKey } from "./auth.mjs";
 import { authenticateAdjudicator } from "./auth.mjs";
 import { createAgentWallet, createIssuerWallet, getCircleStatus, isCircleConfigured, getWalletBalance, sendUsdc, getWalletDetails } from "./circle-wallet.mjs";
@@ -309,29 +307,6 @@ export function createApp({ db = openDatabase() } = {}) {
       appendReputationEvent(db, { agentId, eventType: "job_claimed", jobId: job.job_id, issuerId: job.issuer_id, createdAt: claimedAt.toISOString() });
       return db.prepare("SELECT * FROM jobs WHERE job_id = ?").get(job.job_id);
     });
-
-    if (claimed.funding_status === "escrow_funded" && claimed.funding_rail === "arc_usdc_escrow") {
-      const operatorKey = process.env.SETTLEMENT_OPERATOR_PRIVATE_KEY;
-      const escrowAddress = process.env.ESCROW_CONTRACT_ADDRESS;
-      if (operatorKey && escrowAddress) {
-        const formattedKey = operatorKey.startsWith("0x") ? operatorKey : ("0x" + operatorKey);
-        const account = privateKeyToAccount(formattedKey);
-        const walletClient = createWalletClient({ account, chain: arcTestnet, transport: http(process.env.ARC_RPC_URL || "https://rpc-testnet.arc.tech") });
-        const escrowAbi = parseAbi(["function deposit(bytes32 jobId, address agent, uint256 amount) external"]);
-        const jobIdBytes32 = pad(stringToHex(claimed.job_id), { size: 32 });
-        const agentRecord = db.prepare("SELECT payout_address FROM agents WHERE agent_id = ?").get(claimed.claimed_by);
-        if (agentRecord?.payout_address) {
-          walletClient.writeContract({
-            address: escrowAddress,
-            abi: escrowAbi,
-            functionName: "deposit",
-            args: [jobIdBytes32, agentRecord.payout_address, BigInt(claimed.reward_amount)]
-          }).then(hash => {
-            db.prepare("UPDATE jobs SET escrow_tx_hash = ?, funding_status = 'escrow_deposited' WHERE job_id = ?").run(hash, claimed.job_id);
-          }).catch(console.error);
-        }
-      }
-    }
 
     response.json({ job: serializeJob(claimed) });
   });
