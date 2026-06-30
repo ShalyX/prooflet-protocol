@@ -66,8 +66,8 @@ export function initIssuerWorkbench({ apiUrl, onNavigate }) {
         document.querySelector("#successWalletId").textContent = result.wallet.walletId;
         document.querySelector("#successWalletAddress").textContent = result.wallet.address;
       } else {
-        document.querySelector("#successWalletId").textContent = "Failed";
-        document.querySelector("#successWalletAddress").textContent = "Failed";
+        document.querySelector("#successWalletId").textContent = "Circle wallet provisioning unavailable";
+        document.querySelector("#successWalletAddress").textContent = result.walletError || "Circle wallet provisioning unavailable";
       }
 
       document.querySelector("#registerIssuerPanel").hidden = true;
