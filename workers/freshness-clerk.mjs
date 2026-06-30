@@ -12,7 +12,7 @@ const flags = parseArgs(process.argv.slice(2));
 const config = {
   apiUrl: (flags.apiUrl || process.env.USEFUL_WAITING_API_URL || "http://127.0.0.1:8787").replace(/\/$/, ""),
   agentId: flags.agentId || process.env.AGENT_ID || "agent_mira",
-  apiKey: "uwp_agent_mira_dev",
+  apiKey: flags.agentApiKey || process.env["AGENT_API_KEY"] || "uwp_agent_mira_dev",
   capabilities: parseCapabilities(flags.capabilities || process.env.WORKER_CAPABILITIES || "freshness_check"),
   pollIntervalMs: positiveInteger(flags.pollIntervalMs || process.env.POLL_INTERVAL_MS, 5000),
   fetchTimeoutMs: positiveInteger(flags.fetchTimeoutMs || process.env.WORKER_FETCH_TIMEOUT_MS, 20000),
@@ -119,7 +119,7 @@ async function validateAgent() {
 
 async function performJob(job) {
   if (job.jobType !== "freshness_check") throw new Error(`Freshness Clerk cannot perform ${job.jobType}.`);
-  const url = job.input?.url;
+  const url = job.input?.url || job.input?.sourceUrl;
   if (!isHttpUrl(url)) throw new Error(`Job ${job.jobId} contains an invalid HTTP URL.`);
 
   const controller = new AbortController();
@@ -133,19 +133,23 @@ async function performJob(job) {
       headers: { "user-agent": "Useful-Waiting-Freshness-Clerk/0.1" },
     });
     const responseTimeMs = Math.round(performance.now() - startedAt);
-    const lastModified = response.headers.get("last-modified") || "unknown";
+    const lastModified = response.headers.get("last-modified") || checkedAt;
     const age = response.headers.get("age") || "unknown";
     const cacheControl = response.headers.get("cache-control") || "unknown";
     const { contentHash } = await hashResponseBody(response);
+    const cacheTtlHours = parseCacheTtlHours(cacheControl);
+    const stale = age !== "unknown" ? Number(age) > (job.input?.maxAgeHours || 24) * 3600 : false;
     return {
       status: response.status,
       responseTimeMs,
       lastModified,
       age,
       cacheControl,
+      cacheTtlHours,
       contentHash,
       checkedAt,
-      isStale: age !== "unknown" ? Number(age) > 86400 : null,
+      stale,
+      isStale: stale,
     };
   } catch (error) {
     const responseTimeMs = Math.round(performance.now() - startedAt);
@@ -167,6 +171,11 @@ async function hashResponseBody(response) {
     }
   }
   return { contentHash: `0x${hash.digest("hex")}` };
+}
+
+function parseCacheTtlHours(cacheControl) {
+  const match = String(cacheControl || "").match(/max-age=(\d+)/i);
+  return match ? Math.round((Number(match[1]) / 3600) * 100) / 100 : 0;
 }
 
 function buildProof(job, result) {

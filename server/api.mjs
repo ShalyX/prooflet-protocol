@@ -612,7 +612,7 @@ export function createApp({ db = openDatabase() } = {}) {
 
   app.use((error, _request, response, _next) => {
     const status = error.status || 500;
-    if (status >= 500 && !error.code) console.error(error);
+    if (status >= 500) console.error(error.stack || error);
     response.status(status).json({ error: error.message || "Internal server error.", ...(error.code ? { code: error.code } : {}), ...(error.eligibility ? { eligibility: error.eligibility } : {}) });
   });
   return { app, db };

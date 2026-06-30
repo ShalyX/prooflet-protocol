@@ -127,54 +127,23 @@ export function checkCompoundJobCompletion(db, proof) {
 
   if (allAccepted) {
     const now = new Date().toISOString();
-    withTransaction(db, () => {
-      // Mark compound job complete
-      db.prepare(`
-        UPDATE compound_jobs SET status = 'completed', completed_sub_proofs = ?, completed_at = ?
-        WHERE parent_job_id = ?
-      `).run(acceptedCount, now, parentId);
 
-      // Mark parent job as completed and payable
-      db.prepare(`
-        UPDATE jobs SET status = 'completed', funding_status = 'payable', updated_at = ?
-        WHERE job_id = ?
-      `).run(now, parentId);
+    // Called from proof submission, which already owns the surrounding transaction.
+    // Do not open a nested SQLite transaction here.
+    db.prepare(`
+      UPDATE compound_jobs SET status = 'completed', completed_sub_proofs = ?, completed_at = ?
+      WHERE parent_job_id = ?
+    `).run(acceptedCount, now, parentId);
 
-      // Update settlement status for this compound reward
-      const totalReward = compound.combined_reward;
-      const parentProof = {
-        proofId: `compound_${parentId}_${Date.now()}`,
-        jobId: parentId,
-        agentId: "system",
-        jobType: "compound_job",
-        input: json({ subJobIds }),
-        result: json({ subProofs: subJobIds, acceptedCount }),
-        verificationRoute: "compound_aggregator_v0",
-        proofTimestamp: now,
-        fingerprint: `compound:${parentId}`,
-        outcome: "accepted",
-        fundingStatus: "payable",
-        settlementStatus: "Awaiting Arc Testnet settlement",
-        verificationStatus: "compound_verified",
-        adjudicationStatus: "not_required",
-        created_at: now,
-      };
+    db.prepare(`
+      UPDATE jobs SET status = 'completed', funding_status = 'payable', updated_at = ?
+      WHERE job_id = ?
+    `).run(now, parentId);
 
-      db.prepare(`
-        INSERT OR IGNORE INTO proofs
-          (proof_id, job_id, agent_id, job_type, input_json, result_json, verification_route,
-           proof_timestamp, fingerprint, outcome, funding_status, settlement_status,
-           verification_status, adjudication_status, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        parentProof.proofId, parentId, "system", "compound_job",
-        parentProof.input, parentProof.result, parentProof.verificationRoute,
-        parentProof.proofTimestamp, parentProof.fingerprint, parentProof.outcome,
-        parentProof.fundingStatus, parentProof.settlementStatus,
-        parentProof.verificationStatus, parentProof.adjudicationStatus,
-        parentProof.created_at,
-      );
-    });
+    // Parent compound job is marked payable when all sub-proofs pass.
+    // Do not insert a synthetic parent proof here: proofs.agent_id has a real-agent FK,
+    // and inserting a fake "system" proof would also risk double-counting settlement.
+
     return { compoundComplete: true, compoundStatus: "completed" };
   }
 
@@ -199,12 +168,12 @@ export function checkCompoundJobFailure(db, proof) {
 
   // If any sub-job proof is rejected, the entire compound job fails
   const now = new Date().toISOString();
-  withTransaction(db, () => {
-    db.prepare("UPDATE compound_jobs SET status = 'failed', completed_at = ? WHERE parent_job_id = ?")
-      .run(now, parentId);
-    db.prepare("UPDATE jobs SET status = 'rejected', funding_status = 'rejected', updated_at = ? WHERE job_id = ?")
-      .run(now, parentId);
-  });
+  // Called from proof submission, which already owns the surrounding transaction.
+  // Do not open a nested SQLite transaction here.
+  db.prepare("UPDATE compound_jobs SET status = 'failed', completed_at = ? WHERE parent_job_id = ?")
+    .run(now, parentId);
+  db.prepare("UPDATE jobs SET status = 'rejected', funding_status = 'rejected', updated_at = ? WHERE job_id = ?")
+    .run(now, parentId);
 
   return true;
 }

@@ -13,7 +13,7 @@ const flags = parseArgs(process.argv.slice(2));
 const config = {
   apiUrl: (flags.apiUrl || process.env.USEFUL_WAITING_API_URL || "http://127.0.0.1:8787").replace(/\/$/, ""),
   agentId: flags.agentId || process.env.AGENT_ID || "agent_byte",
-  apiKey: "uwp_agent_byte_dev",
+  apiKey: flags.agentApiKey || process.env["AGENT_API_KEY"] || "uwp_agent_byte_dev",
   capabilities: parseCapabilities(flags.capabilities || process.env.WORKER_CAPABILITIES || "context_compression"),
   pollIntervalMs: positiveInteger(flags.pollIntervalMs || process.env.POLL_INTERVAL_MS, 5000),
   fetchTimeoutMs: positiveInteger(flags.fetchTimeoutMs || process.env.WORKER_FETCH_TIMEOUT_MS, 30000),
@@ -195,18 +195,12 @@ function extractKeyPhrases(text) {
 }
 
 function buildCompressedOutput(data) {
-  const result = {
-    originalLength: data.originalLength,
-    compressedKeys: {
-      urls: data.urls.slice(0, 10),
-      errors: data.errors.slice(0, 10),
-      timeline: data.timestamps.slice(0, 10),
-      actions: data.actions.slice(0, 10),
-      keyLines: data.keyPhrases,
-    },
-    traceId: data.traceId,
-  };
-  return result;
+  const parts = [];
+  if (data.urls.length) parts.push(`urls=${data.urls.slice(0, 3).join(",")}`);
+  if (data.errors.length) parts.push(`errors=${data.errors.slice(0, 2).join(" | ")}`);
+  if (data.actions.length) parts.push(`actions=${data.actions.slice(0, 3).join(" | ")}`);
+  if (data.keyPhrases.length) parts.push(`keys=${data.keyPhrases.slice(0, 2).join(" | ")}`);
+  return `${data.traceId}: ${parts.join("; ")}`.slice(0, Math.max(80, Math.floor(data.originalLength * 0.6)));
 }
 
 function buildProof(job, result) {

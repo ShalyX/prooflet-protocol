@@ -11,7 +11,7 @@ const flags = parseArgs(process.argv.slice(2));
 const config = {
   apiUrl: (flags.apiUrl || process.env.USEFUL_WAITING_API_URL || "http://127.0.0.1:8787").replace(/\/$/, ""),
   agentId: flags.agentId || process.env.AGENT_ID || "agent_lynx",
-  apiKey: flags.agentApiKey || "uwp_agent_lynx_dev",
+  apiKey: flags.agentApiKey || process.env["AGENT_API_KEY"] || "uwp_agent_lynx_dev",
   capabilities: parseCapabilities(flags.capabilities || process.env.WORKER_CAPABILITIES || "link_verification"),
   pollIntervalMs: positiveInteger(flags.pollIntervalMs || process.env.POLL_INTERVAL_MS, 5000),
   fetchTimeoutMs: positiveInteger(flags.fetchTimeoutMs || process.env.WORKER_FETCH_TIMEOUT_MS, 20000),
