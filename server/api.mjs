@@ -16,7 +16,11 @@ import { confirmUpload, validateUpload } from "./uploads.mjs";
 import { createCompoundJob, checkCompoundJobCompletion, checkCompoundJobFailure, listCompoundJobs } from "./compound-jobs.mjs";
 import { createPaymentRequest, nanopaymentConfig, verifyNanopayment } from "./circle-nanopayment.mjs";
 
-export function createApp({ db = openDatabase() } = {}) {
+export function createApp({
+  db = openDatabase(),
+  walletService = { createAgentWallet, createIssuerWallet, getCircleStatus, isCircleConfigured, getWalletBalance, sendUsdc, getWalletDetails },
+} = {}) {
+  const circle = walletService;
   seedDatabase(db);
   backfillReputation(db);
   const app = express();
@@ -50,7 +54,7 @@ export function createApp({ db = openDatabase() } = {}) {
     let walletCreated = null;
     let walletProvisioning = null;
     try {
-      walletCreated = await createIssuerWallet(issuerId);
+      walletCreated = await circle.createIssuerWallet(issuerId);
       walletProvisioning = { status: "success" };
     } catch (err) {
       walletProvisioning = {
@@ -92,7 +96,7 @@ export function createApp({ db = openDatabase() } = {}) {
     
     if (!issuer.circle_wallet_id) {
        try {
-         const wallet = await createIssuerWallet(issuerId);
+         const wallet = await circle.createIssuerWallet(issuerId);
          db.prepare("UPDATE issuers SET circle_wallet_id = ? WHERE issuer_id = ?").run(wallet.walletId, issuerId);
          issuer.circle_wallet_id = wallet.walletId;
          return response.json({ wallet: { walletId: wallet.walletId, address: wallet.address, balance: "0" }, walletProvisioning: { status: "success" } });
@@ -101,8 +105,8 @@ export function createApp({ db = openDatabase() } = {}) {
        }
     }
 
-    const balance = await getWalletBalance(issuer.circle_wallet_id);
-    const details = await getWalletDetails(issuer.circle_wallet_id);
+    const balance = await circle.getWalletBalance(issuer.circle_wallet_id);
+    const details = await circle.getWalletDetails(issuer.circle_wallet_id);
     response.json({ wallet: { walletId: issuer.circle_wallet_id, balance: balance?.amount || "0", address: details?.address || null } });
   });
 
@@ -114,7 +118,7 @@ export function createApp({ db = openDatabase() } = {}) {
     if (issuer.circle_wallet_id) throw httpError(400, "Wallet already exists");
     
     try {
-      const wallet = await createIssuerWallet(issuerId);
+      const wallet = await circle.createIssuerWallet(issuerId);
       db.prepare("UPDATE issuers SET circle_wallet_id = ? WHERE issuer_id = ?").run(wallet.walletId, issuerId);
       response.json({ wallet: { walletId: wallet.walletId, address: wallet.address, balance: "0" }, walletProvisioning: { status: "success" } });
     } catch (e) {
@@ -171,31 +175,46 @@ export function createApp({ db = openDatabase() } = {}) {
     if (!Array.isArray(capabilities) || capabilities.length === 0 || capabilities.some((item) => typeof item !== "string")) {
       throw httpError(400, "capabilities must be a non-empty string array.");
     }
-    if (!isAddress(payoutAddress)) throw httpError(400, "payoutAddress must be a valid EVM address.");
+    const hasFallbackPayout = typeof payoutAddress === "string" && payoutAddress.length > 0;
+    if (hasFallbackPayout && !isAddress(payoutAddress)) throw httpError(400, "payoutAddress must be a valid EVM address.");
     const score = Number(reputationScore);
     if (!Number.isInteger(score) || score < 0 || score > 100) throw httpError(400, "reputationScore must be an integer from 0 to 100.");
     const apiKey = generateApiKey("agent");
     const now = new Date().toISOString();
-    
-    // Create Circle wallet if configured
+
     let circleWallet = null;
-    let circleError = null;
-    if (isCircleConfigured()) {
+    let walletProvisioning = null;
+    let finalPayoutAddress = payoutAddress || null;
+
+    if (circle.isCircleConfigured()) {
       try {
-        circleWallet = await createAgentWallet(agentId, name);
+        circleWallet = await circle.createAgentWallet(agentId, name);
+        if (!circleWallet?.address || !isAddress(circleWallet.address)) throw new Error("Circle wallet response did not include a valid address.");
+        finalPayoutAddress = circleWallet.address;
+        walletProvisioning = { status: "success" };
       } catch (walletError) {
-        circleError = walletError.message;
-        console.error(`Wallet creation for ${agentId} failed: ${walletError.message}`);
+        walletProvisioning = {
+          status: "failed",
+          code: walletError.code || "CIRCLE_WALLET_CREATE_FAILED",
+          message: walletError.code ? walletError.message : "Circle wallet could not be created. Check server Circle configuration.",
+        };
+        circleWallet = null;
+        if (!hasFallbackPayout) {
+          throw httpError(400, "Circle wallet provisioning failed and no fallback payoutAddress was provided.", walletProvisioning);
+        }
       }
+    } else {
+      walletProvisioning = { status: "not_configured", code: "CIRCLE_CONFIG_MISSING", message: "Circle wallet provisioning is not configured." };
+      if (!hasFallbackPayout) throw httpError(400, "Circle wallet provisioning is not configured and payoutAddress is required.", walletProvisioning);
     }
-    
+
     try {
       withTransaction(db, () => {
         db.prepare(`
           INSERT INTO agents
             (agent_id, name, capabilities_json, payout_address, status, reputation_score, circle_wallet_id, created_at)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(agentId, name, json([...new Set(capabilities)]), payoutAddress, status, score, circleWallet?.walletId || null, now);
+        `).run(agentId, name, json([...new Set(capabilities)]), finalPayoutAddress, status, score, circleWallet?.walletId || null, now);
         storeApiKey(db, "agent", agentId, apiKey, now);
         appendReputationEvent(db, { eventId: `registered:${agentId}`, agentId, eventType: "agent_registered", createdAt: now });
       });
@@ -204,9 +223,9 @@ export function createApp({ db = openDatabase() } = {}) {
       throw error;
     }
     response.status(201).json({
-      agent: { agentId, name, capabilities, payoutAddress, status, reputationScore: score },
+      agent: { agentId, name, capabilities, payoutAddress: finalPayoutAddress, status, reputationScore: score, circleWalletId: circleWallet?.walletId || null },
       circleWallet,
-      circleError,
+      walletProvisioning,
       apiKey,
     });
   });
@@ -481,7 +500,7 @@ export function createApp({ db = openDatabase() } = {}) {
     response.json({ agent: serializeAgent(agent) });
   });
   app.get("/circle/status", (_request, response) => {
-    response.json(getCircleStatus());
+    response.json(circle.getCircleStatus());
   });
   app.get("/circle/agents/:agentId/wallet", async (request, response) => {
     const { agentId } = request.params;
@@ -528,7 +547,7 @@ export function createApp({ db = openDatabase() } = {}) {
   });
   app.get("/proofs", (_request, response) => response.json({ proofs: db.prepare("SELECT * FROM proofs ORDER BY created_at DESC").all().map(serializeProof) }));
   app.get("/settlements", (_request, response) => response.json(settlementSummary(db)));
-  app.get("/dashboard", (_request, response) => response.json(buildDashboard(db)));
+  app.get("/dashboard", (_request, response) => response.json(buildDashboard(db, circle)));
 
   // ---- Escrow Endpoints ----
   // Legacy/pre-assigned V1 escrow path only. Open marketplace external funding
@@ -590,12 +609,12 @@ export function createApp({ db = openDatabase() } = {}) {
   app.use((error, _request, response, _next) => {
     const status = error.status || 500;
     if (status >= 500) console.error(error.stack || error);
-    response.status(status).json({ error: error.message || "Internal server error.", ...(error.code ? { code: error.code } : {}), ...(error.eligibility ? { eligibility: error.eligibility } : {}) });
+    response.status(status).json({ error: error.message || "Internal server error.", ...(error.code ? { code: error.code } : {}), ...(error.eligibility ? { eligibility: error.eligibility } : {}), ...(error.walletProvisioning ? { walletProvisioning: error.walletProvisioning } : {}) });
   });
   return { app, db };
 }
 
-function buildDashboard(db) {
+function buildDashboard(db, circle) {
   expireLeasesWithEvents(db);
   const issuer = db.prepare("SELECT * FROM issuers WHERE issuer_id = 'useful_waiting_protocol'").get();
   const agents = db.prepare("SELECT * FROM agents ORDER BY agent_id").all().map((agent) => ({ ...serializeAgent(agent), reputation: getReputationSummary(db, agent.agent_id) }));
@@ -616,12 +635,22 @@ function buildDashboard(db) {
     jobs,
     proofs,
     settlements,
-    circle: getCircleStatus(),
+    circle: circle.getCircleStatus(),
   };
 }
 
 function serializeAgent(row) {
-  return { agentId: row.agent_id, name: row.name, capabilities: parseJson(row.capabilities_json, []), payoutAddress: row.payout_address, status: row.status, reputationScore: row.reputation_score, circleWalletId: row.circle_wallet_id || null };
+  const circleWalletId = row.circle_wallet_id || null;
+  return {
+    agentId: row.agent_id,
+    name: row.name,
+    capabilities: parseJson(row.capabilities_json, []),
+    payoutAddress: row.payout_address,
+    status: row.status,
+    reputationScore: row.reputation_score,
+    circleWalletId,
+    walletSource: circleWalletId ? "circle_wallet" : "manual_payout",
+  };
 }
 
 function serializeJob(row) {
@@ -708,9 +737,10 @@ function normalizedReward(value) {
   return formatUnits(parseUnits(String(value), 6), 6);
 }
 
-function httpError(status, message) {
+function httpError(status, message, details = null) {
   const error = new Error(message);
   error.status = status;
+  if (details) error.walletProvisioning = details;
   return error;
 }
 

@@ -42,7 +42,7 @@
     "demo:full": "node --no-warnings --env-file-if-exists=.env scripts/demo-full.mjs",
     "job:create-link": "node --no-warnings --env-file-if-exists=.env scripts/create-link-job.mjs",
     "job:create-link:check": "node --no-warnings scripts/create-link-job-acceptance.mjs",
-    "submission:check": "npm run sdk:test && npm run reputation:check && npm run adjudication:check && npm run genlayer:mock-check && npm run uploads:check && npm run settlement:check && npm run api:check && npm run job:create-link:check && npm run build",
+    "submission:check": "npm run sdk:test && npm run reputation:check && npm run adjudication:check && npm run genlayer:mock-check && npm run uploads:check && npm run settlement:check && npm run api:check && npm run agent-wallet:check && npm run job:create-link:check && npm run build",
     "settlement:daemon": "node --no-warnings --env-file-if-exists=.env workers/settlement-daemon.mjs",
     "settlement:daemon:dry-run": "node --no-warnings --env-file-if-exists=.env workers/settlement-daemon.mjs --mode=dry-run",
     "settlement:daemon:execute": "node --no-warnings --env-file-if-exists=.env workers/settlement-daemon.mjs --mode=execute",
@@ -56,7 +56,8 @@
     "settle:arc": "node --env-file=.env scripts/settle-arc.mjs",
     "escrow:deploy": "node --env-file=.env scripts/deploy-escrow.mjs",
     "escrow:operator": "node --env-file=.env workers/settlement-operator.mjs",
-    "nanopayment:check": "node --env-file=.env scripts/nanopayment-check.mjs"
+    "nanopayment:check": "node --env-file=.env scripts/nanopayment-check.mjs",
+    "agent-wallet:check": "node --no-warnings scripts/agent-wallet-acceptance.mjs"
   },
   "dependencies": {
     "@circle-fin/developer-controlled-wallets": "^10.7.1",

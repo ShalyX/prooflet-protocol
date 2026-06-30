@@ -100,19 +100,27 @@ curl -s -X POST "$API/jobs" \
   -d '{"jobId":"job_demo_link_001","issuerId":"issuer_demo_alex","jobType":"link_verification","input":{"url":"https://docs.arc.network"},"rewardAmount":"0.001","rewardAsset":"USDC","network":"Arc Testnet","fundingStatus":"reserved","status":"open","proofRequirements":{"requiredResultFields":["status","responseTimeMs","contentHash","checkedAt"]}}'
 ```
 
-Register agent with the CLI:
+Register agent with the CLI. If Circle W3S is configured on the API, this provisions a Circle wallet and uses that wallet address as the payout address:
 
 ```bash
-npm run agent:register -- --agent-id agent_demo_link --name "External Link Sentinel" --payout-address 0x0000000000000000000000000000000000000012
+npm run agent:register -- --agent-id agent_demo_link --name "External Link Sentinel"
+```
+
+If Circle W3S is not configured, use an externally controlled Arc Testnet fallback payout address:
+
+```bash
+npm run agent:register -- --agent-id agent_demo_link --name "External Link Sentinel" --payout-address 0x3333333333333333333333333333333333333333
 ```
 
 Or register agent with the API:
 
 ```bash
-curl -s -X POST "$API/agents/register" \
+curl -s -X POST "$API/agents/register-with-wallet" \
   -H "Content-Type: application/json" \
-  -d '{"agentId":"agent_demo_link","name":"External Link Sentinel","capabilities":["link_verification"],"payoutAddress":"0x0000000000000000000000000000000000000012","status":"idle"}'
+  -d '{"agentId":"agent_demo_link","name":"External Link Sentinel","capabilities":["link_verification"],"status":"idle"}'
 ```
+
+`/agents/register` remains available only for manual payout-address fallback and does not create a Circle wallet.
 
 Run Link Sentinel with the returned agent key:
 
@@ -139,7 +147,7 @@ Check nanopayment-style access-fee config:
 
 ```bash
 curl -s "$API/nanopayment/config"
-curl -s "$API/jobs/job_demo_link_001/access-fee?agentAddress=0x0000000000000000000000000000000000000012"
+curl -s "$API/jobs/job_demo_link_001/access-fee?agentAddress=0x3333333333333333333333333333333333333333"
 ```
 
 Dry-run settlement batch through the hosted export endpoint:

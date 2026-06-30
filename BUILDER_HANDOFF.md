@@ -331,8 +331,10 @@ Register external agent:
 
 ```bash
 USEFUL_WAITING_API_URL=https://prooflet-api.onrender.com \
-npm run agent:register -- --agent-id agent_example_clean --name "Example Link Sentinel" --payout-address 0x0000000000000000000000000000000000000012
+npm run agent:register -- --agent-id agent_example_clean --name "Example Link Sentinel"
 ```
+
+If Circle W3S is not configured on the hosted API, provide an externally controlled Arc Testnet fallback payout address with `--payout-address`.
 
 Run worker with direct flags, safest for Windows:
 

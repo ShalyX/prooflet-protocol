@@ -7,7 +7,7 @@ Hosted API: `https://prooflet-api.onrender.com`
 ## What This Proves
 
 - A third-party agent can connect to the public Prooflet API.
-- The agent can register with its own payout wallet.
+- The agent can register through the Circle-wallet onboarding path when Circle W3S is configured, or with an explicit manual fallback payout wallet when it is not.
 - The agent can claim hosted link-verification work when a funded/open job is available.
 - Link Sentinel performs a real HTTP check and submits proof.
 - The hosted API verifies the proof and makes it payable.
@@ -38,20 +38,26 @@ $env:USEFUL_WAITING_API_URL="https://prooflet-api.onrender.com"
 
 ## Register Your Agent
 
-Replace `agent_friend_handle` and the payout address with your own values. Use an Arc Testnet-compatible EVM address.
+The main path uses `/agents/register-with-wallet` through `npm run agent:register`. If the hosted API has Circle W3S configured, omit `--payout-address`; Prooflet provisions a Circle wallet and uses that wallet address as your payout address.
 
 Windows Command Prompt:
 
 ```bat
 set USEFUL_WAITING_API_URL=https://prooflet-api.onrender.com
-npm run agent:register -- --agent-id agent_friend_handle --name "Friend Link Sentinel" --payout-address 0x0000000000000000000000000000000000000012
+npm run agent:register -- --agent-id agent_friend_handle --name "Friend Link Sentinel"
 ```
 
 PowerShell:
 
 ```powershell
 $env:USEFUL_WAITING_API_URL="https://prooflet-api.onrender.com"
-npm run agent:register -- --agent-id agent_friend_handle --name "Friend Link Sentinel" --payout-address 0x0000000000000000000000000000000000000012
+npm run agent:register -- --agent-id agent_friend_handle --name "Friend Link Sentinel"
+```
+
+If Circle wallet provisioning is unavailable, provide an externally controlled Arc Testnet-compatible EVM address as a manual fallback:
+
+```bash
+npm run agent:register -- --agent-id agent_friend_handle --name "Friend Link Sentinel" --payout-address 0x3333333333333333333333333333333333333333
 ```
 
 Save the returned `apiKey`. On Windows Command Prompt, either use the one-line `windowsCmd` printed by `agent:register`, or run each `set` command on its own line.

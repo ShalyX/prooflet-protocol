@@ -12,16 +12,16 @@ async function main() {
   const apiUrl = (process.env.USEFUL_WAITING_API_URL || "http://127.0.0.1:8787").replace(/\/$/, "");
   const agentId = requiredFlag(flags.agentId, "--agent-id", process.env.AGENT_ID);
   const name = requiredFlag(flags.name, "--name", process.env.AGENT_NAME || agentId);
-  const payoutAddress = requiredFlag(flags.payoutAddress, "--payout-address", process.env.AGENT_PAYOUT_ADDRESS);
+  const payoutAddress = flags.payoutAddress || process.env.AGENT_PAYOUT_ADDRESS;
   const capabilities = parseCapabilities(flags.capabilities || process.env.WORKER_CAPABILITIES || "link_verification");
   const client = new UsefulWaitingClient({ baseUrl: apiUrl, timeoutMs: 20000 });
 
   const health = await client.health();
   if (!health.ok) throw new Error("Prooflet API health check failed.");
 
-  const response = await client.request("/agents/register", {
+  const response = await client.request("/agents/register-with-wallet", {
     method: "POST",
-    body: { agentId, name, capabilities, payoutAddress, status: "idle" },
+    body: { agentId, name, capabilities, ...(payoutAddress ? { payoutAddress } : {}), status: "idle" },
   });
 
   let nanopaymentConfig = { enabled: false };

@@ -94,21 +94,36 @@ Overview reports job/proof counts, reserved rewards, payable rewards, paid proof
 
 ## Agents
 
-### `POST /agents/register`
+### `POST /agents/register-with-wallet`
 
-No authentication.
+No authentication. This is the main demo onboarding path. `/agents/register-with-wallet` provisions a Circle wallet when Circle W3S is configured and uses the Circle wallet address as the agent payout address. `/agents/register` is the manual fallback path and does not create a Circle wallet.
 
 ```json
 {
   "agentId": "agent_example",
   "name": "Example Worker",
   "capabilities": ["link_verification"],
-  "payoutAddress": "0x0000000000000000000000000000000000000012",
   "status": "idle"
 }
 ```
 
-Response `201` includes the normalized agent and a one-time `apiKey`. The legacy `reputationScore` field remains for compatibility; access decisions use the event-derived reputation summary.
+When Circle W3S is configured and wallet creation succeeds, response `201` includes `circleWallet.walletId`, `circleWallet.address`, `walletProvisioning.status: "success"`, and `agent.payoutAddress` equal to the Circle wallet address. If Circle wallet creation fails, a valid `payoutAddress` can be supplied as a manual fallback; otherwise registration fails with `400`.
+
+### `POST /agents/register`
+
+No authentication. Manual payout-address registration. Does not create a Circle wallet. Keep this endpoint for fallback/test cases; do not use it as the main Circle wallet onboarding demo.
+
+```json
+{
+  "agentId": "agent_manual_example",
+  "name": "Manual Payout Worker",
+  "capabilities": ["link_verification"],
+  "payoutAddress": "0x3333333333333333333333333333333333333333",
+  "status": "idle"
+}
+```
+
+Response `201` includes the normalized agent and a one-time `apiKey`. The legacy `reputationScore` field remains for compatibility; access decisions use the event-derived reputation summary. Dashboard agent rows include `circleWalletId` and `walletSource`; agents with `circleWalletId` are labeled `Circle wallet`, while manual fallback agents are labeled `Manual payout`.
 
 ### `GET /agents/:agentId`
 
@@ -341,7 +356,7 @@ Verifies the access fee for a claimed job by scanning recent Arc Testnet USDC tr
 ```json
 {
   "agentId": "agent_example",
-  "agentAddress": "0x0000000000000000000000000000000000000012"
+  "agentAddress": "0x3333333333333333333333333333333333333333"
 }
 ```
 

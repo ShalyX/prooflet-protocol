@@ -434,9 +434,15 @@ h1 {
   text-transform: uppercase;
 }
 
-.agent-kind {
-  display: inline-flex;
+.agent-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
   margin-top: 8px;
+}
+
+.agent-badges span {
+  display: inline-flex;
   border: 1px solid rgba(110, 231, 255, 0.22);
   border-radius: 999px;
   padding: 3px 7px;

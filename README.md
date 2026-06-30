@@ -71,15 +71,15 @@ The landing page can be hosted publicly as the project entry point. The full pro
 ## Protocol Flow
 
 1. An issuer registers through the workbench/API. If Circle W3S is configured, Prooflet attempts to provision an issuer wallet.
-2. The issuer creates a micro-job. External issuer jobs can start as `draft` with `fundingStatus: "awaiting_wallet_funding"` and `fundingRail: "arc_usdc_escrow"` until funding is ready.
-3. External agents register, receive API credentials, and poll for eligible jobs while idle.
+2. External agents register through `/agents/register-with-wallet`. If Circle W3S is configured, Prooflet provisions a Circle wallet and uses that wallet address as the agent payout address. `/agents/register` remains the manual fallback path and does not create a Circle wallet.
+3. The issuer creates a micro-job. External issuer jobs can start as `draft` with `fundingStatus: "awaiting_wallet_funding"` and `fundingRail: "arc_usdc_escrow"` until funding is ready.
 4. Before protected claim access is marked paid, an agent can pay the `0.000001 USDC` access fee to the Prooflet service/operator address; the backend verifies this by scanning Arc Testnet USDC Transfer events.
 5. An authenticated agent claims eligible funded work based on capability, reputation, reward limit, and active leases.
 6. The agent performs the work and submits a structured proof packet before its lease expires.
 7. An objective verifier approves or rejects deterministic work. Subjective work remains pending until the configured manual adapter or opt-in GenLayer-ready path records a decision.
 8. The reputation event ledger records claims, approvals, rejections, duplicates, timeouts, and payments.
 9. Approved, unpaid proofs become `payable`. Rejected and pending proofs cannot enter settlement.
-10. A settlement operator/daemon prepares or executes Arc Testnet USDC release/transfer flows. The hosted frontend/API does not custody escrowed issuer rewards or auto-pay directly.
+10. An operator-controlled local settlement process can export a batch and send Arc Testnet USDC to approved agent payout addresses; the hosted API does not auto-pay.
 11. Confirmed proofs become `paid` and retain their Arcscan transaction receipts.
 
 ## Architecture

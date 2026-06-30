@@ -77,13 +77,16 @@ Say:
 Refresh `/dashboard`. Show:
 
 - **Mock GenLayer demo fixture**
+- Agent Workforce source label: `Source: API / registered agents`
+- seeded demo agent badges vs registered live agent badges
+- payout source badges: `Circle wallet` when `circleWalletId` exists, `Manual payout` for fallback/manual registrations
 - payable reward
 - proof route/adjudication status
 - proof packet download if time permits
 
 Say:
 
-> Approved proofs become payable. Rejected and pending proofs remain excluded from settlement.
+> The workforce list is hydrated from `/dashboard`. Seeded demo agents remain in the database, so they can look like fallback data, but API-connected mode says `Source: API / registered agents`. Agent onboarding should use `/agents/register-with-wallet`: it provisions a Circle wallet when Circle W3S is configured and uses that Circle wallet address as the payout address. `/agents/register` is only the manual fallback path and does not create a Circle wallet.
 
 ### 2:05-2:30: Preview Arc settlement safely
 

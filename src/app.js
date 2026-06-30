@@ -300,13 +300,14 @@ function render() {
 
   $("#agents").innerHTML = agents.map((agent) => {
     const agentKind = SEEDED_DEMO_AGENT_IDS.has(agent.agentId) ? "Seeded demo agent" : "Registered live agent";
+    const walletKind = agent.circleWalletId ? "Circle wallet" : "Manual payout";
     return `
     <article class="agent ${agent.status}">
       <div class="agent-head">
         <div class="agent-icon">${escapeHtml(agent.icon)}</div>
         <span>${escapeHtml(agent.status)}</span>
       </div>
-      <div class="agent-kind">${agentKind}</div>
+      <div class="agent-badges"><span>${agentKind}</span><span>${walletKind}</span></div>
       <h3>${escapeHtml(agent.name)}</h3>
       <p>${escapeHtml(agent.skill)}</p>
       <div class="agent-stats"><span>${money(agent.earned)} USDC</span><span>${Math.round(agent.score)} trust</span></div>
@@ -619,6 +620,8 @@ function applyDashboard(dashboard) {
       status: agent.status,
       earned: paidByAgent.get(agent.agentId) || 0,
       score: agent.reputationScore,
+      circleWalletId: agent.circleWalletId,
+      walletSource: agent.walletSource,
       source: SEEDED_DEMO_AGENT_IDS.has(agent.agentId) ? "seeded" : "registered",
     };
   }));

@@ -34,7 +34,7 @@ try {
     agentId: "acceptance_agent",
     name: "Acceptance Agent",
     capabilities: ["link_verification"],
-    payoutAddress: "0x0000000000000000000000000000000000000012",
+    payoutAddress: "0x3333333333333333333333333333333333333333",
   });
   assert.equal(agentRegistration.status, 201);
   assert.equal(agentRegistration.body.agent.reputationScore, 50);
@@ -115,14 +115,14 @@ try {
   assert.equal(exported.status, 201);
   assert.equal(exported.body.batch.approvedProofs, 1);
   assert.equal(exported.body.batch.proofs[0].proofId, "acceptance_proof_1");
-  assert.equal(exported.body.batch.recipients[0].payoutAddress, "0x0000000000000000000000000000000000000012");
+  assert.equal(exported.body.batch.recipients[0].payoutAddress, "0x3333333333333333333333333333333333333333");
   assert.ok(!exported.body.batch.proofs.some((proof) => proof.proofId === "acceptance_proof_duplicate"));
 
   const receipt = await request("POST", "/settlement-batches/acceptance_batch_001/receipt", {
     issuerId: "acceptance_issuer",
     transactions: [{
       agentId: "acceptance_agent",
-      to: "0x0000000000000000000000000000000000000012",
+      to: "0x3333333333333333333333333333333333333333",
       amount: "0.003",
       hash: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       explorer: "https://testnet.arcscan.app/tx/0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
