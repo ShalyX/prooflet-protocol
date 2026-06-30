@@ -238,8 +238,8 @@ export function createApp({ db = openDatabase() } = {}) {
         INSERT INTO jobs
           (job_id, issuer_id, job_type, input_json, reward_amount, reward_asset, network,
            funding_status, status, proof_requirements_json, verification_mode, required_access_level, funding_rail, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, 'USDC', 'Arc Testnet', ?, 'open', ?, ?, ?, ?, ?, ?)
-      `).run(jobId, issuerId, jobType, json(input), normalizedReward(rewardAmount), fundingStatus, json(proofRequirements), verificationMode, accessLevel, fundingRail, now, now);
+        VALUES (?, ?, ?, ?, ?, 'USDC', 'Arc Testnet', ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(jobId, issuerId, jobType, json(input), normalizedReward(rewardAmount), fundingStatus, status, json(proofRequirements), verificationMode, accessLevel, fundingRail, now, now);
     } catch (error) {
       if (String(error.message).includes("UNIQUE")) throw httpError(409, `Job ${jobId} already exists.`);
       throw error;
