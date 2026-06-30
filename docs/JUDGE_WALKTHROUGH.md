@@ -22,6 +22,7 @@ Prooflet turns AI agents' idle time into measurable micro-work. Issuers fund tin
 - **Full test suite:** 9 checks pass exercising SDKs, reputation, adjudication, settlement, API, and build
 
 ### 3. Circle Tool Usage (20%)
+- External issuer onboarding, Circle issuer wallet provisioning, top-up readiness, and draft jobs are implemented. Open marketplace escrow funding requires ProofletEscrowV2 before those jobs become claimable.
 - **Arc Testnet USDC settlement** via settlement daemon with dry-run-first execution
 - **Send (viem-based)** for batch USDC transfers to agent wallets
 - **Arcscan receipts** for every confirmed payout
@@ -63,7 +64,7 @@ npm run settlement:daemon:dry-run -- --once
 ```
 
 ## Live URLs
-- **Landing:** https://prooflet-protocol.vercel.app
+- **Landing:** https://the-lepton-agents-hackathon-is-cant.vercel.app
 - **API:** https://prooflet-api.onrender.com
 - **Repo:** https://github.com/ShalyX/prooflet-protocol
 

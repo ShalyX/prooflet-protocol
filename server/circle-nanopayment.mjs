@@ -1,15 +1,15 @@
 /**
- * Prooflet — Circle Nanopayment Module
+ * Prooflet — Nanopayment-style Access Fee Module
  *
  * Agents pay 0.000001 USDC access fee before claiming a job.
- * Uses Circle Gateway for instant settlement on Arc Testnet.
+ * This verifies Circle-issued Arc Testnet USDC by scanning Transfer events.
+ * It is not full Circle Gateway merchant/session/payment-intent integration.
  *
  * Architecture:
- *   Agent pays fee → Gateway confirms → agent can claim job
+ *   Agent sends fee → Prooflet scans Arc Testnet USDC events → agent can claim job
  *   Fee goes to Prooflet treasury as anti-spam/sybil friction
  *
- * Fallback: when Gateway is unavailable, uses direct Arc USDC transfer
- * verification by scanning transfer events.
+ * Verification uses direct Arc USDC transfer event scanning.
  *
  * Endpoints (added to api.mjs):
  *   POST /jobs/:jobId/access-fee/verify — verify agent paid access fee

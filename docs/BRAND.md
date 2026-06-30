@@ -47,8 +47,8 @@ Use clean, ledger-style fonts suitable for dashboards, data tables, and verifica
 * approved work only
 
 ### Words to avoid:
-* instant settlement
-* auto-pay from hosted API
+* overclaiming settlement immediacy
+* claiming the hosted API pays automatically
 * Circle Gateway end-to-end, unless a real Gateway merchant/session/payment-intent flow is added
 * decentralized verification, unless the real decentralized adjudication path is executed
 * cryptographic proof, unless describing a specific hash/signature primitive

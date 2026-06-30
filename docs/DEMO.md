@@ -124,6 +124,24 @@ npm run settlement:daemon:execute -- --once
 
 Execute still requires the explicit environment confirmation used by the daemon. It sends Arc Testnet USDC only. Rejected, pending, and already-paid proofs are excluded, and repeat scans cannot execute a settled batch twice.
 
+
+## Issuer Workbench Demo Path
+
+Use `/issuer` to show the final implemented issuer boundary:
+
+1. Open `/issuer`.
+2. Show **Prooflet Demo Issuer** mode as the working demo path.
+3. Switch to **External Issuer** mode.
+4. Register a fresh external issuer.
+5. Show the generated issuer ID/API key, but do not expose the full API key in recordings or screenshots.
+6. Show Circle issuer wallet provisioning when Circle W3S is configured, including the Circle wallet ID and separate `0x...` wallet address.
+7. Show Arc Testnet USDC top-up instructions.
+8. Create a draft external job.
+9. Show the draft / awaiting wallet funding state and explain that it requires ProofletEscrowV2.
+10. Say clearly: external draft jobs are not claimable until V2 funding exists.
+
+External issuer onboarding, Circle issuer wallet provisioning, top-up readiness, and draft jobs are implemented. Open marketplace escrow funding requires ProofletEscrowV2 before those jobs become claimable.
+
 ## Subjective Adjudication Talking Point
 
 Say:
@@ -155,7 +173,7 @@ The demo seed is repeatable and non-destructive: every run uses unique, clearly 
 
 ## Escrow Lifecycle Demo (Arc Testnet)
 
-Full escrow proven on Arc Testnet — deploy → fund → verify → release:
+Escrow V1 proven on Arc Testnet for a pre-assigned demo lifecycle — deploy → fund → verify → release. Open marketplace escrow funding requires ProofletEscrowV2:
 
 | Phase | TX | Arcscan |
 |---|---|---|

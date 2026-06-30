@@ -556,8 +556,10 @@ export function createApp({ db = openDatabase() } = {}) {
   app.get("/dashboard", (_request, response) => response.json(buildDashboard(db)));
 
   // ---- Escrow Endpoints ----
+  // Legacy/pre-assigned V1 escrow path only. Open marketplace external funding
+  // requires ProofletEscrowV2 and must not use deposit-on-claim.
   app.post("/escrow/deposit", (request, response) => {
-    if (!authenticate(db, request, "issuer", "useful_waiting_protocol")) throw httpError(403, "Issuer API key required.");
+    if (!authenticate(db, request, "issuer", "useful_waiting_protocol")) throw httpError(403, "Demo issuer API key required for legacy Escrow V1 record path.");
     const { jobId, agentAddress, amount, txHash } = request.body || {};
     requireId(jobId, "jobId");
     requireString(agentAddress, "agentAddress");

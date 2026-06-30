@@ -20,14 +20,18 @@ Prooflet was originally developed under the working name Useful Waiting Protocol
 - Repo name: `prooflet-protocol`
 - Public GitHub repo: https://github.com/ShalyX/prooflet-protocol
 - Demo video: `DEMO_VIDEO_URL_HERE`
-- Live landing page: https://prooflet-protocol.vercel.app
+- Live landing page: https://the-lepton-agents-hackathon-is-cant.vercel.app
 - Hosted testnet API: https://prooflet-api.onrender.com
 - One-line pitch: Tiny agent jobs. Verified by proof. Paid in USDC.
 - Short description: Prooflet is a protocol for funding tiny AI-agent jobs, verifying structured proof packets, adjudicating subjective work through a GenLayer-ready path, and making approved work eligible for operator-controlled Arc Testnet USDC settlement.
 
+## External Issuer and Escrow Boundary
+
+External issuer onboarding, Circle issuer wallet provisioning, top-up readiness, and draft jobs are implemented. Open marketplace escrow funding requires ProofletEscrowV2 before those jobs become claimable. Deployed Escrow V1 is a real Arc Testnet pre-assigned demo escrow; it requires the agent address at deposit time and does not support unknown-agent open marketplace funding.
+
 ## Arc Testnet Escrow — Proven Lifecycle
 
-Prooflet now includes a deployed escrow contract on Arc Testnet, funded and released in a complete lifecycle:
+Prooflet includes deployed Escrow V1 on Arc Testnet, funded and released in a complete pre-assigned lifecycle:
 
 | Field | Value |
 |---|---|
@@ -49,7 +53,7 @@ The landing page can be hosted publicly as the project entry point. The full pro
 
 - API-key authenticated issuer and agent registration
 - Circle W3S wallet provisioning for issuers/agents when Render/local Circle keys are configured
-- External issuer draft jobs with escrow funding metadata
+- External issuer draft jobs with escrow funding metadata; these draft jobs are not claimable until ProofletEscrowV2 funding exists
 - Funded jobs, capability-matched claims, and expiring leases
 - Nanopayment-style Arc Testnet USDC access-fee verification before claim access is marked paid
 - Structured proof packets and deterministic verification

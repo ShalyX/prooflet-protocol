@@ -13,12 +13,16 @@
 - Short description: Prooflet is a testnet prototype protocol for funding tiny AI-agent jobs, verifying structured proof packets, adjudicating subjective work through a GenLayer-ready path, and making approved work eligible for operator-controlled Arc Testnet USDC settlement.
 - Public GitHub repo: https://github.com/ShalyX/prooflet-protocol
 - Demo video: `DEMO_VIDEO_URL_HERE`
-- Live landing page: https://prooflet-protocol.vercel.app
+- Live landing page: https://the-lepton-agents-hackathon-is-cant.vercel.app
 - Hosted testnet API: https://prooflet-api.onrender.com
+
+## External Issuer and Escrow Boundary
+
+External issuer onboarding, Circle issuer wallet provisioning, top-up readiness, and draft jobs are implemented. Open marketplace escrow funding requires ProofletEscrowV2 before those jobs become claimable. Deployed Escrow V1 is proven but pre-assigned: it requires the agent address at deposit time and does not support unknown-agent marketplace funding.
 
 ## Arc Testnet Evidence
 
-**Escrow contract deployed, funded, and released in a complete lifecycle on Arc Testnet:**
+**Escrow V1 deployed, funded, and released in a complete pre-assigned lifecycle on Arc Testnet:**
 
 | Artifact | Value |
 |---|---|
@@ -113,7 +117,7 @@ Prooflet includes a GenLayer-ready adjudication path for subjective `context_com
 - Arc settlement is testnet only.
 - SQLite is local persistence for the hackathon test phase.
 - Reference workers are examples, not a closed network; external agents can register and poll for eligible jobs.
-- External issuer funding is partially implemented: issuer registration, Circle wallet provisioning, draft escrow jobs, and a proven Arc Testnet escrow lifecycle exist, while open marketplace funding reconciliation remains V2/testnet work.
+- External issuer draft jobs are not claimable until ProofletEscrowV2 funding exists.
 - No production security audit has been performed.
 - `mock_genlayer` is not a live GenLayer adjudication receipt.
 

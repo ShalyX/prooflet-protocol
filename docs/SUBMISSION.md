@@ -2,7 +2,7 @@
 
 - Public GitHub repo: https://github.com/ShalyX/prooflet-protocol
 - Demo video: `DEMO_VIDEO_URL_HERE`
-- Live landing page: https://prooflet-protocol.vercel.app
+- Live landing page: https://the-lepton-agents-hackathon-is-cant.vercel.app
 - Hosted testnet API: https://prooflet-api.onrender.com
 
 ## Short Pitch
@@ -11,6 +11,10 @@ Tiny agent jobs. Verified by proof. Paid in USDC.
 
 Prooflet is a testnet prototype protocol for funding tiny AI-agent jobs, verifying structured proof packets, adjudicating subjective work through a GenLayer-ready path, and making approved work eligible for operator-controlled Arc Testnet USDC settlement.
 
+## External Issuer and Escrow Boundary
+
+External issuer onboarding, Circle issuer wallet provisioning, top-up readiness, and draft jobs are implemented. Open marketplace escrow funding requires ProofletEscrowV2 before those jobs become claimable. Deployed Escrow V1 is a pre-assigned demo escrow: it proves deploy → fund → release, but it requires `deposit(jobId, agent, amount)`.
+
 ## What We Built
 
 - A public demo and live protocol console
@@ -18,7 +22,7 @@ Prooflet is a testnet prototype protocol for funding tiny AI-agent jobs, verifyi
 - An Express API backed by persistent SQLite migrations
 - Agent and issuer registration with hashed API-key authentication
 - Circle W3S wallet provisioning for issuers/agents when server-side Circle keys are configured
-- External issuer draft jobs with Arc USDC escrow metadata
+- External issuer draft jobs with Arc USDC escrow metadata; these draft jobs remain unclaimable until ProofletEscrowV2 funding exists
 - Capability-gated claims, expiring leases, and structured proof packets
 - Nanopayment-style `0.000001 USDC` access-fee verification through Arc Testnet USDC event scanning
 - Deterministic link, freshness, and context-compression verification with duplicate rejection
@@ -31,7 +35,7 @@ Prooflet is a testnet prototype protocol for funding tiny AI-agent jobs, verifyi
 
 ## Escrow Lifecycle (Arc Testnet)
 
-Full escrow lifecycle proven on Arc Testnet:
+Pre-assigned Escrow V1 lifecycle proven on Arc Testnet:
 
 | Phase | TX |
 |---|---|
@@ -76,7 +80,7 @@ Objective work is verified deterministically. Subjective work can route through 
 
 Accepted unpaid proofs become payable. Approved proofs become eligible for automated operator release; they are not automatically paid by the hosted frontend/API. The settlement daemon groups payable proofs by recipient, validates every proof and amount, and prints the payout plan in dry-run mode. Execute mode acquires an atomic batch lock, sends Arc Testnet USDC, records transaction hashes, and marks only confirmed proofs paid. For the hosted Render API, the remote settlement runner fetches a hosted export, signs Arc Testnet USDC locally, and posts the confirmed receipt back to the API so treasury/operator keys never live on Render.
 
-For escrow-funded jobs, the settlement operator can call `escrow.release()` after Prooflet verification; the escrow contract sends Arc Testnet USDC to the agent payout wallet. The operator still signs the release transaction.
+For V1 escrow-funded demo jobs, the settlement operator can call `escrow.release()` after Prooflet verification; the escrow contract sends Arc Testnet USDC to the pre-assigned agent payout wallet. The operator still signs the release transaction. Open marketplace external issuer funding requires ProofletEscrowV2 before unknown-agent jobs become claimable.
 
 Rejected, pending, already-paid, or already-settled proofs cannot enter payout. Settled batch IDs cannot execute twice.
 

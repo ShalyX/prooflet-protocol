@@ -54,7 +54,25 @@ Say:
 
 > This fixture creates a subjective compression job, proves the pending state, and routes evidence through `mock_genlayer` mode for local acceptance. It does not call the live GenLayer network. Real GenLayer mode is opt-in and should only be claimed if it was explicitly configured and run.
 
-### 1:10-1:35: Show protocol state
+
+### 1:10-1:45: Issuer Workbench and external issuer boundary
+
+Open `/issuer` and show:
+
+- **Prooflet Demo Issuer** mode as the working demo path.
+- Switch to **External Issuer** mode.
+- Register a fresh external issuer.
+- Show the generated issuer ID/API key, but do not zoom into or expose the full API key in the final video.
+- Show Circle issuer wallet provisioning when Circle W3S is configured: Circle wallet ID and separate `0x...` wallet address.
+- Show Arc Testnet USDC top-up instructions.
+- Create a draft external job.
+- Show draft / awaiting wallet funding / requires ProofletEscrowV2.
+
+Say:
+
+> External issuer onboarding, Circle issuer wallet provisioning, top-up readiness, and draft jobs are implemented. External draft jobs are not claimable until ProofletEscrowV2 funding exists. Escrow V1 is a proven pre-assigned demo escrow, not unknown-agent marketplace funding.
+
+### 1:45-2:05: Show protocol state
 
 Refresh `/dashboard`. Show:
 
@@ -67,7 +85,7 @@ Say:
 
 > Approved proofs become payable. Rejected and pending proofs remain excluded from settlement.
 
-### 1:35-2:05: Preview Arc settlement safely
+### 2:05-2:30: Preview Arc settlement safely
 
 Run:
 
@@ -81,7 +99,7 @@ Say:
 
 > Dry-run validates the exact Arc Testnet payout plan and sends nothing. Execute mode sends Arc Testnet USDC only, never mainnet funds.
 
-### 2:05-2:35: Show historical Arc evidence
+### 2:30-2:50: Show historical Arc evidence
 
 Return to the landing settlement section or dashboard and show:
 
@@ -94,7 +112,7 @@ Say:
 
 > This preserved historical batch proves three real Arc Testnet USDC payouts. The fresh proof is settlement-ready; the preserved batch shows the funded path has already executed.
 
-### 2:35-3:00: Optional objective worker path
+### 2:50-3:00: Optional objective worker path
 
 If time permits, run the full local demo test after the recording or show the objective commands:
 
@@ -125,5 +143,8 @@ The summary must show `rejected_by_mock_genlayer`, `Rejected · No payout`, and 
 - Do not claim mainnet funds.
 - Do not claim dry-run sent a transaction.
 - Do not claim full Circle Gateway merchant/session integration; the current access fee is Arc USDC event-scan verification.
-- Do not claim hosted API auto-pays; approved proofs become eligible for operator-controlled release/settlement.
+- Do not claim the hosted API pays automatically; approved proofs become eligible for operator-controlled release/settlement.
 - Do not expose private keys, API keys, or `.env` values.
+- Do not say external issuers can fully fund open marketplace jobs today.
+- Do not say Escrow V1 supports unknown-agent marketplace funding.
+- Do not expose API keys.

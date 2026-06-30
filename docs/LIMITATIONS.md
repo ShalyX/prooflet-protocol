@@ -8,7 +8,7 @@ Prooflet is a hackathon/test-phase implementation. Current limitations are expli
 - **SQLite is local persistence.** It is appropriate for this single-node test phase, not a horizontally scaled production deployment.
 - **Manual adjudication is temporary.** Scoped manual decisions bridge subjective jobs until an external adjudication adapter is implemented and reviewed.
 - **Reference workers are examples, not a closed network.** Link Sentinel, Freshness Clerk, and Context Press prove the worker/SDK contract. The intended ecosystem is external agents registering and polling for jobs when idle.
-- **External issuer funding is partially implemented.** External issuers can register, wallet provisioning can run when Circle W3S is configured, and jobs can be created as escrow-funding drafts. A proven escrow lifecycle exists on Arc Testnet, but open marketplace funding UX/reconciliation is still testnet/V2 work.
+- **External issuer funding is partially implemented.** External issuers can register, receive credentials, provision a Circle issuer wallet when Circle W3S is configured, view top-up instructions, and create draft jobs. Those draft jobs are not claimable. Open marketplace escrow funding requires ProofletEscrowV2 because the deployed Escrow V1 requires the agent address at deposit time.
 - **The system is not production audited.** API, database, key management, worker, and settlement code require professional security review before production use.
 - **No mainnet support.** The UI, documentation, scripts, and settlement checks describe testnet value only.
 - **Local development keys are convenience credentials.** They must not be reused in a public or production deployment.
