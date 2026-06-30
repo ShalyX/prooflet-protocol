@@ -26,6 +26,8 @@ try {
     treasuryAddress: "0x0000000000000000000000000000000000000011",
   });
   assert.equal(issuerRegistration.status, 201);
+  assert.ok(issuerRegistration.body.walletProvisioning, "Registration should return a walletProvisioning object");
+  assert.ok(issuerRegistration.body.walletProvisioning.status === "success" || issuerRegistration.body.walletProvisioning.status === "failed", "walletProvisioning should have a valid status");
   const issuerKey = issuerRegistration.body.apiKey;
 
   const agentRegistration = await request("POST", "/agents/register", {

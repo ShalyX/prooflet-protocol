@@ -63,11 +63,15 @@ export function initIssuerWorkbench({ apiUrl, onNavigate }) {
       document.querySelector("#successApiKey").textContent = apiKey;
       
       if (result.wallet) {
+        document.querySelector("#successWalletContainer").hidden = false;
+        document.querySelector("#successWalletFailedContainer").hidden = true;
         document.querySelector("#successWalletId").textContent = result.wallet.walletId;
         document.querySelector("#successWalletAddress").textContent = result.wallet.address;
       } else {
-        document.querySelector("#successWalletId").textContent = "Circle wallet provisioning unavailable";
-        document.querySelector("#successWalletAddress").textContent = result.walletError || "Circle wallet provisioning unavailable";
+        document.querySelector("#successWalletContainer").hidden = true;
+        document.querySelector("#successWalletFailedContainer").hidden = false;
+        const provError = result.walletProvisioning?.message || result.walletError || "Circle wallet provisioning unavailable";
+        document.querySelector("#successWalletErrorReason").textContent = provError;
       }
 
       document.querySelector("#registerIssuerPanel").hidden = true;
@@ -139,13 +143,37 @@ export function initIssuerWorkbench({ apiUrl, onNavigate }) {
     } catch(error) { client=null;renderUnauthenticated();setStatus(error.message,false); }
   }
 
+  document.querySelector("#successRetryWalletBtn").addEventListener("click", async () => {
+    try {
+      const btn = document.querySelector("#successRetryWalletBtn");
+      btn.disabled = true;
+      btn.textContent = "Retrying...";
+      const res = await fetch(`${apiUrl}/issuers/${encodeURIComponent(document.querySelector("#successIssuerId").textContent)}/wallet`, { method: "POST", headers: { "X-API-Key": document.querySelector("#successApiKey").textContent } });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to provision wallet");
+      if (data.wallet) {
+        document.querySelector("#successWalletContainer").hidden = false;
+        document.querySelector("#successWalletFailedContainer").hidden = true;
+        document.querySelector("#successWalletId").textContent = data.wallet.walletId;
+        document.querySelector("#successWalletAddress").textContent = data.wallet.address;
+      } else {
+        throw new Error(data.walletProvisioning?.message || "Circle wallet provisioning unavailable");
+      }
+    } catch (error) {
+      document.querySelector("#successWalletErrorReason").textContent = error.message;
+      document.querySelector("#successRetryWalletBtn").disabled = false;
+      document.querySelector("#successRetryWalletBtn").textContent = "Retry wallet provisioning";
+    }
+  });
+
   async function fetchWallet() {
     try {
       document.querySelector("#fundingBalanceStatus").textContent = "Loading...";
       const res = await fetch(`${apiUrl}/issuers/${encodeURIComponent(client.issuerId)}/wallet`, { headers: { "X-API-Key": client.apiKey } });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      renderWallet(data.wallet, data.error);
+      const errorMsg = data.walletProvisioning?.message || data.error;
+      renderWallet(data.wallet, errorMsg);
     } catch (error) { setStatus(error.message, false); document.querySelector("#fundingBalanceStatus").textContent = "Config unavailable"; document.querySelector("#fundingBalanceStatus").className = "state-badge rejected"; }
   }
 
@@ -155,6 +183,7 @@ export function initIssuerWorkbench({ apiUrl, onNavigate }) {
       const res = await fetch(`${apiUrl}/issuers/${encodeURIComponent(client.issuerId)}/wallet`, { method: "POST", headers: { "X-API-Key": client.apiKey } });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to provision wallet");
+      if (!data.wallet) throw new Error(data.walletProvisioning?.message || "Failed to provision wallet");
       renderWallet(data.wallet, null);
       setStatus("Wallet provisioning successful.", true);
     } catch (error) { setStatus(error.message, false); }
@@ -167,6 +196,11 @@ export function initIssuerWorkbench({ apiUrl, onNavigate }) {
       document.querySelector("#fundingWalletDetails").hidden = true;
       document.querySelector("#retryIssuerWalletBtn").hidden = false;
       document.querySelector("#refreshWalletBtn").hidden = true;
+      
+      if (errorMsg) {
+        document.querySelector("#fundingWalletStatus").textContent = "Failed";
+        document.querySelector("#fundingWalletStatus").title = errorMsg;
+      }
       
       const uploadBtn = document.querySelector("#uploadForm button[type=submit]");
       const jobBtn = document.querySelector("#singleJobForm button[type=submit]");

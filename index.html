@@ -206,10 +206,16 @@
                 <p><strong>Issuer API Key:</strong> <span id="successApiKey" style="font-family: monospace;"></span></p>
                 <p class="issuer-helper" style="color: var(--status-rejected);">Save this key. Prooflet may not show it again.</p>
               </div>
-              <div>
+              <div id="successWalletContainer">
                 <p><strong>Circle Wallet ID:</strong> <span id="successWalletId"></span></p>
                 <p><strong>Circle Wallet Address:</strong> <span id="successWalletAddress"></span></p>
                 <p class="issuer-helper">Provider: Circle Developer-Controlled Wallets</p>
+              </div>
+              <div id="successWalletFailedContainer" hidden style="background: rgba(255, 60, 60, 0.05); border: 1px solid var(--status-rejected); padding: 12px; border-radius: 8px;">
+                <p><strong style="color: var(--status-rejected);">Wallet provisioning: Failed</strong></p>
+                <p><strong>Reason:</strong> <span id="successWalletErrorReason"></span></p>
+                <p class="issuer-helper" style="margin-top: 8px; margin-bottom: 12px;">Funding disabled until wallet is active</p>
+                <button class="primary compact" id="successRetryWalletBtn" type="button">Retry wallet provisioning</button>
               </div>
             </div>
             <div class="issuer-session-actions">

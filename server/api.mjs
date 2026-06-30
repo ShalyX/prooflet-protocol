@@ -50,15 +50,16 @@ export function createApp({ db = openDatabase() } = {}) {
     const now = new Date().toISOString();
     
     let walletCreated = null;
-    let walletError = null;
-    if (isCircleConfigured()) {
-      try {
-        walletCreated = await createIssuerWallet(issuerId);
-      } catch (err) {
-        walletError = err.message;
-      }
-    } else {
-      walletError = "Circle not configured";
+    let walletProvisioning = null;
+    try {
+      walletCreated = await createIssuerWallet(issuerId);
+      walletProvisioning = { status: "success" };
+    } catch (err) {
+      walletProvisioning = {
+        status: "failed",
+        code: err.code || "CIRCLE_WALLET_CREATE_FAILED",
+        message: err.code ? err.message : "Circle issuer wallet could not be created. Check server Circle configuration."
+      };
     }
 
     try {
@@ -74,11 +75,13 @@ export function createApp({ db = openDatabase() } = {}) {
       throw error;
     }
     
-    const resPayload = { issuer: { issuerId, name, treasuryAddress, email, description, status: "active", circle_wallet_id: walletCreated ? walletCreated.walletId : null }, apiKey };
+    const resPayload = { ok: true, issuer: { issuerId, name, treasuryAddress, email, description }, apiKey };
     if (walletCreated) {
       resPayload.wallet = { walletId: walletCreated.walletId, address: walletCreated.address, balance: "0" };
+      resPayload.walletProvisioning = { status: "success" };
     } else {
-      resPayload.walletError = walletError || "Circle wallet provisioning unavailable";
+      resPayload.wallet = null;
+      resPayload.walletProvisioning = walletProvisioning;
     }
     response.status(201).json(resPayload);
   });
@@ -89,20 +92,17 @@ export function createApp({ db = openDatabase() } = {}) {
     const issuer = db.prepare("SELECT * FROM issuers WHERE issuer_id = ?").get(issuerId);
     if (!issuer) throw httpError(404, "Issuer not found");
     
-    if (!issuer.circle_wallet_id && isCircleConfigured()) {
+    if (!issuer.circle_wallet_id) {
        try {
          const wallet = await createIssuerWallet(issuerId);
-         if (wallet) {
-           db.prepare("UPDATE issuers SET circle_wallet_id = ? WHERE issuer_id = ?").run(wallet.walletId, issuerId);
-           issuer.circle_wallet_id = wallet.walletId;
-           return response.json({ wallet: { walletId: wallet.walletId, address: wallet.address, balance: "0" } });
-         }
+         db.prepare("UPDATE issuers SET circle_wallet_id = ? WHERE issuer_id = ?").run(wallet.walletId, issuerId);
+         issuer.circle_wallet_id = wallet.walletId;
+         return response.json({ wallet: { walletId: wallet.walletId, address: wallet.address, balance: "0" }, walletProvisioning: { status: "success" } });
        } catch (e) {
-         return response.json({ wallet: null, error: "Circle wallet provisioning unavailable: " + e.message });
+         return response.json({ wallet: null, walletProvisioning: { status: "failed", code: e.code || "CIRCLE_WALLET_CREATE_FAILED", message: e.code ? e.message : "Circle issuer wallet could not be created. Check server Circle configuration." } });
        }
     }
 
-    if (!issuer.circle_wallet_id) return response.json({ wallet: null, error: "Circle wallet provisioning unavailable" });
     const balance = await getWalletBalance(issuer.circle_wallet_id);
     response.json({ wallet: { walletId: issuer.circle_wallet_id, balance: balance?.amount || "0" } });
   });
@@ -114,11 +114,13 @@ export function createApp({ db = openDatabase() } = {}) {
     if (!issuer) throw httpError(404, "Issuer not found");
     if (issuer.circle_wallet_id) throw httpError(400, "Wallet already exists");
     
-    if (!isCircleConfigured()) throw httpError(500, "Circle not configured");
-    const wallet = await createIssuerWallet(issuerId);
-    if (!wallet) throw httpError(500, "Failed to create Circle Wallet");
-    db.prepare("UPDATE issuers SET circle_wallet_id = ? WHERE issuer_id = ?").run(wallet.walletId, issuerId);
-    response.json({ wallet: { walletId: wallet.walletId, address: wallet.address, balance: "0" } });
+    try {
+      const wallet = await createIssuerWallet(issuerId);
+      db.prepare("UPDATE issuers SET circle_wallet_id = ? WHERE issuer_id = ?").run(wallet.walletId, issuerId);
+      response.json({ wallet: { walletId: wallet.walletId, address: wallet.address, balance: "0" }, walletProvisioning: { status: "success" } });
+    } catch (e) {
+      response.json({ wallet: null, walletProvisioning: { status: "failed", code: e.code || "CIRCLE_WALLET_CREATE_FAILED", message: e.code ? e.message : "Circle issuer wallet could not be created. Check server Circle configuration." } });
+    }
   });
 
   app.post("/jobs/:jobId/fund-escrow", async (request, response) => {

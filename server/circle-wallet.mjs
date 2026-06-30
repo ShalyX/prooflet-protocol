@@ -12,18 +12,44 @@ function g() {
 }
 
 export async function createAgentWallet(agentId, name) {
+  if (!__key) {
+    const e = new Error("Circle API key missing. Check CIRCLE_API_KEY.");
+    e.code = "CIRCLE_CONFIG_MISSING";
+    throw e;
+  }
+  if (!__secret) {
+    const e = new Error("Circle entity secret missing. Check CIRCLE_ENTITY_SECRET.");
+    e.code = "CIRCLE_ENTITY_SECRET_MISSING";
+    throw e;
+  }
   const c = g();
-  if (!c) return null;
   let wsId = process.env.CIRCLE_WALLET_SET_ID;
   if (!wsId) {
-    const ws = await c.listWalletSets();
-    const sets = ws.data?.walletSets || [];
-    wsId = sets[0]?.id;
+    try {
+      const ws = await c.listWalletSets();
+      const sets = ws.data?.walletSets || [];
+      wsId = sets[0]?.id;
+    } catch (err) {
+      const e = new Error("Failed to list wallet sets: " + err.message);
+      e.code = "CIRCLE_WALLET_SET_MISSING";
+      throw e;
+    }
   }
-  const r = await c.createWallets({ accountType: "SCA", blockchains: ["ARC-TESTNET"], count: 1, walletSetId: wsId });
-  const w = r.data?.wallets?.[0];
-  if (!w) return null;
-  return { walletId: w.id, address: w.address, blockchain: w.blockchain, state: w.state, accountType: w.accountType };
+  if (!wsId) {
+    const e = new Error("No wallet sets found and CIRCLE_WALLET_SET_ID not provided.");
+    e.code = "CIRCLE_WALLET_SET_MISSING";
+    throw e;
+  }
+  try {
+    const r = await c.createWallets({ accountType: "SCA", blockchains: ["ARC-TESTNET"], count: 1, walletSetId: wsId });
+    const w = r.data?.wallets?.[0];
+    if (!w) throw new Error("API returned no wallets.");
+    return { walletId: w.id, address: w.address, blockchain: w.blockchain, state: w.state, accountType: w.accountType };
+  } catch (err) {
+    const e = new Error("Circle issuer wallet could not be created: " + err.message);
+    e.code = "CIRCLE_WALLET_CREATE_FAILED";
+    throw e;
+  }
 }
 
 export async function createIssuerWallet(issuerId) {
