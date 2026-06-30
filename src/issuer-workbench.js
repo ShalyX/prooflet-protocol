@@ -244,7 +244,8 @@ export function initIssuerWorkbench({ apiUrl, onNavigate }) {
       document.querySelector("#fundingWalletStatus").textContent = "Active";
       document.querySelector("#fundingWalletStatus").className = "state-badge escrow_funded";
       document.querySelector("#fundingWalletDetails").hidden = false;
-      document.querySelector("#fundingWalletAddress").textContent = wallet.address || wallet.walletId;
+      document.querySelector("#fundingWalletId").textContent = wallet.walletId;
+      document.querySelector("#fundingWalletAddress").textContent = wallet.address || "Fetching address...";
       document.querySelector("#fundingWalletBalance").textContent = money(wallet.balance);
       
       const balSpan = document.querySelector("#fundingBalanceStatus");
@@ -312,10 +313,15 @@ export function initIssuerWorkbench({ apiUrl, onNavigate }) {
       if (mode === "external") {
         payload.fundingStatus = "awaiting_wallet_funding";
         payload.fundingRail = "arc_usdc_escrow";
+        payload.status = "draft";
       }
       
       const job=await client.createJob(payload);
-      setStatus(`Created ${job.jobId} at ${job.rewardAmount} testnet USDC.`,true);
+      if (mode === "external") {
+        setStatus(`Created draft ${job.jobId}. Escrow funding required before agents can claim it.`,true);
+      } else {
+        setStatus(`Created ${job.jobId} at ${job.rewardAmount} testnet USDC.`,true);
+      }
       await refresh();
     }catch(error){setStatus(error.message,false);}
   }

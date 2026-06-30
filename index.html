@@ -232,6 +232,7 @@
               <p><strong>Current mode:</strong> <span id="fundingModeLabel">External Issuer</span></p>
               <p><strong>Circle issuer wallet:</strong> <span id="fundingWalletStatus" class="state-badge draft">Not created</span></p>
               <div id="fundingWalletDetails" hidden>
+                <p><strong>Circle Wallet ID:</strong> <span id="fundingWalletId"></span></p>
                 <p><strong>Wallet address:</strong> <span id="fundingWalletAddress"></span> <button type="button" class="compact ghost" id="copyWalletAddrBtn">Copy</button></p>
                 <p><strong>Balance:</strong> <span id="fundingWalletBalance">0</span> USDC <span id="fundingBalanceStatus" class="state-badge"></span></p>
                 <div class="top-up-instructions" style="margin-top: 12px; padding: 12px; border: 1px solid var(--line-strong); border-radius: 8px;">
@@ -239,6 +240,10 @@
                   <p class="issuer-helper" style="margin-bottom: 8px;">Send Arc Testnet USDC to this issuer wallet before funding escrow.</p>
                   <p><strong>Network:</strong> Arc Testnet (5042002)</p>
                   <p><strong>Asset:</strong> USDC <code style="font-size: 0.8em;">0x3600000000000000000000000000000000000000</code></p>
+                </div>
+                <div class="external-only" style="margin-top: 12px; padding: 12px; background: rgba(255, 170, 0, 0.1); border: 1px solid var(--amber); border-radius: 8px;">
+                  <strong style="color: var(--amber);">Escrow funding requires ProofletEscrowV2</strong>
+                  <p style="font-size: 0.85rem; margin-top: 4px;">Open marketplace escrow funding requires ProofletEscrowV2. This V1 demo shows issuer onboarding, Circle wallet provisioning, and top-up readiness.</p>
                 </div>
               </div>
               <div class="funding-actions" style="margin-top: 12px;">

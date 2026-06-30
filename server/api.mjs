@@ -5,7 +5,7 @@ import { privateKeyToAccount } from "viem/accounts";
 import { arcTestnet } from "viem/chains";
 import { authenticate, generateApiKey, storeApiKey } from "./auth.mjs";
 import { authenticateAdjudicator } from "./auth.mjs";
-import { createAgentWallet, createIssuerWallet, getCircleStatus, isCircleConfigured, getWalletBalance, sendUsdc } from "./circle-wallet.mjs";
+import { createAgentWallet, createIssuerWallet, getCircleStatus, isCircleConfigured, getWalletBalance, sendUsdc, getWalletDetails } from "./circle-wallet.mjs";
 import { expireLeases, json, openDatabase, parseJson, withTransaction } from "./db.mjs";
 import { seedDatabase } from "./seed.mjs";
 import { createSettlementBatch, recordSettledBatch, settlementSummary } from "./settlement.mjs";
@@ -104,7 +104,8 @@ export function createApp({ db = openDatabase() } = {}) {
     }
 
     const balance = await getWalletBalance(issuer.circle_wallet_id);
-    response.json({ wallet: { walletId: issuer.circle_wallet_id, balance: balance?.amount || "0" } });
+    const details = await getWalletDetails(issuer.circle_wallet_id);
+    response.json({ wallet: { walletId: issuer.circle_wallet_id, balance: balance?.amount || "0", address: details?.address || null } });
   });
 
   app.post("/issuers/:issuerId/wallet", async (request, response) => {
@@ -226,7 +227,7 @@ export function createApp({ db = openDatabase() } = {}) {
     validateReward(rewardAmount);
     if (rewardAsset !== "USDC") throw httpError(400, "rewardAsset must be USDC.");
     if (network !== "Arc Testnet") throw httpError(400, "network must be Arc Testnet.");
-    if (!["reserved", "awaiting_wallet_funding"].includes(fundingStatus) || status !== "open") throw httpError(400, "New jobs must be reserved/awaiting_wallet_funding and open.");
+    if (!["reserved", "awaiting_wallet_funding"].includes(fundingStatus) || !["open", "draft"].includes(status)) throw httpError(400, "New jobs must be reserved/awaiting_wallet_funding and open/draft.");
     if (!proofRequirements || typeof proofRequirements !== "object") throw httpError(400, "proofRequirements must be an object.");
     if (!["deterministic", "subjective"].includes(verificationMode)) throw httpError(400, "verificationMode must be deterministic or subjective.");
     const accessLevel = requiredAccessLevel(rewardAmount, verificationMode);
@@ -282,13 +283,14 @@ export function createApp({ db = openDatabase() } = {}) {
         job = db.prepare("SELECT * FROM jobs WHERE job_id = ?").get(requestedJobId);
         if (!job) throw httpError(404, `Job ${requestedJobId} does not exist.`);
         if (job.status !== "open") throw httpError(409, `Job ${requestedJobId} is not open.`);
+        if (!["reserved", "funded"].includes(job.funding_status)) throw httpError(409, `Job ${requestedJobId} requires funding before it can be claimed.`);
         const eligibility = evaluateJobAccess({ capabilities, job, summary, activeLeases });
         if (!eligibility.eligible) throw eligibilityError(409, eligibility.reason, `Agent ${agentId} is not eligible for ${requestedJobId}.`, eligibility);
       } else {
         if (capabilities.length === 0) throw httpError(409, `Agent ${agentId} has no capabilities.`);
         const placeholders = capabilities.map(() => "?").join(",");
         const candidates = db.prepare(`
-          SELECT * FROM jobs WHERE status = 'open' AND job_type IN (${placeholders})
+          SELECT * FROM jobs WHERE status = 'open' AND funding_status IN ('reserved', 'funded') AND job_type IN (${placeholders})
           ORDER BY created_at DESC, job_id DESC
         `).all(...capabilities);
         job = candidates.find((candidate) => evaluateJobAccess({ capabilities, job: candidate, summary, activeLeases }).eligible);

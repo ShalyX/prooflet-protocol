@@ -82,6 +82,16 @@ export async function getWalletBalance(walletId) {
   } catch { return { amount: "0", decimals: 6 }; }
 }
 
+export async function getWalletDetails(walletId) {
+  const c = g();
+  if (!c) return null;
+  try {
+    const r = await c.getWallet({ id: walletId });
+    const w = r.data?.wallet;
+    return w ? { address: w.address, blockchain: w.blockchain } : null;
+  } catch { return null; }
+}
+
 export async function requestTestnetFunds(walletId) {
   const c = g();
   if (!c) return null;
