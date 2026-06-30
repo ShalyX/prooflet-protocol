@@ -52,15 +52,14 @@ export function initIssuerWorkbench({ apiUrl, onNavigate }) {
     e.preventDefault();
     try {
       setStatus("Registering issuer...", true);
-      const issuerId = document.querySelector("#regIssuerId").value.trim();
       const name = document.querySelector("#regIssuerName").value.trim();
       const email = document.querySelector("#regIssuerEmail").value.trim() || undefined;
       const description = document.querySelector("#regIssuerDesc").value.trim() || undefined;
       
-      const result = await IssuerClient.register({ baseUrl: apiUrl, issuerId, name, email, description });
+      const result = await IssuerClient.register({ baseUrl: apiUrl, name, email, description });
       
       const apiKey = result.apiKey;
-      document.querySelector("#successIssuerId").textContent = issuerId;
+      document.querySelector("#successIssuerId").textContent = result.issuer.issuerId;
       document.querySelector("#successApiKey").textContent = apiKey;
       
       if (result.wallet) {

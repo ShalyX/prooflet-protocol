@@ -37,9 +37,14 @@ export function createApp({ db = openDatabase() } = {}) {
   app.get("/health", (_request, response) => response.json({ ok: true, protocol: "Prooflet", version: "v0" }));
 
   app.post("/issuers/register", async (request, response) => {
-    const { issuerId, name, treasuryAddress = null, email = null, description = null } = request.body || {};
-    requireId(issuerId, "issuerId");
+    let { issuerId, name, treasuryAddress = null, email = null, description = null } = request.body || {};
     requireString(name, "name");
+    if (!issuerId) {
+      const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+      const suffix = Math.random().toString(36).substring(2, 6);
+      issuerId = slug ? `${slug}_${suffix}` : `issuer_${suffix}`;
+    }
+    requireId(issuerId, "issuerId");
     if (treasuryAddress && !isAddress(treasuryAddress)) throw httpError(400, "treasuryAddress must be a valid EVM address.");
     const apiKey = generateApiKey("issuer");
     const now = new Date().toISOString();
