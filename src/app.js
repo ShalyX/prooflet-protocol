@@ -822,14 +822,15 @@ function navigate(path) {
 }
 
 function renderRoute() {
-  const route = ["/dashboard", "/issuer", "/protocol"].includes(location.pathname) ? location.pathname : "/";
+  const route = ["/dashboard", "/issuer", "/agents", "/protocol"].includes(location.pathname) ? location.pathname : "/";
   $("#landingRoute").hidden = route !== "/";
   document.querySelectorAll(".protocol-route").forEach((element) => { element.hidden = route === "/"; });
   document.querySelectorAll(".dashboard-surface").forEach((element) => { element.hidden = route !== "/dashboard"; });
+  document.querySelectorAll(".agents-surface").forEach((element) => { element.hidden = route !== "/agents"; });
   if ($("#protocolPage")) $("#protocolPage").hidden = route !== "/protocol";
   if (route === "/issuer") issuerWorkbench.show(); else issuerWorkbench.hide();
-  $("#toggleWorkbench").textContent = route === "/issuer" ? "Protocol Dashboard" : "Issuer Workbench";
-  document.title = route === "/" ? "Prooflet" : route === "/issuer" ? "Issuer Workbench · Prooflet" : route === "/protocol" ? "Protocol Transparency · Prooflet" : "Protocol Dashboard · Prooflet";
+  document.querySelectorAll(".page-nav a").forEach((link) => link.classList.toggle("active", link.pathname === route));
+  document.title = route === "/" ? "Prooflet" : route === "/issuer" ? "Issuer Workbench · Prooflet" : route === "/agents" ? "Agent Network · Prooflet" : route === "/protocol" ? "Protocol Transparency · Prooflet" : "Protocol Dashboard · Prooflet";
   window.scrollTo({ top: 0, behavior: "instant" });
 }
 

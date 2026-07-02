@@ -142,7 +142,7 @@ export function initIssuerWorkbench({ apiUrl, onNavigate }) {
     setStatus("Wallet address copied.", true);
   });
 
-  toggle.addEventListener("click",()=>onNavigate(location.pathname==="/issuer"?"/dashboard":"/issuer"));
+  if (toggle) toggle.addEventListener("click",()=>onNavigate(location.pathname==="/issuer"?"/dashboard":"/issuer"));
   document.querySelector("#connectIssuer").addEventListener("click",connect);
   document.querySelector("#clearIssuer").addEventListener("click",()=>{
     if (mode === "demo") { sessionStorage.removeItem("uwp.issuerId"); sessionStorage.removeItem("uwp.issuerApiKey"); }

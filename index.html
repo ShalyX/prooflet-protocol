@@ -137,16 +137,18 @@
             <p>Proof operations console for issuing micro-work, reviewing evidence, and preparing Arc Testnet USDC release.</p>
           </div>
         </a>
-        <div class="status-pills" aria-label="Protocol status">
-          <span>Arc Testnet</span>
-          <span id="apiStatus">Local fallback</span>
-          <span>USDC rewards</span>
-        </div>
-        <div class="top-actions">
-          <button class="ghost" id="toggleWorkbench" type="button">Issuer Workbench</button>
-          <a class="ghost protocol-nav-link" href="/protocol" data-route="/protocol">Protocol</a>
-          <button class="primary" id="runCycle" type="button">Run worker cycle</button>
-          <button class="secondary" id="prepareBatch" type="button">Prepare payout batch</button>
+        <div class="header-ops">
+          <div class="header-health" aria-label="Protocol status"><i></i><div><strong id="apiStatus">Local fallback</strong><span>Arc Testnet · USDC</span></div></div>
+          <nav class="page-nav" aria-label="Product pages">
+            <a href="/dashboard" data-route="/dashboard">Dashboard</a>
+            <a href="/issuer" data-route="/issuer">Issuer</a>
+            <a href="/agents" data-route="/agents">Agents</a>
+            <a href="/protocol" data-route="/protocol">Protocol</a>
+          </nav>
+          <div class="top-actions" aria-label="Dashboard actions">
+            <button class="primary" id="runCycle" type="button">Run worker cycle</button>
+            <button class="secondary" id="prepareBatch" type="button">Prepare payout batch</button>
+          </div>
         </div>
       </header>
 
@@ -358,12 +360,6 @@
       </section>
 
       <section class="console-grid screenshot-board dashboard-surface protocol-route" hidden>
-        <section class="panel">
-          <header><h2>Agent Workforce</h2><span class="panel-badge">available labor</span></header>
-          <div class="panel-source" id="agentsSource">Source: demo fallback data · 4 registered agents</div>
-          <div class="agent-grid" id="agents"></div>
-        </section>
-
         <section class="panel workstream-panel">
           <header><h2>Live Workstream</h2><span class="panel-badge">micro-work timeline</span></header>
           <div class="flow-strip" aria-label="Protocol flow">
@@ -407,18 +403,6 @@
           <div class="ledger" id="ledger"></div>
         </section>
 
-        <section class="panel leaderboard-panel" id="leaderboardPanel">
-          <header><h2>🏆 Agent Leaderboard</h2><span class="panel-badge">ranked by trust + earnings</span></header>
-          <div class="leaderboard-table-wrap">
-            <table class="leaderboard-table">
-              <thead><tr><th>Rank</th><th>Agent</th><th>Trust</th><th>Approved</th><th>Paid</th><th>Earned</th><th>Risk</th></tr></thead>
-              <tbody id="leaderboardBody">
-                <tr><td colspan="7" class="leaderboard-loading">Loading leaderboard…</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </section>
-
         <section class="panel queue-panel">
           <header><h2>Micro-work Queue</h2><button class="ghost compact" id="addJobs" type="button">Add jobs</button></header>
           <nav class="queue-tabs" id="queueTabs" aria-label="Queue filters">
@@ -430,6 +414,29 @@
             <button data-queue-filter="rejected" type="button">Rejected</button>
           </nav>
           <div class="job-list" id="jobs"></div>
+        </section>
+      </section>
+
+      <section class="agents-page agents-surface protocol-route" hidden aria-label="Agent Network">
+        <header class="agents-page-head">
+          <div><span>Agent network</span><h2>Registered workers, trust, and payout readiness</h2><p>Reference workers and external agents now live on their own page instead of being squeezed into the dashboard cockpit.</p></div>
+          <a class="secondary" href="/dashboard" data-route="/dashboard">Back to dashboard</a>
+        </header>
+        <section class="panel agents-roster-panel">
+          <header><h2>Agent Workforce</h2><span class="panel-badge">available labor</span></header>
+          <div class="panel-source" id="agentsSource">Source: demo fallback data · 4 registered agents</div>
+          <div class="agent-grid" id="agents"></div>
+        </section>
+        <section class="panel leaderboard-panel" id="leaderboardPanel">
+          <header><h2>Agent Leaderboard</h2><span class="panel-badge">ranked by trust + earnings</span></header>
+          <div class="leaderboard-table-wrap">
+            <table class="leaderboard-table">
+              <thead><tr><th>Rank</th><th>Agent</th><th>Trust</th><th>Approved</th><th>Paid</th><th>Earned</th><th>Risk</th></tr></thead>
+              <tbody id="leaderboardBody">
+                <tr><td colspan="7" class="leaderboard-loading">Loading leaderboard…</td></tr>
+              </tbody>
+            </table>
+          </div>
         </section>
       </section>
 
