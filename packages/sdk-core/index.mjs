@@ -12,7 +12,7 @@ function apiError(status, message, details) {
 }
 
 export class UsefulWaitingClient {
-  constructor({ baseUrl = "http://127.0.0.1:8787", apiKey, timeoutMs = 10000, fetchImpl = fetch } = {}) {
+  constructor({ baseUrl = "http://127.0.0.1:8787", apiKey, timeoutMs = 10000, fetchImpl = globalThis.fetch.bind(globalThis) } = {}) {
     this.baseUrl = baseUrl.replace(/\/$/, ""); this.apiKey = apiKey; this.timeoutMs = timeoutMs; this.fetch = fetchImpl;
   }
   async request(path, { method = "GET", body, allowedStatuses = [] } = {}) {
