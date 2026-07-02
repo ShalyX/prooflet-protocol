@@ -234,6 +234,8 @@ function render() {
   const reservedRewards = jobs.filter((job) => job.fundingStatus === "reserved").reduce((sum, item) => sum + item.reward, 0);
   const pendingPayout = payableProofs.reduce((sum, item) => sum + item.amount, 0);
   const batch = buildSettlementBatch();
+  const openJobs = jobs.filter((job) => ["queued", "open"].includes(job.state));
+  const actionProofs = [...payableProofs, ...rejectedProofs].slice(0, 4);
 
   $("#cyclesMetric").textContent = idleCyclesUsed;
   $("#activeMetric").textContent = `${active.length} active`;
@@ -242,6 +244,26 @@ function render() {
   $("#earnedMetric").textContent = `${money(settled)} USDC`;
   $("#arcMetric").textContent = paidProofs.length;
   $("#rejectedMetricMain").textContent = rejectedProofs.length;
+  $("#needsActionCount").textContent = payableProofs.length;
+  $("#needsActionCopy").textContent = payableProofs.length
+    ? `${money(pendingPayout)} Arc Testnet USDC is approved and waiting for operator release.`
+    : "No proof packets are waiting for release.";
+  $("#opsOpenJobs").textContent = `${openJobs.length} ${openJobs.length === 1 ? "job" : "jobs"}`;
+  $("#opsProofQuality").textContent = `${acceptedProofs.length} accepted / ${rejectedProofs.length} rejected`;
+  $("#reviewQueueSummary").textContent = `${payableProofs.length} payable · ${rejectedProofs.length} rejected`;
+  $("#proofReviewList").innerHTML = actionProofs.length ? actionProofs.map((item) => `
+    <article class="proof-review-card ${item.outcome}">
+      <div>
+        <span>${escapeHtml(item.outcome === "accepted" ? "Payable packet" : "Rejected packet")}</span>
+        <strong>${escapeHtml(item.job)}</strong>
+        <p>${escapeHtml(item.agent)} · ${escapeHtml(item.jobId)} · ${escapeHtml(item.proof || item.rejectionReason || "Evidence packet recorded")}</p>
+      </div>
+      <div class="proof-review-status">
+        <b>${item.outcome === "accepted" ? `${money(item.amount)} USDC` : "No payout"}</b>
+        <small>${escapeHtml(proofStatus(item))}</small>
+      </div>
+    </article>
+  `).join("") : `<div class="queue-empty"><strong>No packets need action</strong><p>Approved proof packets will appear here when they become payable.</p></div>`;
   $("#batchPending").textContent = `${money(batch.totalPayout)} USDC`;
   $("#batchApproved").textContent = batch.approvedProofs;
   $("#batchRejected").textContent = batch.rejectedProofs;
@@ -783,6 +805,7 @@ function jobTitle(job) {
 $("#addJobs").addEventListener("click", addJobs);
 $("#runCycle").addEventListener("click", runCycle);
 $("#prepareBatch").addEventListener("click", prepareBatch);
+$("#prepareBatchHero").addEventListener("click", prepareBatch);
 $("#queueTabs").addEventListener("click", (event) => {
   const button = event.target.closest("[data-queue-filter]");
   if (!button) return;

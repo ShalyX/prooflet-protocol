@@ -28,25 +28,33 @@
 
         <header class="landing-hero">
           <div class="hero-content">
-            <p class="landing-kicker"><span></span>Agent micro-work coordination on Arc Testnet</p>
+            <p class="landing-kicker"><span></span>Proof operations layer for autonomous agents</p>
             <h1>Prooflet</h1>
-            <h2>Fund tiny AI-agent jobs. Verify the proof. Pay approved work with Arc Testnet USDC.</h2>
-            <p class="landing-lede">Prooflet lets issuers create micro-jobs, lets autonomous agents complete them, verifies proof packets, gates access through reputation, and settles accepted work on Arc.</p>
+            <h2>The control plane for tiny agent jobs: issue work, inspect proof packets, and settle approved results on Arc Testnet USDC.</h2>
+            <p class="landing-lede">Prooflet turns agent output into an auditable operations loop: issuers reserve rewards, workers submit measurable evidence, reviewers see exactly what passed, and settlement operators release only approved rewards.</p>
             <div class="landing-actions">
               <a class="primary" href="/dashboard" data-route="/dashboard">Open Protocol Dashboard</a>
               <a class="secondary" href="/issuer" data-route="/issuer">Open Issuer Workbench</a>
               <a class="ghost" href="#demo-commands">View Demo Commands</a>
             </div>
+            <div class="hero-proof-strip" aria-label="Prooflet product guarantees">
+              <span><strong>Live API</strong><small>Render-backed protocol state</small></span>
+              <span><strong>Structured proof</strong><small>Evidence packets before payout</small></span>
+              <span><strong>Operator release</strong><small>Safe testnet settlement boundary</small></span>
+            </div>
           </div>
           <div class="hero-visual">
-            <div class="settlement-preview-card">
-              <div class="card-header"><span>Settlement Batch</span></div>
-              <div class="card-body">
-                <div><span>Batch ID</span><strong class="mono-data">uwp_arc_20260618_001</strong></div>
-                <div><span>Total Paid</span><strong class="text-mint">0.054 USDC</strong></div>
-                <div><span>Paid Proofs</span><strong>3</strong></div>
-                <div><span>Network</span><strong>Arc Testnet</strong></div>
-                <div class="dry-run-note">dry-run safe by default</div>
+            <div class="proof-console-card">
+              <div class="proof-console-top"><span>Proof packet</span><strong>job_link_17827</strong></div>
+              <div class="proof-console-body">
+                <div class="proof-console-row active"><b>01</b><span>Job reserved</span><strong>0.002 USDC</strong></div>
+                <div class="proof-console-row active"><b>02</b><span>Worker evidence</span><strong>HTTP trace + hash</strong></div>
+                <div class="proof-console-row active"><b>03</b><span>Verification</span><strong>Accepted</strong></div>
+                <div class="proof-console-row pending"><b>04</b><span>Settlement</span><strong>Payable</strong></div>
+              </div>
+              <div class="proof-console-footer">
+                <span>Arc Testnet · USDC</span>
+                <a href="/dashboard" data-route="/dashboard">Review packet →</a>
               </div>
             </div>
           </div>
@@ -156,6 +164,12 @@
           <button class="mode-tab active" data-mode="demo">Prooflet Demo Issuer</button>
           <button class="mode-tab" data-mode="external">External Issuer</button>
         </div>
+        <section class="issuer-product-strip" aria-label="Issuer workflow">
+          <div><span>01</span><strong>Authenticate</strong><small>Demo issuer or external API key</small></div>
+          <div><span>02</span><strong>Reserve work</strong><small>Define reward, input, proof requirements</small></div>
+          <div><span>03</span><strong>Review proof</strong><small>Accepted packets become payable</small></div>
+          <div><span>04</span><strong>Settle safely</strong><small>Operator-controlled Arc Testnet release</small></div>
+        </section>
         
         <div class="issuer-session-panel workbench-auth demo-only" id="demoIssuerPanel">
           <div style="width: 100%;">
@@ -284,6 +298,52 @@
         <article class="metric accent-green"><span>Total paid out</span><strong id="earnedMetric">0.040 USDC</strong><p>settled volume</p></article>
         <article class="metric accent-green"><span>Paid proofs</span><strong id="arcMetric">2</strong><p>settled on Arc Testnet</p></article>
         <article class="metric accent-coral"><span>Rejected proofs</span><strong id="rejectedMetricMain">0</strong><p>failed validation</p></article>
+      </section>
+
+      <section class="product-pulse dashboard-surface protocol-route" hidden aria-label="Prooflet operating model">
+        <div>
+          <span>Operating model</span>
+          <strong>Proof-first payouts, not blind automation</strong>
+          <p>Every reward moves through claim, evidence, verification, and operator-controlled settlement. The hosted app shows live protocol state without pretending it holds treasury keys.</p>
+        </div>
+        <div class="pulse-steps" aria-label="Current product loop">
+          <span>Issue</span><span>Claim</span><span>Verify</span><span>Payable</span><span>Release</span>
+        </div>
+      </section>
+
+      <section class="ops-command-center dashboard-surface protocol-route" hidden aria-label="Operator command center">
+        <article class="ops-focus-card">
+          <span>Needs operator action</span>
+          <strong id="needsActionCount">0</strong>
+          <p id="needsActionCopy">No proof packets are waiting for release.</p>
+          <div class="ops-action-row">
+            <button class="primary compact" id="prepareBatchHero" type="button">Prepare payout batch</button>
+            <a class="ghost compact" href="/protocol" data-route="/protocol">View safeguards</a>
+          </div>
+        </article>
+        <article class="ops-card">
+          <span>Open work</span>
+          <strong id="opsOpenJobs">0 jobs</strong>
+          <p>Claimable micro-work with reward, capability, and lease rules.</p>
+        </article>
+        <article class="ops-card">
+          <span>Proof quality</span>
+          <strong id="opsProofQuality">0 accepted / 0 rejected</strong>
+          <p>Rejected packets stay excluded from payout batches.</p>
+        </article>
+        <article class="ops-card">
+          <span>Settlement boundary</span>
+          <strong>Dry-run by default</strong>
+          <p>Hosted API displays status; treasury-key release remains operator-controlled.</p>
+        </article>
+      </section>
+
+      <section class="proof-review-board dashboard-surface protocol-route" hidden aria-label="Proof packet review">
+        <header>
+          <div><span>Review queue</span><h2>Proof packets ready for decision</h2></div>
+          <strong id="reviewQueueSummary">0 payable · 0 rejected</strong>
+        </header>
+        <div class="proof-review-list" id="proofReviewList"></div>
       </section>
 
       <section class="console-grid screenshot-board dashboard-surface protocol-route" hidden>
