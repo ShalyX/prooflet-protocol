@@ -1499,7 +1499,8 @@ input[type="file"]::-webkit-file-upload-button {
 .agent-stats span:last-child { white-space: nowrap; }
 
 .ops-command-center,
-.proof-review-board {
+.proof-review-board,
+.trust-boundary-board {
   max-width: 1500px;
   margin: 0 auto 12px;
 }
@@ -1570,6 +1571,25 @@ input[type="file"]::-webkit-file-upload-button {
 .proof-review-status { text-align: right; }
 .proof-review-status b { display:block; color: var(--green); font-size: .9rem; white-space: nowrap; }
 .proof-review-status small { display:block; margin-top: 5px; color: var(--muted); font-size: .68rem; max-width: 170px; }
+.trust-boundary-board {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.trust-boundary-board article {
+  min-height: 126px;
+  border: 1px solid rgba(214, 195, 175, .16);
+  border-radius: 16px;
+  padding: 16px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.012)),
+    var(--panel-2);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.045);
+}
+.trust-boundary-board span,
+.issuer-boundary-strip span { color: var(--green); font-size: .66rem; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
+.trust-boundary-board strong { display:block; margin: 10px 0 7px; color: var(--text); font-size: .92rem; }
+.trust-boundary-board p { margin: 0; color: var(--muted); font-size: .76rem; line-height: 1.45; }
 .issuer-product-strip {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1587,15 +1607,34 @@ input[type="file"]::-webkit-file-upload-button {
 .issuer-product-strip span { color: var(--amber); font-size: .64rem; font-weight: 900; }
 .issuer-product-strip strong { display:block; margin: 8px 0 4px; color: var(--text); font-size: .84rem; }
 .issuer-product-strip small { color: var(--muted); font-size: .7rem; line-height: 1.3; }
+.issuer-boundary-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  padding: 0 12px 12px;
+  border-bottom: 1px solid var(--line);
+  background: rgba(255,255,255,.018);
+}
+.issuer-boundary-strip div {
+  border: 1px solid rgba(126, 226, 168, .22);
+  border-radius: 14px;
+  padding: 12px;
+  background: rgba(18, 28, 24, .55);
+}
+.issuer-boundary-strip strong { display:block; margin-top: 7px; color: var(--text); font-size: .78rem; line-height: 1.35; }
 @media (max-width: 1100px) {
   .ops-command-center,
   .proof-review-list,
-  .issuer-product-strip { grid-template-columns: 1fr 1fr; }
+  .trust-boundary-board,
+  .issuer-product-strip,
+  .issuer-boundary-strip { grid-template-columns: 1fr 1fr; }
 }
 @media (max-width: 700px) {
   .ops-command-center,
   .proof-review-list,
-  .issuer-product-strip { grid-template-columns: 1fr; }
+  .trust-boundary-board,
+  .issuer-product-strip,
+  .issuer-boundary-strip { grid-template-columns: 1fr; }
   .proof-review-card { grid-template-columns: 1fr; }
   .proof-review-status { text-align: left; }
 }

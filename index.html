@@ -134,7 +134,7 @@
           <img src="/prooflet-icon.svg" alt="" width="48" height="48" class="brand-mark" style="border:none; background:none; padding:0;" />
           <div>
             <h1>Prooflet</h1>
-            <p>Prooflet is the job issuer; approved proofs become Arc Testnet USDC payouts</p>
+            <p>Proof operations console for issuing micro-work, reviewing evidence, and preparing Arc Testnet USDC release.</p>
           </div>
         </a>
         <div class="status-pills" aria-label="Protocol status">
@@ -146,7 +146,7 @@
           <button class="ghost" id="toggleWorkbench" type="button">Issuer Workbench</button>
           <a class="ghost protocol-nav-link" href="/protocol" data-route="/protocol">Protocol</a>
           <button class="primary" id="runCycle" type="button">Run worker cycle</button>
-          <button class="secondary" id="prepareBatch" type="button">Prepare settlement batch</button>
+          <button class="secondary" id="prepareBatch" type="button">Prepare payout batch</button>
         </div>
       </header>
 
@@ -169,6 +169,11 @@
           <div><span>02</span><strong>Reserve work</strong><small>Define reward, input, proof requirements</small></div>
           <div><span>03</span><strong>Review proof</strong><small>Accepted packets become payable</small></div>
           <div><span>04</span><strong>Settle safely</strong><small>Operator-controlled Arc Testnet release</small></div>
+        </section>
+        <section class="issuer-boundary-strip" aria-label="Issuer readiness boundary">
+          <div><span>Current rail</span><strong>Hosted issuer workbench + Circle wallet onboarding are live.</strong></div>
+          <div><span>Escrow boundary</span><strong>Open external escrow funding remains V2 work; V1 is a proven pre-assigned demo escrow.</strong></div>
+          <div><span>Settlement safety</span><strong>Approved proofs become payable; operator release still signs the transaction.</strong></div>
         </section>
         
         <div class="issuer-session-panel workbench-auth demo-only" id="demoIssuerPanel">
@@ -344,6 +349,12 @@
           <strong id="reviewQueueSummary">0 payable · 0 rejected</strong>
         </header>
         <div class="proof-review-list" id="proofReviewList"></div>
+      </section>
+
+      <section class="trust-boundary-board dashboard-surface protocol-route" hidden aria-label="Trust boundary">
+        <article><span>Hosted UI</span><strong>Read-only status + issuer workspace</strong><p>Vercel renders product state and calls the Render API; it does not contain treasury keys.</p></article>
+        <article><span>API ledger</span><strong>Jobs, claims, proofs, reputation</strong><p>Express + SQLite preserve the work ledger and reject duplicate or failed proof packets.</p></article>
+        <article><span>Settlement operator</span><strong>Release remains explicit</strong><p>Dry-run prepares a payout plan; real Arc Testnet USDC release requires operator-held signing authority.</p></article>
       </section>
 
       <section class="console-grid screenshot-board dashboard-surface protocol-route" hidden>
