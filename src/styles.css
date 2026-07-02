@@ -307,10 +307,11 @@ h1 {
 
 .console-grid {
   display: grid;
-  grid-template-columns: minmax(260px, 0.8fr) minmax(430px, 1.4fr) minmax(330px, 1fr);
+  grid-template-columns: minmax(430px, 1.35fr) minmax(330px, 1fr);
   grid-template-areas:
-    "agents settlement stream"
-    "agents settlement queue";
+    "settlement stream"
+    "settlement queue"
+    "agents agents";
   gap: 12px;
   align-items: start;
 }
@@ -382,7 +383,7 @@ h1 {
 .queue-empty{margin:2px;padding:18px;border:1px dashed var(--line-strong);text-align:center}.queue-empty strong{color:var(--text)}.queue-empty p{margin:5px 0 0;color:var(--muted);font-size:.76rem}.has-payable{color:var(--amber)!important}.treasury-panel small{display:block;margin-top:4px;color:var(--muted);font-size:.65rem}
 
 .agent-grid {
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
 
 .agent,
@@ -1488,11 +1489,17 @@ input[type="file"]::-webkit-file-upload-button {
   border-radius: 16px;
   box-shadow: inset 0 1px 0 rgba(255,255,255,.055);
 }
-.console-grid { grid-template-columns: minmax(290px, .75fr) minmax(520px, 1.45fr) minmax(340px, .9fr); }
+.console-grid {
+  grid-template-columns: minmax(520px, 1.35fr) minmax(340px, 1fr);
+  grid-template-areas:
+    "settlement stream"
+    "settlement queue"
+    "agents agents";
+}
 .panel header { background: rgba(126, 226, 168, 0.045); }
 .metric { min-height: 96px; padding: 18px; }
 .metric strong { font-size: 1.35rem; }
-.agent-grid { max-height: 760px; overflow: auto; }
+.agent-grid { max-height: none; overflow: visible; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
 .agent { border-radius: 14px; }
 .receipt, .job, .event-row { border-radius: 12px; margin: 8px 10px; }
 .agent code { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
