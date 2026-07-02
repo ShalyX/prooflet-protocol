@@ -356,8 +356,38 @@ function render() {
 }
 
 function prepareBatch() {
+  setActionState("#prepareBatch, #prepareBatchHero", "loading", "Preparing…");
   latestBatchPayload = buildSettlementBatch();
   renderPreparedBatch(latestBatchPayload);
+  window.setTimeout(() => setActionState("#prepareBatch, #prepareBatchHero", "success", "Batch ready"), 260);
+}
+
+function setActionState(selector, state, label) {
+  document.querySelectorAll(selector).forEach((button) => {
+    if (!button.dataset.defaultLabel) button.dataset.defaultLabel = button.textContent;
+    button.classList.remove("is-loading", "is-success", "is-soft-alert");
+    if (state === "loading") {
+      button.disabled = true;
+      button.classList.add("is-loading");
+    } else if (state === "success") {
+      button.disabled = false;
+      button.classList.add("is-success");
+    } else if (state === "notice") {
+      button.disabled = false;
+      button.classList.add("is-soft-alert");
+    } else {
+      button.disabled = false;
+    }
+    if (label) button.textContent = label;
+    const resetDelay = state === "success" || state === "notice" ? 1100 : 0;
+    if (resetDelay) {
+      window.setTimeout(() => {
+        button.classList.remove("is-loading", "is-success", "is-soft-alert");
+        button.disabled = false;
+        button.textContent = button.dataset.defaultLabel;
+      }, resetDelay);
+    }
+  });
 }
 
 function renderPreparedBatch(batch) {
@@ -431,8 +461,13 @@ function addJobs() {
 
 function runCycle() {
   const nextJob = jobs.find((job) => job.state === "queued");
-  if (!nextJob || running) return;
+  if (running) return;
+  if (!nextJob) {
+    setActionState("#runCycle", "notice", "No queued jobs");
+    return;
+  }
   const agent = agents.find((item) => item.id === jobToAgent[nextJob.type]);
+  setActionState("#runCycle", "loading", "Cycling worker…");
   idleCyclesUsed += 1;
   pushEvent("claim", "agent claimed job", `${agent.name} claimed ${nextJob.id}: ${nextJob.title}`, `${money(nextJob.reward)} USDC`);
   nextJob.state = "running";
@@ -465,6 +500,7 @@ function completeCycle(job, agent) {
   pushEvent("approved", "proof became payable", `${proofRecord.agentId} has ${money(proofRecord.amount)} Arc Testnet USDC ready for treasury settlement`, "payable");
   running = false;
   render();
+  setActionState("#runCycle", "success", "Cycle complete");
 }
 
 function pushEvent(kind, title, detail, meta) {
