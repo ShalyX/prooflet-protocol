@@ -76,9 +76,12 @@ export async function getWalletBalance(walletId) {
   const c = g();
   if (!c) return null;
   try {
-    const r = await c.getWalletTokenBalance({ walletId, tokenId: "USDC-ARC" });
-    const b = r.data?.tokenBalances?.[0];
-    return b ? { amount: b.amount || "0", decimals: b.decimals || 6 } : { amount: "0", decimals: 6 };
+    const r = await c.getWalletTokenBalance({ id: walletId });
+    const balances = r.data?.tokenBalances || [];
+    const b = balances.find((item) => item.token?.tokenAddress?.toLowerCase() === "0x3600000000000000000000000000000000000000")
+      || balances.find((item) => item.token?.symbol === "USDC" && item.token?.blockchain === "ARC-TESTNET")
+      || balances[0];
+    return b ? { amount: b.amount || "0", decimals: b.token?.decimals || 6 } : { amount: "0", decimals: 6 };
   } catch { return { amount: "0", decimals: 6 }; }
 }
 
