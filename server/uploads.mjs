@@ -46,11 +46,11 @@ export function confirmUpload(db, issuerId, uploadId, payload = {}) {
     const created = [];
     const now = new Date().toISOString();
     const insert = db.prepare(`INSERT INTO jobs
-      (job_id,issuer_id,job_type,input_json,reward_amount,reward_asset,network,funding_status,status,proof_requirements_json,verification_mode,required_access_level,created_at,updated_at)
-      VALUES (?,?,?,?,?,'USDC','Arc Testnet','reserved','open',?,?,?,?,?)`);
+      (job_id,issuer_reference_id,issuer_id,job_type,input_json,reward_amount,reward_asset,network,funding_status,status,proof_requirements_json,verification_mode,required_access_level,created_at,updated_at)
+      VALUES (?,?,?,?,?,?,'USDC','Arc Testnet','reserved','open',?,?,?,?,?)`);
     for (const row of rows) {
       const job = parseJson(row.job_json, {});
-      insert.run(job.jobId, issuerId, job.jobType, json(job.input), job.rewardAmount, json(job.proofRequirements), job.verificationMode, job.requiredAccessLevel, now, now);
+      insert.run(job.jobId, job.issuerReferenceId || null, issuerId, job.jobType, json(job.input), job.rewardAmount, json(job.proofRequirements), job.verificationMode, job.requiredAccessLevel, now, now);
       created.push(job.jobId);
     }
     db.prepare("UPDATE issuer_uploads SET status='confirmed',confirmation_mode=?,created_job_ids_json=?,confirmed_at=? WHERE upload_id=?").run(mode, json(created), now, uploadId);
@@ -67,12 +67,11 @@ export function uploadResponse(db, uploadId) {
 function validateRow(db, issuerId, raw, rowNumber, seen) {
   const errors = [];
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return { rowNumber, job: null, errors: ["Row must be an object."] };
-  const jobId = String(raw.jobId || "").trim();
+  const issuerReferenceId = normalizeOptionalReference(raw.issuerReferenceId ?? raw.jobId);
+  const jobId = generateCanonicalId("job", db, seen);
   const jobType = String(raw.jobType || "").trim();
   if (!/^[a-zA-Z0-9_-]{3,80}$/.test(jobId)) errors.push("jobId is invalid.");
   if (!jobType) errors.push("jobType is required.");
-  if (seen.has(jobId)) errors.push("Duplicate jobId inside upload."); else seen.add(jobId);
-  if (jobId && db.prepare("SELECT 1 FROM jobs WHERE job_id=?").get(jobId)) errors.push("jobId already exists.");
   const input = objectValue(raw.input, "input", errors);
   const proofRequirements = objectValue(raw.proofRequirements, "proofRequirements", errors);
   const verificationMode = raw.verificationMode || "deterministic";
@@ -81,7 +80,7 @@ function validateRow(db, issuerId, raw, rowNumber, seen) {
   try { const amount = parseUnits(String(raw.rewardAmount), 6); if (amount <= 0n) throw new Error(); rewardAmount = formatUnits(amount, 6); } catch { errors.push("rewardAmount must be positive USDC with at most 6 decimals."); }
   const required = rewardAmount ? requiredAccessLevel(rewardAmount, verificationMode) : null;
   if (rewardAmount && !required) errors.push("rewardAmount exceeds the v0 maximum of 0.10 USDC.");
-  return { rowNumber, errors, job: { jobId, issuerId, jobType, input, rewardAmount, rewardAsset: "USDC", network: "Arc Testnet", proofRequirements, verificationMode, requiredAccessLevel: required } };
+  return { rowNumber, errors, job: { jobId, issuerReferenceId, issuerId, jobType, input, rewardAmount, rewardAsset: "USDC", network: "Arc Testnet", proofRequirements, verificationMode, requiredAccessLevel: required } };
 }
 
 function objectValue(value, name, errors) {
@@ -100,4 +99,20 @@ function parseCsv(content) {
 }
 function csvLine(line) { const fields=[]; let value="",quoted=false; for(let i=0;i<line.length;i++){const char=line[i];if(char==='"'){if(quoted&&line[i+1]==='"'){value+='"';i++;}else quoted=!quoted;}else if(char===","&&!quoted){fields.push(value);value="";}else value+=char;}fields.push(value);return fields; }
 function sanitizeFilename(value) { return String(value).replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 120); }
+function normalizeOptionalReference(value) {
+  if (value == null || String(value).trim() === "") return null;
+  const normalized = String(value).trim();
+  if (normalized.length > 120 || !/^[a-zA-Z0-9._:-]+$/.test(normalized)) throw uploadError(400, "issuerReferenceId must be 1-120 letters, numbers, dots, colons, underscores, or hyphens.");
+  return normalized;
+}
+function generateCanonicalId(prefix, db, seen) {
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    const id = `${prefix}_${randomUUID().replaceAll("-", "").slice(0, 10)}`;
+    if (!seen.has(id) && !db.prepare("SELECT 1 FROM jobs WHERE job_id=?").get(id)) {
+      seen.add(id);
+      return id;
+    }
+  }
+  throw uploadError(503, "Could not allocate job ID. Try again.");
+}
 function uploadError(status, message) { const error = new Error(message); error.status = status; return error; }

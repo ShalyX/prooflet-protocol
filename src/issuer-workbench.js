@@ -305,8 +305,9 @@ export function initIssuerWorkbench({ apiUrl, onNavigate }) {
       let input, proofReq;
       try{input=JSON.parse(data.get("input"));proofReq=JSON.parse(data.get("proofRequirements"))}catch{return setStatus("Invalid JSON in input or proofRequirements field.",false)}
       
+      const issuerReferenceId = String(data.get("issuerReferenceId") || "").trim();
       const payload = {
-        jobId:data.get("jobId"),jobType:data.get("jobType"),rewardAmount:data.get("rewardAmount"),verificationMode:data.get("verificationMode"),
+        ...(issuerReferenceId ? { issuerReferenceId } : {}),jobType:data.get("jobType"),rewardAmount:data.get("rewardAmount"),verificationMode:data.get("verificationMode"),
         input,proofRequirements:proofReq
       };
       
@@ -343,7 +344,7 @@ export function initIssuerWorkbench({ apiUrl, onNavigate }) {
         fundingCol = `${pill("Awaiting wallet funding")} <br><button class="secondary" disabled style="margin-top:6px; font-size:0.7rem; padding:4px 8px;">Requires ProofletEscrowV2</button> <br><span class="issuer-helper" style="display:inline-block; margin-top:4px; max-width: 140px; color: var(--amber);">Open marketplace escrow funding requires ProofletEscrowV2.</span>`;
       }
       return [
-        row.jobId,
+        `${escape(row.jobId)}${row.issuerReferenceId ? `<br><span class="issuer-helper">Ref: ${escape(row.issuerReferenceId)}</span>` : ""}`,
         row.jobType,
         `${row.rewardAmount} USDC`,
         jobState(row),

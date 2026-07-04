@@ -1,4 +1,5 @@
 import express from "express";
+import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { formatUnits, isAddress, parseUnits } from "viem";
 import { authenticate, generateApiKey, storeApiKey } from "./auth.mjs";
@@ -140,8 +141,10 @@ export function createApp({
   });
 
   app.post("/agents/register", (request, response) => {
-    const { agentId, name, capabilities, payoutAddress, status = "idle", reputationScore = 50 } = request.body || {};
+    const { agentId: requestedAgentId, handle = null, name, capabilities, payoutAddress, status = "idle", reputationScore = 50 } = request.body || {};
+    const agentId = requestedAgentId || generateCanonicalId("agent", db, "agents", "agent_id");
     requireId(agentId, "agentId");
+    const normalizedHandle = normalizeOptionalHandle(handle, "handle");
     requireString(name, "name");
     if (!Array.isArray(capabilities) || capabilities.length === 0 || capabilities.some((item) => typeof item !== "string")) {
       throw httpError(400, "capabilities must be a non-empty string array.");
@@ -155,9 +158,9 @@ export function createApp({
       withTransaction(db, () => {
         db.prepare(`
           INSERT INTO agents
-            (agent_id, name, capabilities_json, payout_address, status, reputation_score, created_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?)
-        `).run(agentId, name, json([...new Set(capabilities)]), payoutAddress, status, score, now);
+            (agent_id, handle, name, capabilities_json, payout_address, status, reputation_score, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(agentId, normalizedHandle, name, json([...new Set(capabilities)]), payoutAddress, status, score, now);
         storeApiKey(db, "agent", agentId, apiKey, now);
         appendReputationEvent(db, { eventId: `registered:${agentId}`, agentId, eventType: "agent_registered", createdAt: now });
       });
@@ -165,12 +168,14 @@ export function createApp({
       if (String(error.message).includes("UNIQUE")) throw httpError(409, `Agent ${agentId} already exists.`);
       throw error;
     }
-    response.status(201).json({ agent: { agentId, name, capabilities, payoutAddress, status, reputationScore: score }, apiKey });
+    response.status(201).json({ agent: { agentId, handle: normalizedHandle, name, capabilities, payoutAddress, status, reputationScore: score }, apiKey });
   });
 
   app.post("/agents/register-with-wallet", async (request, response) => {
-    const { agentId, name, capabilities, payoutAddress, status = "idle", reputationScore = 50 } = request.body || {};
+    const { agentId: requestedAgentId, handle = null, name, capabilities, payoutAddress, status = "idle", reputationScore = 50 } = request.body || {};
+    const agentId = requestedAgentId || generateCanonicalId("agent", db, "agents", "agent_id");
     requireId(agentId, "agentId");
+    const normalizedHandle = normalizeOptionalHandle(handle, "handle");
     requireString(name, "name");
     if (!Array.isArray(capabilities) || capabilities.length === 0 || capabilities.some((item) => typeof item !== "string")) {
       throw httpError(400, "capabilities must be a non-empty string array.");
@@ -212,9 +217,9 @@ export function createApp({
       withTransaction(db, () => {
         db.prepare(`
           INSERT INTO agents
-            (agent_id, name, capabilities_json, payout_address, status, reputation_score, circle_wallet_id, created_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(agentId, name, json([...new Set(capabilities)]), finalPayoutAddress, status, score, circleWallet?.walletId || null, now);
+            (agent_id, handle, name, capabilities_json, payout_address, status, reputation_score, circle_wallet_id, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(agentId, normalizedHandle, name, json([...new Set(capabilities)]), finalPayoutAddress, status, score, circleWallet?.walletId || null, now);
         storeApiKey(db, "agent", agentId, apiKey, now);
         appendReputationEvent(db, { eventId: `registered:${agentId}`, agentId, eventType: "agent_registered", createdAt: now });
       });
@@ -223,7 +228,7 @@ export function createApp({
       throw error;
     }
     response.status(201).json({
-      agent: { agentId, name, capabilities, payoutAddress: finalPayoutAddress, status, reputationScore: score, circleWalletId: circleWallet?.walletId || null },
+      agent: { agentId, handle: normalizedHandle, name, capabilities, payoutAddress: finalPayoutAddress, status, reputationScore: score, circleWalletId: circleWallet?.walletId || null },
       circleWallet,
       walletProvisioning,
       apiKey,
@@ -232,11 +237,13 @@ export function createApp({
 
   app.post("/jobs", (request, response) => {
     const {
-      jobId, issuerId, jobType, input, rewardAmount, rewardAsset = "USDC",
+      jobId: requestedJobId, issuerReferenceId = null, issuerId, jobType, input, rewardAmount, rewardAsset = "USDC",
       network = "Arc Testnet", fundingStatus = "reserved", status = "open", proofRequirements, verificationMode = "deterministic",
       fundingRail = "direct_treasury"
     } = request.body || {};
+    const jobId = requestedJobId || generateCanonicalId("job", db, "jobs", "job_id");
     requireId(jobId, "jobId");
+    const normalizedIssuerReferenceId = normalizeOptionalReference(issuerReferenceId, "issuerReferenceId");
     requireId(issuerId, "issuerId");
     requireString(jobType, "jobType");
     if (!authenticate(db, request, "issuer", issuerId)) throw httpError(401, "Valid issuer API key required.");
@@ -253,10 +260,10 @@ export function createApp({
     try {
       db.prepare(`
         INSERT INTO jobs
-          (job_id, issuer_id, job_type, input_json, reward_amount, reward_asset, network,
+          (job_id, issuer_reference_id, issuer_id, job_type, input_json, reward_amount, reward_asset, network,
            funding_status, status, proof_requirements_json, verification_mode, required_access_level, funding_rail, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, 'USDC', 'Arc Testnet', ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(jobId, issuerId, jobType, json(input), normalizedReward(rewardAmount), fundingStatus, status, json(proofRequirements), verificationMode, accessLevel, fundingRail, now, now);
+        VALUES (?, ?, ?, ?, ?, ?, 'USDC', 'Arc Testnet', ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(jobId, normalizedIssuerReferenceId, issuerId, jobType, json(input), normalizedReward(rewardAmount), fundingStatus, status, json(proofRequirements), verificationMode, accessLevel, fundingRail, now, now);
     } catch (error) {
       if (String(error.message).includes("UNIQUE")) throw httpError(409, `Job ${jobId} already exists.`);
       throw error;
@@ -643,6 +650,7 @@ function serializeAgent(row) {
   const circleWalletId = row.circle_wallet_id || null;
   return {
     agentId: row.agent_id,
+    handle: row.handle || null,
     name: row.name,
     capabilities: parseJson(row.capabilities_json, []),
     payoutAddress: row.payout_address,
@@ -655,7 +663,7 @@ function serializeAgent(row) {
 
 function serializeJob(row) {
   return {
-    jobId: row.job_id, issuerId: row.issuer_id, jobType: row.job_type, input: parseJson(row.input_json, {}),
+    jobId: row.job_id, issuerReferenceId: row.issuer_reference_id || null, issuerId: row.issuer_id, jobType: row.job_type, input: parseJson(row.input_json, {}),
     rewardAmount: row.reward_amount, rewardAsset: row.reward_asset, network: row.network,
     fundingStatus: row.funding_status, status: row.status, proofRequirements: parseJson(row.proof_requirements_json, {}),
     claimedBy: row.claimed_by, leaseExpiresAt: row.lease_expires_at, verificationMode: row.verification_mode || "deterministic", requiredAccessLevel: row.required_access_level || "starter",
@@ -686,6 +694,28 @@ function withAdjudication(db, proof) {
 
 function requireId(value, name) {
   if (typeof value !== "string" || !/^[a-zA-Z0-9_-]{3,80}$/.test(value)) throw httpError(400, `${name} must be 3-80 letters, numbers, underscores, or hyphens.`);
+}
+
+function normalizeOptionalHandle(value, name) {
+  if (value == null || String(value).trim() === "") return null;
+  const normalized = String(value).trim().toLowerCase();
+  if (!/^[a-z0-9][a-z0-9_-]{1,62}[a-z0-9]$/.test(normalized)) throw httpError(400, `${name} must be 3-64 lowercase letters, numbers, underscores, or hyphens.`);
+  return normalized;
+}
+
+function normalizeOptionalReference(value, name) {
+  if (value == null || String(value).trim() === "") return null;
+  const normalized = String(value).trim();
+  if (normalized.length > 120 || !/^[a-zA-Z0-9._:-]+$/.test(normalized)) throw httpError(400, `${name} must be 1-120 letters, numbers, dots, colons, underscores, or hyphens.`);
+  return normalized;
+}
+
+function generateCanonicalId(prefix, db, table, column) {
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    const id = `${prefix}_${randomUUID().replaceAll("-", "").slice(0, 10)}`;
+    if (!db.prepare(`SELECT 1 FROM ${table} WHERE ${column} = ?`).get(id)) return id;
+  }
+  throw httpError(503, `Could not allocate ${prefix} ID. Try again.`);
 }
 
 function requireString(value, name) {

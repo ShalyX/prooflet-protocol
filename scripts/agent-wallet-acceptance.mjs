@@ -57,6 +57,16 @@ async function runCircleConfiguredCase() {
     assert.equal(registered.body.agent.payoutAddress, circleAddress);
     assert.equal(registered.body.agent.circleWalletId, circleWalletId);
 
+    const generated = await request(test.baseUrl, "POST", "/agents/register-with-wallet", {
+      handle: "generated-link-runner",
+      name: "Generated Link Runner",
+      capabilities: ["link_verification"],
+    });
+    assert.equal(generated.status, 201);
+    assert.match(generated.body.agent.agentId, /^agent_[a-z0-9]{10}$/);
+    assert.equal(generated.body.agent.handle, "generated-link-runner");
+    assert.equal(generated.body.walletProvisioning.status, "success");
+
     const stored = test.db.prepare("SELECT payout_address, circle_wallet_id FROM agents WHERE agent_id = 'wallet_agent_circle'").get();
     assert.equal(stored.payout_address, circleAddress);
     assert.equal(stored.circle_wallet_id, circleWalletId);

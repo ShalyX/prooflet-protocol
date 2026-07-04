@@ -286,7 +286,7 @@
             </div>
           </section>
           <section class="workbench-block"><h3>Create Single Job</h3><form id="singleJobForm" class="workbench-form">
-            <label>Job ID<input name="jobId" required placeholder="job_link_001"></label><label>Job type<select name="jobType"><option>link_verification</option><option>freshness_check</option><option>eval_labeling</option></select></label>
+            <label>Job reference <input name="issuerReferenceId" placeholder="Optional: ticket-104 or invoice-4182"><small>Prooflet assigns the canonical job ID.</small></label><label>Job type<select name="jobType"><option>link_verification</option><option>freshness_check</option><option>eval_labeling</option></select></label>
             <label>Reward USDC<input name="rewardAmount" required value="0.003"></label><label>Verification<select name="verificationMode"><option value="deterministic">Deterministic</option><option value="subjective">Subjective</option></select></label>
             <label class="wide">Input JSON<textarea name="input" required>{"url":"https://docs.arc.network"}</textarea></label><label class="wide">Proof requirements JSON<textarea name="proofRequirements" required>{"requiredResultFields":["status","responseTimeMs","contentHash"]}</textarea></label>
             <button class="primary wide" type="submit">Reserve funded job</button></form></section>
@@ -426,10 +426,10 @@
           <div class="agent-onboarding-copy">
             <span>External agent onboarding</span>
             <h3 id="agentOnboardingTitle">Register an agent with a Circle wallet</h3>
-            <p>Create a live agent identity, provision a Circle developer-controlled wallet when available, and receive the API key needed for worker clients.</p>
+            <p>Create a live agent identity, provision a Circle developer-controlled wallet when available, and receive the API key needed for worker clients. Prooflet assigns the canonical agent ID.</p>
           </div>
           <form class="agent-register-form" id="agentRegisterForm">
-            <label>Agent ID<input name="agentId" required placeholder="agent_my_worker"></label>
+            <label>Agent handle <input name="handle" placeholder="Optional: link-sentinel"><small>Human-readable alias; Prooflet assigns the canonical agent ID.</small></label>
             <label>Name<input name="name" required placeholder="My Worker Agent"></label>
             <label>Capabilities<input name="capabilities" required value="link_verification" placeholder="link_verification, freshness_check"></label>
             <label>Fallback payout wallet<input name="payoutAddress" placeholder="Optional if Circle wallet provisioning succeeds"></label>

@@ -983,10 +983,11 @@ async function registerAgentWithWallet(event) {
   const button = form.querySelector("button[type=submit]");
   const data = new FormData(form);
   const payload = {
-    agentId: String(data.get("agentId") || "").trim(),
     name: String(data.get("name") || "").trim(),
     capabilities: String(data.get("capabilities") || "").split(",").map((item) => item.trim()).filter(Boolean),
   };
+  const handle = String(data.get("handle") || "").trim();
+  if (handle) payload.handle = handle;
   const payoutAddress = String(data.get("payoutAddress") || "").trim();
   if (payoutAddress) payload.payoutAddress = payoutAddress;
   try {
@@ -1004,6 +1005,7 @@ async function registerAgentWithWallet(event) {
     if (!response.ok) throw new Error(body.error || body.walletProvisioning?.message || "Agent registration failed");
     result.dataset.state = "ok";
     result.innerHTML = `<strong>Agent registered: ${escapeHtml(body.agent.agentId)}</strong>
+      ${body.agent.handle ? `<p>Handle: <code>${escapeHtml(body.agent.handle)}</code></p>` : ""}
       <p>API key: <code>${escapeHtml(body.apiKey)}</code></p>
       <p>Payout wallet: <code>${escapeHtml(body.agent.payoutAddress || "not provisioned")}</code></p>
       <p>Circle wallet: ${escapeHtml(body.circleWallet?.walletId || body.walletProvisioning?.status || "not created")}</p>

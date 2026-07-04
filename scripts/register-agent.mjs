@@ -10,8 +10,8 @@ try {
 async function main() {
   const flags = parseArgs(process.argv.slice(2));
   const apiUrl = (process.env.USEFUL_WAITING_API_URL || "http://127.0.0.1:8787").replace(/\/$/, "");
-  const agentId = requiredFlag(flags.agentId, "--agent-id", process.env.AGENT_ID);
-  const name = requiredFlag(flags.name, "--name", process.env.AGENT_NAME || agentId);
+  const handle = flags.agentHandle || flags.agentId || process.env.AGENT_HANDLE || process.env.AGENT_ID || null;
+  const name = requiredFlag(flags.name, "--name", process.env.AGENT_NAME || handle || "Prooflet Agent");
   const payoutAddress = flags.payoutAddress || process.env.AGENT_PAYOUT_ADDRESS;
   const capabilities = parseCapabilities(flags.capabilities || process.env.WORKER_CAPABILITIES || "link_verification");
   const client = new UsefulWaitingClient({ baseUrl: apiUrl, timeoutMs: 20000 });
@@ -21,7 +21,7 @@ async function main() {
 
   const response = await client.request("/agents/register-with-wallet", {
     method: "POST",
-    body: { agentId, name, capabilities, ...(payoutAddress ? { payoutAddress } : {}), status: "idle" },
+    body: { ...(handle ? { handle } : {}), name, capabilities, ...(payoutAddress ? { payoutAddress } : {}), status: "idle" },
   });
 
   let nanopaymentConfig = { enabled: false };
@@ -32,15 +32,17 @@ async function main() {
     // ignore
   }
 
+  const body = response.body;
+  const issuedApiKey = body["apiKey"];
   const resultLog = {
     registered: true,
     apiUrl,
-    agent: response.body.agent,
-    apiKey: response.body.apiKey,
+    agent: body.agent,
+    apiKey: issuedApiKey,
   };
 
-  if (response.body.circleWallet) {
-    resultLog.circleWallet = response.body.circleWallet;
+  if (body.circleWallet) {
+    resultLog.circleWallet = body.circleWallet;
   }
 
   if (nanopaymentConfig.enabled) {
@@ -54,12 +56,12 @@ async function main() {
     };
   }
 
-  resultLog.windowsCmd = `npm run agent:link -- --once --api-url ${apiUrl} --agent-id ${response.body.agent.agentId} --agent-api-key ${response.body.apiKey}`;
+  resultLog.windowsCmd = `npm run agent:link -- --once --api-url ${apiUrl} --agent-id ${body.agent.agentId} --agent-api-key ${issuedApiKey}`;
   resultLog.windowsEnvNote = "In cmd.exe, run each set command on its own line. Do not combine set AGENT_ID and set AGENT_API_KEY on one line.";
   resultLog.next = [
     `set USEFUL_WAITING_API_URL=${apiUrl}`,
-    `set AGENT_ID=${response.body.agent.agentId}`,
-    `set AGENT_API_KEY=${response.body.apiKey}`,
+    `set AGENT_ID=${body.agent.agentId}`,
+    `set AGENT_API_KEY=${issuedApiKey}`,
     "npm run agent:link -- --once",
   ];
 
@@ -70,8 +72,8 @@ function parseArgs(args) {
   const parsed = {};
   for (let index = 0; index < args.length; index += 1) {
     const argument = args[index];
-    const match = argument.match(/^--(agent-id|name|capabilities|payout-address)(?:=(.*))?$/);
-    if (!match) throw new Error(`Unknown argument ${argument}. Expected --agent-id, --name, --capabilities, or --payout-address.`);
+    const match = argument.match(/^--(agent-handle|agent-id|name|capabilities|payout-address)(?:=(.*))?$/);
+    if (!match) throw new Error(`Unknown argument ${argument}. Expected --agent-handle, --agent-id, --name, --capabilities, or --payout-address.`);
     const value = match[2] ?? args[++index];
     if (!value || value.startsWith("--")) throw new Error(`--${match[1]} requires a value.`);
     const key = match[1].replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());

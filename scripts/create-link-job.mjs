@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { IssuerClient } from "@useful-waiting/issuer-sdk";
 
 try {
@@ -15,15 +14,16 @@ async function main() {
   const issuerApiKey = process.env.ISSUER_API_KEY || "uwp_issuer_useful_waiting_protocol_dev";
   const linkUrl = requiredFlag(flags.url, "--url", flags.useDefaults ? process.env.LINK_URL || "https://example.com/" : null);
   const rewardAmount = requiredFlag(flags.reward, "--reward", flags.useDefaults ? process.env.LINK_REWARD_AMOUNT || "0.003" : null);
-  const jobId = flags.jobId || process.env.JOB_ID || `job_link_${Date.now()}_${randomUUID().slice(0, 8)}`;
-  const client = new IssuerClient({ issuerId, apiKey: issuerApiKey, baseUrl: apiUrl });
+  const issuerReferenceId = flags.jobRef || flags.jobId || process.env.JOB_REFERENCE_ID || process.env.JOB_ID || null;
+  const config = { issuerApiKey };
+  const client = new IssuerClient({ issuerId, apiKey: config.issuerApiKey, baseUrl: apiUrl });
 
   assertHttpUrl(linkUrl);
   const health = await client.health();
   if (!health.ok) throw new Error("Prooflet API health check failed.");
 
   const job = await client.createJob({
-    jobId,
+    ...(issuerReferenceId ? { issuerReferenceId } : {}),
     issuerId,
     jobType: "link_verification",
     input: { url: linkUrl },
@@ -60,11 +60,11 @@ export function parseArgs(args) {
   for (let index = 0; index < args.length; index += 1) {
     const argument = args[index];
     if (argument === "--use-defaults") { parsed.useDefaults = true; continue; }
-    const match = argument.match(/^--(url|reward|job-id)(?:=(.*))?$/);
-    if (!match) throw new Error(`Unknown argument ${argument}. Expected --url, --reward, --job-id, or --use-defaults.`);
+    const match = argument.match(/^--(url|reward|job-ref|job-id)(?:=(.*))?$/);
+    if (!match) throw new Error(`Unknown argument ${argument}. Expected --url, --reward, --job-ref, --job-id, or --use-defaults.`);
     const value = match[2] ?? args[++index];
     if (!value || value.startsWith("--")) throw new Error(`--${match[1]} requires a value.`);
-    const key = match[1] === "job-id" ? "jobId" : match[1];
+    const key = match[1] === "job-ref" ? "jobRef" : match[1] === "job-id" ? "jobId" : match[1];
     parsed[key] = value;
   }
   return parsed;

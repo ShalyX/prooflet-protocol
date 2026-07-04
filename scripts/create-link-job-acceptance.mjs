@@ -23,21 +23,25 @@ try {
   const exact = await runNode("scripts/create-link-job.mjs", [
     "--url", "https://docs.arc.network",
     "--reward", "0.001",
-    "--job-id", "cli_exact_arguments",
+    "--job-ref", "cli_exact_arguments",
   ], commonEnv);
   const exactResult = JSON.parse(exact.stdout);
   assert.equal(exactResult.job.input.url, "https://docs.arc.network");
   assert.equal(exactResult.job.rewardAmount, "0.001");
+  assert.match(exactResult.job.jobId, /^job_[a-z0-9]{10}$/);
+  assert.equal(exactResult.job.issuerReferenceId, "cli_exact_arguments");
 
   const uniqueUrl = `http://127.0.0.1:${target.address().port}/unique-${randomUUID()}`;
   const unique = await runNode("scripts/create-link-job.mjs", [
     "--url", uniqueUrl,
     "--reward", "0.001",
-    "--job-id", "cli_unique_worker_job",
+    "--job-ref", "cli_unique_worker_job",
   ], commonEnv);
   const uniqueResult = JSON.parse(unique.stdout);
   assert.equal(uniqueResult.job.input.url, uniqueUrl);
   assert.equal(uniqueResult.job.rewardAmount, "0.001");
+  assert.match(uniqueResult.job.jobId, /^job_[a-z0-9]{10}$/);
+  assert.equal(uniqueResult.job.issuerReferenceId, "cli_unique_worker_job");
 
   await runNode("workers/link-sentinel.mjs", ["--once"], {
     ...commonEnv,
@@ -45,7 +49,7 @@ try {
     AGENT_API_KEY: "uwp_agent_lynx_dev",
     WORKER_CAPABILITIES: "link_verification",
   });
-  const proof = test.db.prepare("SELECT outcome,funding_status,rejection_reason,input_json FROM proofs WHERE job_id='cli_unique_worker_job'").get();
+  const proof = test.db.prepare("SELECT outcome,funding_status,rejection_reason,input_json FROM proofs WHERE job_id=?").get(uniqueResult.job.jobId);
   assert.equal(proof.outcome, "accepted");
   assert.equal(proof.funding_status, "payable");
   assert.equal(proof.rejection_reason, null);

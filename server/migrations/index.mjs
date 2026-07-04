@@ -161,7 +161,16 @@ export const migrations = [
          addColumn(db, "issuers", "description", "TEXT");
        },
      },
-   ];
+     {
+       version: 10,
+       name: "prooflet_generated_identity_metadata",
+       up(db) {
+         addColumn(db, "agents", "handle", "TEXT");
+         addColumn(db, "jobs", "issuer_reference_id", "TEXT");
+         db.exec("CREATE INDEX IF NOT EXISTS idx_jobs_issuer_reference ON jobs(issuer_id, issuer_reference_id)");
+       },
+     },
+     ];
 
 export function runMigrations(db) {
   db.exec("CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at TEXT NOT NULL)");

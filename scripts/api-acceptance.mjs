@@ -30,6 +30,22 @@ try {
   assert.ok(issuerRegistration.body.walletProvisioning.status === "success" || issuerRegistration.body.walletProvisioning.status === "failed", "walletProvisioning should have a valid status");
   const issuerKey = issuerRegistration.body.apiKey;
 
+  const generatedJob = await request("POST", "/jobs", {
+    issuerId: "acceptance_issuer",
+    issuerReferenceId: "ticket-104-generated-id",
+    jobType: "link_verification",
+    input: { url: "https://example.com/generated-job" },
+    rewardAmount: "0.003",
+    rewardAsset: "USDC",
+    network: "Arc Testnet",
+    fundingStatus: "reserved",
+    status: "open",
+    proofRequirements: { requiredResultFields: ["status", "responseTimeMs", "contentHash"] },
+  }, issuerKey);
+  assert.equal(generatedJob.status, 201);
+  assert.match(generatedJob.body.job.jobId, /^job_[a-z0-9]{10}$/);
+  assert.equal(generatedJob.body.job.issuerReferenceId, "ticket-104-generated-id");
+
   const agentRegistration = await request("POST", "/agents/register", {
     agentId: "acceptance_agent",
     name: "Acceptance Agent",
