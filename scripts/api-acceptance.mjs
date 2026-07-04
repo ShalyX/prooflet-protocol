@@ -90,6 +90,10 @@ try {
   assert.equal(blockedWithoutAccess.status, 402);
   assert.equal(blockedWithoutAccess.body.code, "claim_access_payment_required");
   assert.equal(blockedWithoutAccess.body.payment.rail, "circle_gateway_x402");
+  const fallbackNoAuth = await request("POST", "/jobs/acceptance_lease/access-fee/verify", { agentId: "acceptance_agent", agentAddress: "0x3333333333333333333333333333333333333333" });
+  assert.equal(fallbackNoAuth.status, 403);
+  const fallbackWrongAddress = await request("POST", "/jobs/acceptance_lease/access-fee/verify", { agentId: "acceptance_agent", agentAddress: "0x4444444444444444444444444444444444444444" }, agentKey);
+  assert.equal(fallbackWrongAddress.status, 403);
   grantAccess("acceptance_lease", "acceptance_agent");
   const leaseClaim = await request("POST", "/agents/acceptance_agent/claim-job", { jobId: "acceptance_lease", leaseSeconds: 60 }, agentKey);
   assert.equal(leaseClaim.status, 200);
@@ -171,6 +175,7 @@ try {
       "authenticated job creation",
       "capability-gated claim rejection",
       "Circle Gateway x402 access fee blocks unpaid claims",
+      "fallback access verifier requires agent auth and registered payout address",
       "stored paid access lease",
       "expired lease reopens job",
       "deterministic proof approval",

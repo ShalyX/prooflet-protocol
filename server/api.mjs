@@ -621,7 +621,7 @@ export function createApp({
     requireId(agentId, "agentId");
     const job = db.prepare("SELECT * FROM jobs WHERE job_id=?").get(request.params.jobId);
     if (!job) throw httpError(404, `Job ${request.params.jobId} does not exist.`);
-    if (!db.prepare("SELECT 1 FROM agents WHERE agent_id=?").get(agentId)) throw httpError(404, `Agent ${agentId} does not exist.`);
+    if (request.payment?.transaction && db.prepare("SELECT 1 FROM job_access_payments WHERE gateway_transaction_id=? AND NOT (job_id=? AND agent_id=?)").get(request.payment.transaction, request.params.jobId, agentId)) throw httpError(409, "Gateway payment transaction was already used for another job or agent.");
     const payment = recordAccessPayment(db, {
       jobId: request.params.jobId,
       agentId,
@@ -639,8 +639,14 @@ export function createApp({
     const { agentId, agentAddress } = request.body || {};
     requireId(agentId, "agentId");
     requireString(agentAddress, "agentAddress");
+    const agent = db.prepare("SELECT payout_address FROM agents WHERE agent_id=?").get(agentId);
+    if (!agent) throw httpError(404, `Agent ${agentId} does not exist.`);
+    if (!authenticate(db, request, "agent", agentId)) throw httpError(403, "Agent API key required to verify fallback access payment.");
+    if (!isAddress(agentAddress)) throw httpError(400, "agentAddress must be a valid EVM address.");
+    if (!agent.payout_address || agent.payout_address.toLowerCase() !== agentAddress.toLowerCase()) throw httpError(403, "agentAddress must match the registered agent payout address.");
     const result = await verifyNanopayment(agentAddress, request.params.jobId);
     if (result.paid) {
+      if (result.txHash && db.prepare("SELECT 1 FROM job_access_payments WHERE tx_hash=? AND NOT (job_id=? AND agent_id=?)").get(result.txHash, request.params.jobId, agentId)) throw httpError(409, "Fallback access payment transaction was already used for another job or agent.");
       recordAccessPayment(db, {
         jobId: request.params.jobId,
         agentId,

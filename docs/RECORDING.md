@@ -145,7 +145,7 @@ The summary must show `rejected_by_mock_genlayer`, `Rejected · No payout`, and 
 - Do not claim live GenLayer adjudication unless real `genlayer` mode was explicitly configured and executed.
 - Do not claim mainnet funds.
 - Do not claim dry-run sent a transaction.
-- Do not claim full Circle Gateway merchant/session integration; the current access fee is Arc USDC event-scan verification.
+- Do not claim audited/mainnet/production Gateway settlement; Gateway x402 is implemented for the access-fee endpoint, with direct Arc USDC event scan as fallback.
 - Do not claim the hosted API pays automatically; approved proofs become eligible for operator-controlled release/settlement.
 - Do not expose private keys, API keys, or `.env` values.
 - Do not say external issuers can fully fund open marketplace jobs today.

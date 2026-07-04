@@ -192,9 +192,21 @@ export const migrations = [
              UNIQUE(job_id, agent_id)
            );
            CREATE INDEX IF NOT EXISTS idx_access_payments_agent ON job_access_payments(agent_id, status, created_at);
+           CREATE UNIQUE INDEX IF NOT EXISTS idx_access_payments_tx_hash_unique ON job_access_payments(tx_hash) WHERE tx_hash IS NOT NULL;
+           CREATE UNIQUE INDEX IF NOT EXISTS idx_access_payments_gateway_tx_unique ON job_access_payments(gateway_transaction_id) WHERE gateway_transaction_id IS NOT NULL;
          `);
        },
      },
+    {
+      version: 12,
+      name: "unique_access_payment_transactions",
+      up(db) {
+        db.exec(`
+          CREATE UNIQUE INDEX IF NOT EXISTS idx_access_payments_tx_hash_unique ON job_access_payments(tx_hash) WHERE tx_hash IS NOT NULL;
+          CREATE UNIQUE INDEX IF NOT EXISTS idx_access_payments_gateway_tx_unique ON job_access_payments(gateway_transaction_id) WHERE gateway_transaction_id IS NOT NULL;
+        `);
+      },
+    },
       ];
 
 export function runMigrations(db) {

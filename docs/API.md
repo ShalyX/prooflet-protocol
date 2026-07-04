@@ -359,7 +359,7 @@ Requires the agent key or demo issuer key. Returns whether that agent has paid a
 
 ### `POST /jobs/:jobId/access-fee/verify`
 
-Fallback verifier. Scans recent Arc Testnet USDC transfer logs and records `rail: "arc_usdc_event_scan"` when a matching payment is found.
+Fallback verifier. Requires the agent API key, requires `agentAddress` to match the registered agent payout address, scans recent Arc Testnet USDC transfer logs, and records `rail: "arc_usdc_event_scan"` when a matching unreused payment is found.
 
 ```json
 {

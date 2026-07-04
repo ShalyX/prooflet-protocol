@@ -115,7 +115,7 @@ Content-Type: application/json
 }
 ```
 
-This scans recent Arc Testnet USDC `Transfer` logs from `agentAddress` to the fallback treasury address. A matching transfer records `rail: "arc_usdc_event_scan"` in `job_access_payments`.
+This scans recent Arc Testnet USDC `Transfer` logs from the authenticated agent's registered payout address to the fallback treasury address. A matching transfer records `rail: "arc_usdc_event_scan"` in `job_access_payments`. A fallback transaction hash can only be used once.
 
 ## Claim Gate
 

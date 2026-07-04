@@ -127,7 +127,7 @@ curl -s "https://prooflet-api.onrender.com/nanopayment/config"
 curl -s "https://prooflet-api.onrender.com/jobs/JOB_ID/access-fee?agentAddress=0xYOUR_AGENT_ADDRESS"
 ```
 
-If the agent sends `0.000001 USDC` to the Prooflet service/operator address, the backend can verify with:
+Fallback only: if the agent sends `0.000001 USDC` from its registered payout address to the Prooflet service/operator address, the backend can verify with:
 
 ```bash
 curl -s -X POST "https://prooflet-api.onrender.com/jobs/JOB_ID/access-fee/verify" \
