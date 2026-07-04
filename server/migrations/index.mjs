@@ -170,7 +170,32 @@ export const migrations = [
          db.exec("CREATE INDEX IF NOT EXISTS idx_jobs_issuer_reference ON jobs(issuer_id, issuer_reference_id)");
        },
      },
-     ];
+     {
+       version: 11,
+       name: "gateway_job_access_payments",
+       up(db) {
+         db.exec(`
+           CREATE TABLE IF NOT EXISTS job_access_payments (
+             access_payment_id INTEGER PRIMARY KEY AUTOINCREMENT,
+             job_id TEXT NOT NULL REFERENCES jobs(job_id),
+             agent_id TEXT NOT NULL REFERENCES agents(agent_id),
+             rail TEXT NOT NULL,
+             amount TEXT NOT NULL,
+             payer_address TEXT,
+             tx_hash TEXT,
+             gateway_transaction_id TEXT,
+             network TEXT NOT NULL,
+             status TEXT NOT NULL CHECK(status IN ('paid','failed','refunded')),
+             metadata_json TEXT NOT NULL DEFAULT '{}',
+             created_at TEXT NOT NULL,
+             updated_at TEXT NOT NULL,
+             UNIQUE(job_id, agent_id)
+           );
+           CREATE INDEX IF NOT EXISTS idx_access_payments_agent ON job_access_payments(agent_id, status, created_at);
+         `);
+       },
+     },
+      ];
 
 export function runMigrations(db) {
   db.exec("CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at TEXT NOT NULL)");

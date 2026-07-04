@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { api, startTestApi } from "./test-helpers.mjs";
+import { api, grantJobAccess, startTestApi } from "./test-helpers.mjs";
 import { AgentClient } from "@useful-waiting/agent-sdk";
 import { IssuerClient } from "@useful-waiting/issuer-sdk";
 import { GenLayerNotConfiguredError, UsefulWaitingClient } from "@useful-waiting/sdk-core";
@@ -21,6 +21,7 @@ async function createSubjective(suffix, mockDecision) {
   const created = await api(test.baseUrl, "POST", "/jobs", { jobId, issuerId: "useful_waiting_protocol", jobType: "context_compression_quality", input,
     rewardAmount: "0.01", proofRequirements: { requiredResultFields: ["originalHash", "originalLength", "compressedText", "compressedLength", "claimedRetainedFacts", "compressionRatio"], mockDecision }, verificationMode: "subjective" }, issuerKey);
   assert.equal(created.status, 201);
+  grantJobAccess(test.db, jobId, agentId);
   assert.equal((await api(test.baseUrl, "POST", `/agents/${agentId}/claim-job`, { jobId }, registered.body.apiKey)).status, 200);
   const result = { originalHash: `sha256:${suffix}`, originalLength: 100, compressedText: `Arc Testnet uses USDC ${suffix}`, compressedLength: 30,
     claimedRetainedFacts: ["Arc Testnet", "USDC"], compressionRatio: 0.3 };
@@ -64,6 +65,7 @@ try {
   const deterministicInput = { url: "https://genlayer.example.test/unique" };
   await api(test.baseUrl, "POST", "/jobs", { jobId: "deterministic_gl_job", issuerId: "useful_waiting_protocol", jobType: "link_verification", input: deterministicInput,
     rewardAmount: "0.001", proofRequirements: { requiredResultFields: ["status", "responseTimeMs", "contentHash"] } }, issuerKey);
+  grantJobAccess(test.db, "deterministic_gl_job", "deterministic_gl_agent");
   await api(test.baseUrl, "POST", "/agents/deterministic_gl_agent/claim-job", { jobId: "deterministic_gl_job" }, deterministicAgent.body.apiKey);
   const deterministic = await api(test.baseUrl, "POST", "/jobs/deterministic_gl_job/proof", { proofId: "deterministic_gl_proof", agentId: "deterministic_gl_agent",
     jobId: "deterministic_gl_job", jobType: "link_verification", input: deterministicInput, result: { status: 200, responseTimeMs: 12, contentHash: "0xabc123def456" },

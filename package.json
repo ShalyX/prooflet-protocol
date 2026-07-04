@@ -57,11 +57,15 @@
     "escrow:deploy": "node --env-file=.env scripts/deploy-escrow.mjs",
     "escrow:operator": "node --env-file=.env workers/settlement-operator.mjs",
     "nanopayment:check": "node --env-file=.env scripts/nanopayment-check.mjs",
+    "gateway:pay-access": "node --no-warnings --env-file-if-exists=.env scripts/pay-job-access.mjs",
     "agent-wallet:check": "node --no-warnings scripts/agent-wallet-acceptance.mjs"
   },
   "dependencies": {
     "@circle-fin/developer-controlled-wallets": "^10.7.1",
+    "@circle-fin/x402-batching": "^3.2.0",
     "@vitejs/plugin-react": "^4.3.4",
+    "@x402/core": "^2.17.0",
+    "@x402/evm": "^2.17.0",
     "express": "^5.2.1",
     "genlayer-js": "^1.1.8",
     "lucide-react": "^0.468.0",

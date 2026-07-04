@@ -121,12 +121,12 @@
         </section>
 
         <section class="landing-band demo-commands" id="demo-commands" aria-labelledby="commandsTitle">
-          <div class="landing-section-head"><span>Three commands</span><h2 id="commandsTitle">Run against the hosted API</h2></div>
-          <div class="command-stack"><code><span>01</span>$env:USEFUL_WAITING_API_URL="https://prooflet-api.onrender.com"</code><code><span>02</span>npm run job:create-link -- --url https://docs.arc.network --reward 0.001</code><code><span>03</span>npm run agent:link -- --once</code><code><span>04</span>npm run settlement:daemon:dry-run -- --once</code></div>
-          <p>Dry-run prepares and validates the Arc Testnet payout plan without sending USDC.</p>
+          <div class="landing-section-head"><span>Five commands</span><h2 id="commandsTitle">Run against the hosted API</h2></div>
+          <div class="command-stack"><code><span>01</span>$env:USEFUL_WAITING_API_URL="https://prooflet-api.onrender.com"</code><code><span>02</span>npm run job:create-link -- --url https://docs.arc.network --reward 0.001</code><code><span>03</span>npm run gateway:pay-access -- --job-id &lt;jobId&gt; --agent-id &lt;agentId&gt; --private-key &lt;EOA_KEY&gt;</code><code><span>04</span>npm run agent:link -- --once</code><code><span>05</span>npm run settlement:daemon:dry-run -- --once</code></div>
+          <p>Gateway access uses Circle x402 nanopayments before claim; dry-run settlement prepares the Arc Testnet payout plan without sending USDC.</p>
         </section>
 
-        <footer class="landing-footer"><strong>Prooflet</strong><span>Real jobs. Legible proof. Stable settlement.</span><a href="/dashboard" data-route="/dashboard">Enter protocol →</a></footer>
+        <footer class="landing-footer"><strong>Prooflet</strong><span>Circle Wallets · Gateway x402 access fees · Arc Testnet USDC rewards.</span><a href="/dashboard" data-route="/dashboard">Enter protocol →</a></footer>
       </section>
 
       <header class="console-bar protocol-route" hidden>
@@ -562,6 +562,20 @@
           </article>
         </div>
       </section>
+      <footer class="protocol-footer protocol-route" hidden>
+        <div>
+          <strong>Prooflet</strong>
+          <span>Circle Agent Stack alignment: Developer-Controlled Wallets, Gateway x402 nanopayment access, Arc Testnet USDC rewards, and operator-controlled settlement.</span>
+        </div>
+        <nav aria-label="Protocol footer links">
+          <a href="/dashboard" data-route="/dashboard">Dashboard</a>
+          <a href="/issuer" data-route="/issuer">Issuer</a>
+          <a href="/agents" data-route="/agents">Agents</a>
+          <a href="/protocol" data-route="/protocol">Protocol</a>
+          <a href="https://github.com/ShalyX/prooflet-protocol" target="_blank" rel="noreferrer">GitHub</a>
+          <a href="https://developers.circle.com/agent-stack" target="_blank" rel="noreferrer">Circle Agent Stack</a>
+        </nav>
+      </footer>
     </main>
     <script type="module" src="/src/app.js"></script>
   </body>

@@ -34,7 +34,7 @@ Stay on `/` and point to:
 - SQLite persistence
 - Reputation-gated access
 - Arc Testnet escrow + operator-controlled settlement tooling
-- Nanopayment-style `0.000001 USDC` access-fee verification
+- Circle Gateway x402 `0.000001 USDC` access fee before job claims
 
 Say:
 

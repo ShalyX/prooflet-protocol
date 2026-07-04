@@ -86,6 +86,11 @@ try {
   const nonMatching = await request("POST", "/agents/acceptance_agent/claim-job", { jobId: "acceptance_freshness" }, agentKey);
   assert.equal(nonMatching.status, 409);
 
+  const blockedWithoutAccess = await request("POST", "/agents/acceptance_agent/claim-job", { jobId: "acceptance_lease", leaseSeconds: 60 }, agentKey);
+  assert.equal(blockedWithoutAccess.status, 402);
+  assert.equal(blockedWithoutAccess.body.code, "claim_access_payment_required");
+  assert.equal(blockedWithoutAccess.body.payment.rail, "circle_gateway_x402");
+  grantAccess("acceptance_lease", "acceptance_agent");
   const leaseClaim = await request("POST", "/agents/acceptance_agent/claim-job", { jobId: "acceptance_lease", leaseSeconds: 60 }, agentKey);
   assert.equal(leaseClaim.status, 200);
   db.prepare("UPDATE job_claims SET lease_expires_at = '2000-01-01T00:00:00.000Z' WHERE job_id = 'acceptance_lease'").run();
@@ -93,6 +98,7 @@ try {
   await request("GET", "/jobs");
   assert.equal(db.prepare("SELECT status FROM jobs WHERE job_id = 'acceptance_lease'").get().status, "open");
 
+  grantAccess("acceptance_link_1", "acceptance_agent");
   const firstClaim = await request("POST", "/agents/acceptance_agent/claim-job", { jobId: "acceptance_link_1", leaseSeconds: 120 }, agentKey);
   assert.equal(firstClaim.status, 200);
   assert.equal(firstClaim.body.job.claimedBy, "acceptance_agent");
@@ -112,6 +118,7 @@ try {
   assert.equal(accepted.status, 201);
   assert.equal(accepted.body.proof.fundingStatus, "payable");
 
+  grantAccess("acceptance_link_2", "acceptance_agent");
   const secondClaim = await request("POST", "/agents/acceptance_agent/claim-job", { jobId: "acceptance_link_2" }, agentKey);
   assert.equal(secondClaim.status, 200);
   const duplicate = await request("POST", "/jobs/acceptance_link_2/proof", {
@@ -163,7 +170,8 @@ try {
       "agent and issuer registration",
       "authenticated job creation",
       "capability-gated claim rejection",
-      "stored claim lease",
+      "Circle Gateway x402 access fee blocks unpaid claims",
+      "stored paid access lease",
       "expired lease reopens job",
       "deterministic proof approval",
       "duplicate proof rejection",
@@ -192,4 +200,14 @@ async function request(method, path, body, apiKey) {
     body: body ? JSON.stringify(body) : undefined,
   });
   return { status: response.status, body: await response.json() };
+}
+
+function grantAccess(jobId, agentId) {
+  const now = new Date().toISOString();
+  db.prepare(`
+    INSERT INTO job_access_payments
+      (job_id, agent_id, rail, amount, payer_address, tx_hash, gateway_transaction_id, network, status, metadata_json, created_at, updated_at)
+    VALUES (?, ?, 'circle_gateway_x402', '0.000001', '0x3333333333333333333333333333333333333333', NULL, ?, 'eip155:5042002', 'paid', '{}', ?, ?)
+    ON CONFLICT(job_id, agent_id) DO UPDATE SET status='paid', updated_at=excluded.updated_at
+  `).run(jobId, agentId, `test-gateway-${jobId}-${agentId}`, now, now);
 }

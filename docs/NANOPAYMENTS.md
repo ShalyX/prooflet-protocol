@@ -1,47 +1,41 @@
-# Nanopayment-Style Access Fee
+# Circle Gateway x402 Access Fee
 
-Agents pay a **0.000001 USDC** access fee before claiming protected work. This is implemented as an **Arc Testnet USDC nanopayment-style claim-friction flow**: the agent sends 1 raw USDC unit to the Prooflet service/operator address, and Prooflet verifies the payment by scanning Arc Testnet USDC `Transfer` events.
+Agents must pay a **0.000001 USDC** access fee before claiming work. The primary path is Circle Gateway Nanopayments using x402:
 
-This is **not** a full Circle Gateway merchant/session/payment-intent integration. The code uses Circle-issued Arc Testnet USDC and Arc RPC event verification.
+```text
+Agent requests /jobs/:jobId/gateway-access?agentId=...
+        ↓
+Prooflet returns HTTP 402 Payment Required with Gateway x402 requirements
+        ↓
+Agent signs an offchain EIP-3009 authorization
+        ↓
+Circle Gateway settles the x402 payment
+        ↓
+Prooflet records a durable paid access grant
+        ↓
+/agents/:agentId/claim-job can lease the job
+```
+
+A direct Arc Testnet USDC event-scan verifier remains as a compatibility fallback, but the claim gate now checks the durable `job_access_payments` record before any lease is created.
 
 ## Why
 
-- **Anti-spam friction** — claiming work is not free at scale.
-- **Agent-to-service payment story** — agents pay a tiny protocol access fee before claim access is marked paid.
-- **Circle / Arc relevance** — uses Circle-issued USDC on Arc Testnet with a sub-cent fee amount.
-- **Lepton thesis** — tiny payments for tiny machine-executed work.
-
-## How It Works
-
-```text
-Agent wants claim access
-        ↓
-Agent requests payment instructions
-        ↓
-Agent sends 0.000001 USDC to Prooflet service/operator address
-        ↓
-Backend scans Arc Testnet USDC Transfer logs
-        ↓
-If a recent transfer is found, claim access is marked paid
-```
-
-The current verifier checks recent Arc Testnet blocks for:
-
-- `from = agentAddress`
-- `to = Prooflet service/operator address`
-- `value >= 1` raw USDC unit (`0.000001 USDC` with 6 decimals)
+- Claiming work is not free at scale.
+- Prooflet aligns with Circle Agent Stack: agent wallets, Gateway/x402 nanopayments, and USDC-denominated agent work.
+- The access fee is tiny (`0.000001 USDC`) while still giving the protocol a real paid-resource boundary.
+- Claims are hard-blocked until payment is recorded.
 
 ## Fee Details
 
 - Amount: `0.000001 USDC`
 - Raw units: `1`
 - Network: Arc Testnet
+- CAIP-2 network: `eip155:5042002`
 - Chain ID: `5042002`
 - USDC contract: `0x3600000000000000000000000000000000000000`
-- Service/operator address: `0x709F18F797347FbB8D53Fb60567892751dd14B11`
-- Internal rail label: `circle_gateway_nanopayments`
-
-The internal rail label is historical/product-facing. The implemented verification path is direct Arc USDC event scanning.
+- Gateway facilitator: `https://gateway-api-testnet.circle.com`
+- Seller address: `CIRCLE_GATEWAY_SELLER_ADDRESS` or `TREASURY_ADDRESS`
+- Fallback service/operator address: `0x709F18F797347FbB8D53Fb60567892751dd14B11`
 
 ## API Endpoints
 
@@ -56,11 +50,15 @@ Example response:
 ```json
 {
   "enabled": true,
-  "rail": "circle_gateway_nanopayments",
+  "rail": "circle_gateway_x402",
+  "mode": "gateway_x402_required",
   "accessFee": "0.000001",
   "accessFeeRaw": 1,
+  "sellerAddress": "0x...",
   "treasuryAddress": "0x709F18F797347FbB8D53Fb60567892751dd14B11",
+  "facilitatorUrl": "https://gateway-api-testnet.circle.com",
   "usdcAddress": "0x3600000000000000000000000000000000000000",
+  "network": "eip155:5042002",
   "chainId": 5042002
 }
 ```
@@ -71,9 +69,41 @@ Example response:
 GET /jobs/:jobId/access-fee?agentAddress=0x...
 ```
 
-Returns the amount, service/operator address, USDC address, network, and human-readable instructions.
+Returns amount, seller address, fallback treasury address, USDC address, network, and the x402 access URL template.
 
-### Verify access-fee payment
+### Pay the Gateway x402 access fee
+
+```http
+GET /jobs/:jobId/gateway-access?agentId=agent_...
+```
+
+Unpaid requests return `402 Payment Required` with the `PAYMENT-REQUIRED` header. A Gateway buyer client can pay it:
+
+```bash
+npm run gateway:pay-access -- \
+  --api-url https://prooflet-api.onrender.com \
+  --job-id <jobId> \
+  --agent-id <agentId> \
+  --private-key <EOA_PRIVATE_KEY>
+```
+
+On successful x402 settlement, Prooflet records a `job_access_payments` row with:
+
+- `rail: "circle_gateway_x402"`
+- `amount: "0.000001"`
+- `gatewayTransactionId`
+- `payerAddress`
+- `status: "paid"`
+
+### Check access-fee status
+
+```http
+GET /jobs/:jobId/access-fee/status?agentId=agent_...
+```
+
+Requires the agent key or demo issuer key. Returns whether access is paid and the durable payment row.
+
+### Fallback verifier
 
 ```http
 POST /jobs/:jobId/access-fee/verify
@@ -85,49 +115,37 @@ Content-Type: application/json
 }
 ```
 
-Example success shape:
+This scans recent Arc Testnet USDC `Transfer` logs from `agentAddress` to the fallback treasury address. A matching transfer records `rail: "arc_usdc_event_scan"` in `job_access_payments`.
 
-```json
-{
-  "paid": true,
-  "accessFee": "0.000001",
-  "rail": "circle_gateway_nanopayments",
-  "agentAddress": "0x...",
-  "treasuryAddress": "0x709F18F797347FbB8D53Fb60567892751dd14B11",
-  "transferCount": 1,
-  "verifiedAt": "..."
-}
-```
+## Claim Gate
 
-If no matching transfer is found, `paid` is `false` and claim access is not marked paid.
+`POST /agents/:agentId/claim-job` now hard-blocks unpaid access:
 
-## Claim Metadata
+- unpaid requested job → `402`, `code: "claim_access_payment_required"`
+- paid requested job → lease can be created if capability/reputation checks also pass
+- automatic job selection only chooses open jobs already paid by that agent
 
-When payment verification succeeds, Prooflet updates the active claim record with:
-
-- `claimAccessRail: "circle_gateway_nanopayments"`
-- `claimAccessPrice: "0.000001"`
-- `claimAccessStatus: "paid"`
-
-`claimAccessTxHash` exists in the schema but the current log-scan verifier does not persist a transaction hash yet.
+Claim rows copy the paid access rail/price/transaction reference into `job_claims` for auditability.
 
 ## Accurate Submission Wording
 
 Use:
 
-> Prooflet implements a nanopayment-style access fee on Arc Testnet USDC. Agents send `0.000001 USDC` to the Prooflet service/operator address, and the backend verifies the transfer by scanning USDC events before marking claim access as paid.
+> Prooflet uses Circle Gateway x402 nanopayments to require a `0.000001 USDC` access payment before an agent can claim a job. Successful Gateway settlement writes a durable paid access grant; a direct Arc Testnet USDC event-scan verifier remains as fallback.
 
 Avoid:
 
-- “Circle Gateway nanopayments are integrated end-to-end.”
-- “Gateway confirms payment instantly.”
 - “Payouts execute automatically when proofs verify.”
+- “Mainnet funds are involved.”
+- “Settlement is trustless/audited.”
 
 ## Configuration
 
 ```bash
-ARC_RPC_URL=https://rpc.testnet.arc.network
+CIRCLE_GATEWAY_API_URL=https://gateway-api-testnet.circle.com
+CIRCLE_GATEWAY_SELLER_ADDRESS=0x...
 TREASURY_ADDRESS=0x709F18F797347FbB8D53Fb60567892751dd14B11
+ARC_RPC_URL=https://rpc.testnet.arc.network
 ```
 
-The code currently uses a fixed `0.000001 USDC` fee and the Arc Testnet USDC contract address above.
+Gateway buyer payments require an EOA private key with Gateway balance, matching Circle's x402 Gateway buyer requirements.

@@ -100,7 +100,7 @@ External tester instructions are in `docs/EXTERNAL_RUN.md`. A remote settlement 
 
 ## Nanopayment-Style Access Fee
 
-Prooflet exposes a `0.000001 USDC` access-fee path on Arc Testnet. Agents can request payment instructions, send 1 raw USDC unit to the Prooflet service/operator address, and the backend verifies the transfer by scanning USDC `Transfer` events. This is not claimed as full Circle Gateway merchant/session integration.
+Prooflet exposes a `0.000001 USDC` Circle Gateway x402 access-fee path on Arc Testnet. Paid Gateway settlement records durable job access before claims; a direct Arc Testnet USDC event-scan verifier remains as fallback.
 
 Live config endpoint:
 

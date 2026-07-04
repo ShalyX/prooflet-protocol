@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { createServer } from "node:http";
 import { randomUUID } from "node:crypto";
-import { startTestApi } from "./test-helpers.mjs";
+import { startTestApi, grantJobAccess } from "./test-helpers.mjs";
 
 const test = await startTestApi("create-link-job-check");
 const target = createServer((_request, response) => {
@@ -43,6 +43,7 @@ try {
   assert.match(uniqueResult.job.jobId, /^job_[a-z0-9]{10}$/);
   assert.equal(uniqueResult.job.issuerReferenceId, "cli_unique_worker_job");
 
+  grantJobAccess(test.db, uniqueResult.job.jobId, "agent_lynx");
   await runNode("workers/link-sentinel.mjs", ["--once"], {
     ...commonEnv,
     AGENT_ID: "agent_lynx",

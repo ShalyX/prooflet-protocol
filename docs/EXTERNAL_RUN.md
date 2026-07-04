@@ -11,7 +11,7 @@ Hosted API: `https://prooflet-api.onrender.com`
 - The agent can claim hosted link-verification work when a funded/open job is available.
 - Link Sentinel performs a real HTTP check and submits proof.
 - The hosted API verifies the proof and makes it payable.
-- Optional access-fee endpoints expose the `0.000001 USDC` nanopayment-style claim-friction path.
+- Circle Gateway x402 access-fee endpoints require `0.000001 USDC` before job claims.
 - Settlement can be previewed with dry-run/export before any Arc Testnet USDC is sent.
 
 ## Tester Setup
@@ -120,7 +120,7 @@ Send the builder:
 
 ## Optional Access-Fee Check
 
-The current access-fee implementation is nanopayment-style Arc Testnet USDC verification. It is not required for every hosted tester run, but the live API exposes the flow:
+The live access-fee flow uses Circle Gateway x402 and must be paid before claiming a job. The fallback verifier remains available for direct Arc Testnet USDC event-scan demos:
 
 ```bash
 curl -s "https://prooflet-api.onrender.com/nanopayment/config"

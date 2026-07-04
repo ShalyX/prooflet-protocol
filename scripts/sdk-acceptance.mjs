@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { AgentClient, UsefulWaitingApiError } from "@useful-waiting/agent-sdk";
 import { IssuerClient } from "@useful-waiting/issuer-sdk";
-import { startTestApi, api } from "./test-helpers.mjs";
+import { startTestApi, api, grantJobAccess } from "./test-helpers.mjs";
 
 const test=await startTestApi("sdk-check");
 try {
@@ -10,6 +10,7 @@ try {
   const issuer=new IssuerClient({baseUrl:test.baseUrl,issuerId:"useful_waiting_protocol",apiKey:"uwp_issuer_useful_waiting_protocol_dev"});
   assert.equal((await agent.health()).ok,true); assert.equal((await agent.getAgent()).agentId,"sdk_agent");
   const job=await issuer.createJob({jobId:"sdk_job",jobType:"link_verification",input:{url:"https://example.com"},rewardAmount:"0.003",proofRequirements:{requiredResultFields:["status","responseTimeMs","contentHash"]}});
+  grantJobAccess(test.db, job.jobId, "sdk_agent");
   await agent.claimJob({jobId:job.jobId});
   const proof={proofId:"sdk_proof",agentId:"sdk_agent",jobId:job.jobId,jobType:job.jobType,input:job.input,result:{status:200,responseTimeMs:10,contentHash:"0x5d4b"},verificationRoute:"link_verification_v0",proofTimestamp:new Date().toISOString()};
   assert.equal((await agent.submitProof(job.jobId,proof)).fundingStatus,"payable");

@@ -1,4 +1,5 @@
 import express from "express";
+import { createGatewayMiddleware } from "@circle-fin/x402-batching/server";
 import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { formatUnits, isAddress, parseUnits } from "viem";
@@ -15,7 +16,10 @@ import { decideProof, getAdjudicationProof, listPendingAdjudications, pendingMan
 import { getGenLayerRequest, getProofGenLayerStatus, routeConfiguredAdjudication, submitGenLayerProof, syncGenLayerRequest } from "./adjudication/genlayer.mjs";
 import { confirmUpload, validateUpload } from "./uploads.mjs";
 import { createCompoundJob, checkCompoundJobCompletion, checkCompoundJobFailure, listCompoundJobs } from "./compound-jobs.mjs";
-import { createPaymentRequest, nanopaymentConfig, verifyNanopayment } from "./circle-nanopayment.mjs";
+import {
+  createPaymentRequest, gatewayConfig, gatewayPrice, getAccessPayment, hasPaidAccess,
+  nanopaymentConfig, recordAccessPayment, serializeAccessPayment, verifyNanopayment,
+} from "./circle-nanopayment.mjs";
 
 export function createApp({
   db = openDatabase(),
@@ -25,6 +29,7 @@ export function createApp({
   seedDatabase(db);
   backfillReputation(db);
   const app = express();
+  const gateway = createGatewayMiddleware(gatewayConfig());
   app.disable("x-powered-by");
   app.use(express.json({ limit: "3mb" }));
   app.use((request, response, next) => {
@@ -310,6 +315,7 @@ export function createApp({
         if (!["reserved", "funded"].includes(job.funding_status)) throw httpError(409, `Job ${requestedJobId} requires funding before it can be claimed.`);
         const eligibility = evaluateJobAccess({ capabilities, job, summary, activeLeases });
         if (!eligibility.eligible) throw eligibilityError(409, eligibility.reason, `Agent ${agentId} is not eligible for ${requestedJobId}.`, eligibility);
+        requirePaidJobAccess(db, job, agentId);
       } else {
         if (capabilities.length === 0) throw httpError(409, `Agent ${agentId} has no capabilities.`);
         const placeholders = capabilities.map(() => "?").join(",");
@@ -317,8 +323,8 @@ export function createApp({
           SELECT * FROM jobs WHERE status = 'open' AND funding_status IN ('reserved', 'funded') AND job_type IN (${placeholders})
           ORDER BY created_at DESC, job_id DESC
         `).all(...capabilities);
-        job = candidates.find((candidate) => evaluateJobAccess({ capabilities, job: candidate, summary, activeLeases }).eligible);
-        if (!job) throw httpError(404, "No eligible open job is available.");
+        job = candidates.find((candidate) => evaluateJobAccess({ capabilities, job: candidate, summary, activeLeases }).eligible && hasPaidAccess(db, candidate.job_id, agentId));
+        if (!job) throw accessRequiredError("No eligible open job with paid access is available.");
       }
       const claimedAt = new Date();
       const leaseExpiresAt = new Date(claimedAt.getTime() + leaseSeconds * 1000).toISOString();
@@ -326,10 +332,11 @@ export function createApp({
         UPDATE jobs SET status = 'claimed', claimed_by = ?, lease_expires_at = ?, updated_at = ?
         WHERE job_id = ? AND status = 'open'
       `).run(agentId, leaseExpiresAt, claimedAt.toISOString(), job.job_id);
+      const accessPayment = getAccessPayment(db, job.job_id, agentId);
       db.prepare(`
-        INSERT INTO job_claims (job_id, agent_id, claimed_at, lease_expires_at, status)
-        VALUES (?, ?, ?, ?, 'active')
-      `).run(job.job_id, agentId, claimedAt.toISOString(), leaseExpiresAt);
+        INSERT INTO job_claims (job_id, agent_id, claimed_at, lease_expires_at, status, claim_access_rail, claim_access_price, claim_access_status, claim_access_tx_hash)
+        VALUES (?, ?, ?, ?, 'active', ?, ?, 'paid', ?)
+      `).run(job.job_id, agentId, claimedAt.toISOString(), leaseExpiresAt, accessPayment?.rail || "circle_gateway_x402", accessPayment?.amount || "0.000001", accessPayment?.tx_hash || accessPayment?.gateway_transaction_id || null);
       appendReputationEvent(db, { agentId, eventType: "job_claimed", jobId: job.job_id, issuerId: job.issuer_id, createdAt: claimedAt.toISOString() });
       return db.prepare("SELECT * FROM jobs WHERE job_id = ?").get(job.job_id);
     });
@@ -599,24 +606,59 @@ export function createApp({
     response.json(createPaymentRequest(request.params.jobId, agentAddress || "unknown"));
   });
 
+  app.get("/jobs/:jobId/access-fee/status", (request, response) => {
+    const agentId = String(request.query.agentId || request.get("x-agent-id") || "");
+    requireId(agentId, "agentId");
+    if (!authenticate(db, request, "agent", agentId) && !authenticate(db, request, "issuer", "useful_waiting_protocol")) throw httpError(403, "Agent or demo issuer API key required.");
+    const job = db.prepare("SELECT 1 FROM jobs WHERE job_id=?").get(request.params.jobId);
+    if (!job) throw httpError(404, `Job ${request.params.jobId} does not exist.`);
+    const payment = getAccessPayment(db, request.params.jobId, agentId);
+    response.json({ paid: payment?.status === "paid", payment: serializeAccessPayment(payment), config: nanopaymentConfig() });
+  });
+
+  app.get("/jobs/:jobId/gateway-access", validateGatewayAccessTarget(db), gateway.require(gatewayPrice()), (request, response) => {
+    const agentId = String(request.query.agentId || request.get("x-agent-id") || "");
+    requireId(agentId, "agentId");
+    const job = db.prepare("SELECT * FROM jobs WHERE job_id=?").get(request.params.jobId);
+    if (!job) throw httpError(404, `Job ${request.params.jobId} does not exist.`);
+    if (!db.prepare("SELECT 1 FROM agents WHERE agent_id=?").get(agentId)) throw httpError(404, `Agent ${agentId} does not exist.`);
+    const payment = recordAccessPayment(db, {
+      jobId: request.params.jobId,
+      agentId,
+      rail: "circle_gateway_x402",
+      amount: nanopaymentConfig().accessFee,
+      payerAddress: request.payment?.payer || null,
+      gatewayTransactionId: request.payment?.transaction || null,
+      network: request.payment?.network || nanopaymentConfig().network,
+      metadata: { payment: request.payment || null, resource: "job_access" },
+    });
+    response.json({ ok: true, access: "granted", jobId: request.params.jobId, agentId, payment: serializeAccessPayment(payment) });
+  });
+
   app.post("/jobs/:jobId/access-fee/verify", async (request, response) => {
     const { agentId, agentAddress } = request.body || {};
     requireId(agentId, "agentId");
     requireString(agentAddress, "agentAddress");
     const result = await verifyNanopayment(agentAddress, request.params.jobId);
     if (result.paid) {
-      try {
-        db.prepare(`UPDATE job_claims SET claim_access_rail = ?, claim_access_price = ?, claim_access_status = ? WHERE job_id = ? AND agent_id = ? AND status = 'active'`)
-          .run("circle_gateway_nanopayments", result.accessFee, "paid", request.params.jobId, agentId);
-      } catch { /* claim may not exist yet */ }
+      recordAccessPayment(db, {
+        jobId: request.params.jobId,
+        agentId,
+        rail: "arc_usdc_event_scan",
+        amount: result.accessFee,
+        payerAddress: agentAddress,
+        txHash: result.txHash || null,
+        network: nanopaymentConfig().network,
+        metadata: { verifier: "arc_usdc_transfer_event", transferCount: result.transferCount || 0 },
+      });
     }
-    response.json(result);
+    response.json({ ...result, payment: result.paid ? serializeAccessPayment(getAccessPayment(db, request.params.jobId, agentId)) : null });
   });
 
   app.use((error, _request, response, _next) => {
     const status = error.status || 500;
     if (status >= 500) console.error(error.stack || error);
-    response.status(status).json({ error: error.message || "Internal server error.", ...(error.code ? { code: error.code } : {}), ...(error.eligibility ? { eligibility: error.eligibility } : {}), ...(error.walletProvisioning ? { walletProvisioning: error.walletProvisioning } : {}) });
+    response.status(status).json({ error: error.message || "Internal server error.", ...(error.code ? { code: error.code } : {}), ...(error.payment ? { payment: error.payment } : {}), ...(error.eligibility ? { eligibility: error.eligibility } : {}), ...(error.walletProvisioning ? { walletProvisioning: error.walletProvisioning } : {}) });
   });
   return { app, db };
 }
@@ -775,6 +817,9 @@ function httpError(status, message, details = null) {
 }
 
 function eligibilityError(status, code, message, eligibility) { const error = httpError(status, message); error.code = code; error.eligibility = eligibility; return error; }
+function accessRequiredError(message, jobId = null) { const error = httpError(402, message); error.code = "claim_access_payment_required"; error.payment = { ...nanopaymentConfig(), ...(jobId ? { jobId } : {}) }; return error; }
+function validateGatewayAccessTarget(db) { return (request, _response, next) => { try { const agentId = String(request.query.agentId || request.get("x-agent-id") || ""); requireId(agentId, "agentId"); if (!db.prepare("SELECT 1 FROM jobs WHERE job_id=?").get(request.params.jobId)) throw httpError(404, `Job ${request.params.jobId} does not exist.`); if (!db.prepare("SELECT 1 FROM agents WHERE agent_id=?").get(agentId)) throw httpError(404, `Agent ${agentId} does not exist.`); next(); } catch (error) { next(error); } }; }
+function requirePaidJobAccess(db, job, agentId) { if (!hasPaidAccess(db, job.job_id, agentId)) throw accessRequiredError(`Circle Gateway x402 access payment required before claiming ${job.job_id}.`, job.job_id); }
 function requireIssuer(db, request, issuerId) { if (!authenticate(db, request, "issuer", issuerId)) throw httpError(401, "Valid issuer API key required."); }
 function requireAdjudicator(db, request, scope) { const result = authenticateAdjudicator(db, request, scope); if (!result) { const error = httpError(403, `Adjudicator scope ${scope} required.`); error.code = "missing_adjudicator_scope"; throw error; } return result; }
 function expireLeasesWithEvents(db) {

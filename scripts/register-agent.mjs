@@ -46,13 +46,15 @@ async function main() {
   }
 
   if (nanopaymentConfig.enabled) {
-    resultLog.actionRequired = "NANOPAYMENT_FEE";
-    resultLog.instructions = `Agents must pay a ${nanopaymentConfig.accessFee} USDC anti-spam fee before claiming jobs.`;
+    resultLog.actionRequired = "GATEWAY_X402_ACCESS_FEE";
+    resultLog.instructions = `Claims require a ${nanopaymentConfig.accessFee} USDC Circle Gateway x402 access payment per job before leasing work.`;
     resultLog.paymentDetails = {
       network: "Arc Testnet",
       asset: "USDC",
       amount: nanopaymentConfig.accessFee,
-      destination: nanopaymentConfig.treasuryAddress
+      gatewayAccessUrl: nanopaymentConfig.x402?.resourceTemplate,
+      sellerAddress: nanopaymentConfig.sellerAddress,
+      fallbackTreasuryAddress: nanopaymentConfig.treasuryAddress
     };
   }
 

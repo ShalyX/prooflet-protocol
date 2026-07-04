@@ -20,7 +20,7 @@ This is intentionally safe for public onboarding:
 
 - No treasury/operator private key is configured.
 - No Arc Testnet execute flow runs on Render.
-- The API can register issuers/agents, attempt Circle W3S wallet provisioning when configured, create jobs, claim work, submit proofs, verify nanopayment-style access fees, and export dry-run settlement batches.
+- The API can register issuers/agents, attempt Circle W3S wallet provisioning when configured, create jobs, require Circle Gateway x402 access fees before claims, submit proofs, and export dry-run settlement batches.
 
 The free service uses ephemeral SQLite storage. It is enough for a public testnet onboarding session, but records may be reset after deploys or service restarts. For durable hosted usage, move persistence to Neon Postgres or attach a paid Render disk before inviting sustained external users.
 
@@ -49,7 +49,7 @@ Do **not** put private signing keys on Render for the public test deployment. Se
 6. Export the hosted settlement batch.
 7. Sign/send Arc Testnet USDC locally from the operator wallet if execute is intentionally enabled.
 8. Post the settlement receipt back to the hosted API.
-9. Optionally check `/nanopayment/config` and access-fee instructions for nanopayment-style claim friction.
+9. Check `/nanopayment/config` and pay the Gateway x402 job-access fee before claim.
 
 Workers should point `USEFUL_WAITING_API_URL` at the Render API URL.
 
@@ -143,7 +143,7 @@ Inspect payable proofs:
 curl -s "$API/proofs"
 ```
 
-Check nanopayment-style access-fee config:
+Check Circle Gateway x402 access-fee config:
 
 ```bash
 curl -s "$API/nanopayment/config"

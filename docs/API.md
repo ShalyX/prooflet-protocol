@@ -325,33 +325,41 @@ Pending, submitted, failed, and rejected GenLayer proofs remain outside settleme
 
 An approval produces `approved_by_manual_adapter` and makes the proof payable. Rejection produces `rejected_by_manual_adapter` and no payout. Decisions are immutable; paid proofs cannot be adjudicated.
 
-## Nanopayment-Style Access Fee
+## Circle Gateway x402 Access Fee
 
 ### `GET /nanopayment/config`
 
-No authentication. Returns the configured Arc Testnet USDC access-fee parameters.
+No authentication. Returns the configured Circle Gateway x402 access-fee parameters.
 
 ```json
 {
   "enabled": true,
-  "rail": "circle_gateway_nanopayments",
+  "rail": "circle_gateway_x402",
+  "mode": "gateway_x402_required",
   "accessFee": "0.000001",
   "accessFeeRaw": 1,
-  "treasuryAddress": "0x709F18F797347FbB8D53Fb60567892751dd14B11",
-  "usdcAddress": "0x3600000000000000000000000000000000000000",
+  "sellerAddress": "0x...",
+  "facilitatorUrl": "https://gateway-api-testnet.circle.com",
+  "network": "eip155:5042002",
   "chainId": 5042002
 }
 ```
 
-The rail label is historical/product-facing. The implemented verification path is direct Arc Testnet USDC `Transfer` event scanning, not a full Circle Gateway merchant/session/payment-intent flow.
-
 ### `GET /jobs/:jobId/access-fee`
 
-No authentication. Accepts optional `agentAddress` query string and returns instructions for sending `0.000001 USDC` to the Prooflet service/operator address.
+No authentication. Accepts optional `agentAddress` query string and returns instructions plus the Gateway x402 access URL template.
+
+### `GET /jobs/:jobId/gateway-access?agentId=...`
+
+Circle Gateway x402 protected resource. Unpaid requests return `402 Payment Required`; paid requests record durable access in `job_access_payments` and return `access: "granted"`.
+
+### `GET /jobs/:jobId/access-fee/status?agentId=...`
+
+Requires the agent key or demo issuer key. Returns whether that agent has paid access for the job.
 
 ### `POST /jobs/:jobId/access-fee/verify`
 
-Verifies the access fee for a claimed job by scanning recent Arc Testnet USDC transfer logs.
+Fallback verifier. Scans recent Arc Testnet USDC transfer logs and records `rail: "arc_usdc_event_scan"` when a matching payment is found.
 
 ```json
 {
@@ -360,7 +368,7 @@ Verifies the access fee for a claimed job by scanning recent Arc Testnet USDC tr
 }
 ```
 
-A matching transfer updates the active claim metadata to `claimAccessStatus: "paid"`. If no transfer is found, the response returns `paid: false`.
+`POST /agents/:agentId/claim-job` hard-blocks unpaid jobs with `402` and `code: "claim_access_payment_required"`.
 
 ## Settlement and Dashboard
 

@@ -41,7 +41,7 @@ Use clean, ledger-style fonts suitable for dashboards, data tables, and verifica
 * escrow-funded rewards
 * Arc Testnet USDC
 * Circle W3S wallet provisioning
-* nanopayment-style access fee
+* Circle Gateway x402 access fee
 * GenLayer-ready adjudication path
 * dry-run sends nothing
 * approved work only

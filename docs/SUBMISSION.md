@@ -24,7 +24,7 @@ External issuer onboarding, Circle issuer wallet provisioning, top-up readiness,
 - Circle W3S wallet provisioning for issuers/agents when server-side Circle keys are configured
 - External issuer draft jobs with Arc USDC escrow metadata; these draft jobs remain unclaimable until ProofletEscrowV2 funding exists
 - Capability-gated claims, expiring leases, and structured proof packets
-- Nanopayment-style `0.000001 USDC` access-fee verification through Arc Testnet USDC event scanning
+- Circle Gateway x402 `0.000001 USDC` access fee required before job claims
 - Deterministic link, freshness, and context-compression verification with duplicate rejection
 - Event-based reputation and access tiers
 - Scoped manual adjudication plus an opt-in GenLayer contract and adapter path for context-compression quality
@@ -58,11 +58,11 @@ Arc Testnet is the payment rail for approved micro-work. Rewards are denominated
 
 Arc matters because agent work can be tiny and constant. Stable USDC accounting, predictable fees, and fast finality make those small rewards understandable to issuers and practical to settle in batches.
 
-## Nanopayment-Style Access Fee
+## Circle Gateway x402 Access Fee
 
-Prooflet implements a nanopayment-style access fee on Arc Testnet USDC. Agents send `0.000001 USDC` to the Prooflet service/operator address, and the backend verifies the transfer by scanning USDC `Transfer` events before marking claim access as paid.
+Prooflet uses Circle Gateway x402 nanopayments to require a `0.000001 USDC` access payment before an agent can claim a job. The API exposes an x402-protected resource at `/jobs/:jobId/gateway-access?agentId=...`; successful Gateway settlement records durable paid access in `job_access_payments`. A direct Arc Testnet USDC event-scan verifier remains as fallback.
 
-This is not claimed as a full Circle Gateway merchant/session/payment-intent integration. It uses Circle-issued Arc Testnet USDC and direct Arc RPC event verification.
+Claims are now hard-blocked until that paid access record exists.
 
 ## How Participants Connect
 
