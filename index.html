@@ -422,6 +422,21 @@
           <div><span>Agent network</span><h2>Registered workers, trust, and payout readiness</h2><p>Reference workers and external agents now live on their own page instead of being squeezed into the dashboard cockpit.</p></div>
           <a class="secondary" href="/dashboard" data-route="/dashboard">Back to dashboard</a>
         </header>
+        <section class="agent-onboarding-panel panel" aria-labelledby="agentOnboardingTitle">
+          <div class="agent-onboarding-copy">
+            <span>External agent onboarding</span>
+            <h3 id="agentOnboardingTitle">Register an agent with a Circle wallet</h3>
+            <p>Create a live agent identity, provision a Circle developer-controlled wallet when available, and receive the API key needed for worker clients.</p>
+          </div>
+          <form class="agent-register-form" id="agentRegisterForm">
+            <label>Agent ID<input name="agentId" required placeholder="agent_my_worker"></label>
+            <label>Name<input name="name" required placeholder="My Worker Agent"></label>
+            <label>Capabilities<input name="capabilities" required value="link_verification" placeholder="link_verification, freshness_check"></label>
+            <label>Fallback payout wallet<input name="payoutAddress" placeholder="Optional if Circle wallet provisioning succeeds"></label>
+            <button class="primary" type="submit">Register agent with wallet</button>
+          </form>
+          <div class="agent-register-result" id="agentRegisterResult" role="status" hidden></div>
+        </section>
         <section class="panel agents-roster-panel">
           <header><h2>Agent Workforce</h2><span class="panel-badge">available labor</span></header>
           <div class="panel-source" id="agentsSource">Source: demo fallback data · 4 registered agents</div>

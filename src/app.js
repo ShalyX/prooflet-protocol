@@ -359,6 +359,12 @@ function prepareBatch() {
   setActionState("#prepareBatch, #prepareBatchHero", "loading", "Preparing…");
   latestBatchPayload = buildSettlementBatch();
   renderPreparedBatch(latestBatchPayload);
+  if (latestBatchPayload.approvedProofs === 0) {
+    pushEvent("settlement", "empty payout batch", "No approved unpaid proof packets are payable right now; dry-run export would contain zero recipients.", "0 payable");
+    render();
+    window.setTimeout(() => setActionState("#prepareBatch, #prepareBatchHero", "notice", "No payouts ready"), 260);
+    return;
+  }
   window.setTimeout(() => setActionState("#prepareBatch, #prepareBatchHero", "success", "Batch ready"), 260);
 }
 
@@ -625,15 +631,12 @@ async function hydrateFromApi() {
   apiConnected = false;
   apiError = null;
   render();
-  const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), 1800);
   try {
-    const response = await fetch(`${API_URL}/dashboard`, { signal: controller.signal });
-    if (!response.ok) throw new Error(`API returned ${response.status}`);
-    const dashboard = await response.json();
+    const dashboard = await fetchDashboardWithRetry();
     applyDashboard(dashboard);
     apiConnected = true;
     apiLoading = false;
+    apiError = null;
     $("#apiStatus").textContent = "API connected";
     systemStatus.api = "Connected";
     systemStatus.arc = dashboard.treasury?.network === "Arc Testnet" ? "Connected" : "Unavailable";
@@ -643,7 +646,7 @@ async function hydrateFromApi() {
   } catch (error) {
     apiConnected = false;
     apiLoading = false;
-    apiError = "Demo data mode: Connect API for live issuer actions.";
+    apiError = "Demo data mode: API did not respond after warmup retries.";
     $("#apiStatus").textContent = "Demo data mode";
     systemStatus.api = "Demo data mode";
     systemStatus.arc = "Demo data";
@@ -654,13 +657,36 @@ async function hydrateFromApi() {
     setLandingText("#landingTreasury", "Demo data");
     render();
     renderLocalLeaderboard();
-  } finally {
-    window.clearTimeout(timeout);
   }
+}
+
+async function fetchDashboardWithRetry() {
+  const attempts = [2500, 8000, 25000];
+  let lastError = null;
+  for (let index = 0; index < attempts.length; index += 1) {
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), attempts[index]);
+    try {
+      if (index > 0) {
+        apiError = `Prooflet API is warming up — retry ${index + 1}/${attempts.length}.`;
+        render();
+      }
+      const response = await fetch(`${API_URL}/dashboard`, { signal: controller.signal });
+      if (!response.ok) throw new Error(`API returned ${response.status}`);
+      return await response.json();
+    } catch (error) {
+      lastError = error;
+    } finally {
+      window.clearTimeout(timeout);
+    }
+  }
+  throw lastError || new Error("API request failed");
 }
 
 function applyDashboard(dashboard) {
   TREASURY.address = dashboard.issuer?.treasuryAddress || TREASURY.address;
+  TREASURY.network = dashboard.treasury?.network || TREASURY.network;
+  TREASURY.asset = dashboard.treasury?.asset || TREASURY.asset;
   const existingAgents = new Map(agents.map((agent) => [agent.agentId, agent]));
   const paidByAgent = dashboard.proofs
     .filter((proof) => proof.fundingStatus === "paid")
@@ -738,9 +764,25 @@ function applyDashboard(dashboard) {
   const latestSettled = dashboard.settlements?.batches?.find((batch) => batch.status === "settled");
   const payableTotal = dashboard.proofs.filter((proof) => proof.fundingStatus === "payable").reduce((total, proof) => total + jobReward(dashboard.jobs, proof.jobId), 0);
   const rejectedTotal = dashboard.proofs.filter((proof) => proof.fundingStatus === "rejected").length;
+  const reservedRewards = Number(dashboard.treasury?.reservedRewards || 0);
+  const pendingPayout = Number(dashboard.treasury?.pendingPayout ?? payableTotal);
+  const paidOut = Number(dashboard.treasury?.paidOut || 0);
+  setLandingText("#protoTreasuryAddress", TREASURY.address);
+  setLandingText("#protoReserved", `${money(reservedRewards)} USDC`);
+  setLandingText("#protoPayable", `${money(pendingPayout)} USDC`);
+  setLandingText("#protoPaidOut", `${money(paidOut)} USDC`);
   setLandingText("#landingPayable", `${money(payableTotal)} USDC`);
   setLandingText("#landingRejected", rejectedTotal);
   setLandingText("#landingTreasury", dashboard.issuer?.treasuryAddress ? "Configured" : "Not configured");
+  events = [{
+    id: pendingPayout > 0 ? "evt_live_payout_ready" : "evt_live_empty_batch",
+    kind: "settlement",
+    title: pendingPayout > 0 ? "payout batch ready" : "no payout batch ready",
+    detail: pendingPayout > 0
+      ? `${money(pendingPayout)} testnet USDC is approved and awaiting operator-controlled release.`
+      : "No approved unpaid proof packets are payable right now; dry-run batch export would be empty.",
+    meta: pendingPayout > 0 ? `${dashboard.proofs.filter((proof) => proof.fundingStatus === "payable").length} payable` : "0 payable",
+  }, ...events.filter((event) => !["batch settlement ready", "payout batch ready", "no payout batch ready", "empty payout batch"].includes(event.title))].slice(0, 8);
   if (latestSettled) {
     systemStatus.batch = latestSettled.batch_id;
     systemStatus.payout = Number(latestSettled.total_payout);
@@ -842,6 +884,8 @@ $("#addJobs").addEventListener("click", addJobs);
 $("#runCycle").addEventListener("click", runCycle);
 $("#prepareBatch").addEventListener("click", prepareBatch);
 $("#prepareBatchHero").addEventListener("click", prepareBatch);
+const agentRegisterForm = document.getElementById("agentRegisterForm");
+if (agentRegisterForm) agentRegisterForm.addEventListener("submit", registerAgentWithWallet);
 $("#queueTabs").addEventListener("click", (event) => {
   const button = event.target.closest("[data-queue-filter]");
   if (!button) return;
@@ -930,6 +974,48 @@ function renderLeaderboard(rows) {
       <td><span class="risk-badge ${riskClass}">${row.riskFlag || "clean"}</span></td>
     </tr>`;
   }).join("");
+}
+
+async function registerAgentWithWallet(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const result = document.getElementById("agentRegisterResult");
+  const button = form.querySelector("button[type=submit]");
+  const data = new FormData(form);
+  const payload = {
+    agentId: String(data.get("agentId") || "").trim(),
+    name: String(data.get("name") || "").trim(),
+    capabilities: String(data.get("capabilities") || "").split(",").map((item) => item.trim()).filter(Boolean),
+  };
+  const payoutAddress = String(data.get("payoutAddress") || "").trim();
+  if (payoutAddress) payload.payoutAddress = payoutAddress;
+  try {
+    button.disabled = true;
+    button.textContent = "Registering…";
+    result.hidden = false;
+    result.dataset.state = "loading";
+    result.textContent = "Creating agent identity and requesting Circle wallet provisioning…";
+    const response = await fetch(`${API_URL}/agents/register-with-wallet`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const body = await response.json();
+    if (!response.ok) throw new Error(body.error || body.walletProvisioning?.message || "Agent registration failed");
+    result.dataset.state = "ok";
+    result.innerHTML = `<strong>Agent registered: ${escapeHtml(body.agent.agentId)}</strong>
+      <p>API key: <code>${escapeHtml(body.apiKey)}</code></p>
+      <p>Payout wallet: <code>${escapeHtml(body.agent.payoutAddress || "not provisioned")}</code></p>
+      <p>Circle wallet: ${escapeHtml(body.circleWallet?.walletId || body.walletProvisioning?.status || "not created")}</p>
+      <p class="agent-register-next">Next: set <code>AGENT_ID</code> and <code>AGENT_API_KEY</code> in a worker environment, then run <code>npm run agent:link -- --once</code>.</p>`;
+    await Promise.allSettled([hydrateFromApi(), hydrateLeaderboard()]);
+  } catch (error) {
+    result.dataset.state = "error";
+    result.textContent = error.message;
+  } finally {
+    button.disabled = false;
+    button.textContent = "Register agent with wallet";
+  }
 }
 
 function escapeHtml(str) {

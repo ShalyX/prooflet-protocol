@@ -1768,6 +1768,28 @@ input[type="file"]::-webkit-file-upload-button {
 .agents-page-head h2 { margin: 6px 0 6px; color: var(--text); font-size: 1.35rem; }
 .agents-page-head p { margin: 0; color: var(--muted); line-height: 1.45; }
 .agents-page-head a { text-decoration: none; white-space: nowrap; }
+.agent-onboarding-panel {
+  display: grid;
+  grid-template-columns: minmax(240px, .85fr) minmax(320px, 1.4fr);
+  gap: 16px;
+  padding: 18px;
+  border-color: rgba(126,226,168,.24);
+  background:
+    radial-gradient(circle at top right, rgba(242,169,59,.12), transparent 30%),
+    var(--panel);
+}
+.agent-onboarding-copy span { color: var(--green); font-size: .66rem; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
+.agent-onboarding-copy h3 { margin: 7px 0 8px; color: var(--text); font-size: 1.05rem; }
+.agent-onboarding-copy p { margin: 0; color: var(--muted); line-height: 1.45; }
+.agent-register-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; align-items: end; }
+.agent-register-form label { display: grid; gap: 6px; color: var(--muted); font-size: .68rem; font-weight: 850; text-transform: uppercase; }
+.agent-register-form input { width: 100%; border: 1px solid var(--line-strong); border-radius: 10px; padding: 10px 12px; background: var(--bg); color: var(--text); }
+.agent-register-form button { min-height: 39px; }
+.agent-register-result { grid-column: 1 / -1; border: 1px solid var(--line-strong); border-radius: 12px; padding: 12px; background: rgba(255,255,255,.025); color: var(--muted); line-height: 1.45; }
+.agent-register-result[data-state="ok"] { border-color: rgba(126,226,168,.38); color: var(--text); }
+.agent-register-result[data-state="error"] { border-color: rgba(255,108,93,.55); color: var(--status-rejected); }
+.agent-register-result code { color: var(--amber); overflow-wrap: anywhere; }
+.agent-register-next { margin-top: 8px; }
 .agents-roster-panel .agent-grid { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
 .agents-page .leaderboard-panel { grid-column: auto; }
 .issuer-product-strip {
@@ -1806,6 +1828,7 @@ input[type="file"]::-webkit-file-upload-button {
   .ops-command-center,
   .proof-review-list,
   .trust-boundary-board,
+  .agent-onboarding-panel,
   .issuer-product-strip,
   .issuer-boundary-strip { grid-template-columns: 1fr 1fr; }
 }
@@ -1813,9 +1836,11 @@ input[type="file"]::-webkit-file-upload-button {
   .ops-command-center,
   .proof-review-list,
   .trust-boundary-board,
+  .agent-onboarding-panel,
   .issuer-product-strip,
   .issuer-boundary-strip { grid-template-columns: 1fr; }
   .proof-review-card { grid-template-columns: 1fr; }
+  .agent-register-form { grid-template-columns: 1fr; }
   .proof-review-status { text-align: left; }
 }
 @media (max-width: 900px) {
