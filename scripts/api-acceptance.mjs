@@ -10,7 +10,7 @@ for (const suffix of ["", "-shm", "-wal"]) {
 process.env.UWP_DB_PATH = testDb;
 
 const { createApp } = await import("../server/api.mjs");
-const { app, db } = createApp();
+const { app, db } = createApp({ gatewayMiddleware: fakeGatewayMiddleware() });
 const server = app.listen(0, "127.0.0.1");
 await new Promise((resolveReady) => server.once("listening", resolveReady));
 const baseUrl = `http://127.0.0.1:${server.address().port}`;
@@ -94,6 +94,20 @@ try {
   assert.equal(fallbackNoAuth.status, 403);
   const fallbackWrongAddress = await request("POST", "/jobs/acceptance_lease/access-fee/verify", { agentId: "acceptance_agent", agentAddress: "0x4444444444444444444444444444444444444444" }, agentKey);
   assert.equal(fallbackWrongAddress.status, 403);
+  const wrongPayerAccess = await request("GET", "/jobs/acceptance_lease/gateway-access?agentId=acceptance_agent", null, null, {
+    "x-test-gateway-payer": "0x4444444444444444444444444444444444444444",
+    "x-test-gateway-transaction": "test-wrong-payer-access",
+  });
+  assert.equal(wrongPayerAccess.status, 403);
+  assert.match(wrongPayerAccess.body.error, /payer must match/i);
+  assert.equal(db.prepare("SELECT COUNT(*) AS count FROM job_access_payments WHERE job_id='acceptance_lease' AND agent_id='acceptance_agent'").get().count, 0);
+  const matchingPayerAccess = await request("GET", "/jobs/acceptance_lease/gateway-access?agentId=acceptance_agent", null, null, {
+    "x-test-gateway-payer": "0x3333333333333333333333333333333333333333",
+    "x-test-gateway-transaction": "test-matching-payer-access",
+  });
+  assert.equal(matchingPayerAccess.status, 200);
+  assert.equal(matchingPayerAccess.body.payment.payerAddress, "0x3333333333333333333333333333333333333333");
+  db.prepare("DELETE FROM job_access_payments WHERE job_id='acceptance_lease' AND agent_id='acceptance_agent'").run();
   grantAccess("acceptance_lease", "acceptance_agent");
   const leaseClaim = await request("POST", "/agents/acceptance_agent/claim-job", { jobId: "acceptance_lease", leaseSeconds: 60 }, agentKey);
   assert.equal(leaseClaim.status, 200);
@@ -176,6 +190,7 @@ try {
       "capability-gated claim rejection",
       "Circle Gateway x402 access fee blocks unpaid claims",
       "fallback access verifier requires agent auth and registered payout address",
+      "Gateway x402 payer must match registered agent payout address",
       "stored paid access lease",
       "expired lease reopens job",
       "deterministic proof approval",
@@ -195,16 +210,39 @@ try {
   }
 }
 
-async function request(method, path, body, apiKey) {
+async function request(method, path, body, apiKey, extraHeaders = {}) {
   const response = await fetch(`${baseUrl}${path}`, {
     method,
     headers: {
       ...(body ? { "content-type": "application/json" } : {}),
       ...(apiKey ? { authorization: `Bearer ${apiKey}` } : {}),
+      ...extraHeaders,
     },
     body: body ? JSON.stringify(body) : undefined,
   });
   return { status: response.status, body: await response.json() };
+}
+
+function fakeGatewayMiddleware() {
+  return {
+    require() {
+      return (request, response, next) => {
+        const payer = request.get("x-test-gateway-payer");
+        if (!payer) {
+          response.status(402).json({ error: "Payment required" });
+          return;
+        }
+        request.payment = {
+          verified: true,
+          payer,
+          amount: "1",
+          network: "eip155:5042002",
+          transaction: request.get("x-test-gateway-transaction") || `test-gateway-${Date.now()}`,
+        };
+        next();
+      };
+    },
+  };
 }
 
 function grantAccess(jobId, agentId) {

@@ -1,6 +1,8 @@
 # Circle Gateway x402 Access Fee
 
-Agents must pay a **0.000001 USDC** access fee before claiming work. The primary path is Circle Gateway Nanopayments using x402:
+Agents must pay a **0.000001 USDC** access fee before claiming work. Prooflet supports Circle Gateway x402 job-access payments from Circle-created developer-controlled EOA agent wallets.
+
+The primary path is Circle Gateway Nanopayments using x402:
 
 ```text
 Agent requests /jobs/:jobId/gateway-access?agentId=...
@@ -77,7 +79,7 @@ Returns amount, seller address, fallback treasury address, USDC address, network
 GET /jobs/:jobId/gateway-access?agentId=agent_...
 ```
 
-Unpaid requests return `402 Payment Required` with the `PAYMENT-REQUIRED` header. A Gateway buyer client can pay it:
+Unpaid requests return `402 Payment Required` with the `PAYMENT-REQUIRED` header. An EOA private-key buyer client can pay it:
 
 ```bash
 npm run gateway:pay-access -- \
@@ -87,6 +89,21 @@ npm run gateway:pay-access -- \
   --private-key <EOA_PRIVATE_KEY>
 ```
 
+A Circle developer-controlled EOA wallet can also sign the Gateway x402 authorization without exposing a private key:
+
+```bash
+npm run gateway:pay-access:circle-wallet -- \
+  --api-url https://prooflet-api.onrender.com \
+  --job-id <jobId> \
+  --agent-id <agentId> \
+  --wallet-id <CIRCLE_WALLET_ID> \
+  --wallet-address <CIRCLE_WALLET_ADDRESS>
+```
+
+Important: the Circle wallet address must have sufficient Circle Gateway balance on Arc Testnet. Verified with Circle developer-controlled EOA wallets. SCA compatibility is not claimed.
+
+For the verified self-funded flow, see `docs/GATEWAY_X402_EVIDENCE.md`.
+
 On successful x402 settlement, Prooflet records a `job_access_payments` row with:
 
 - `rail: "circle_gateway_x402"`
@@ -94,6 +111,8 @@ On successful x402 settlement, Prooflet records a `job_access_payments` row with
 - `gatewayTransactionId`
 - `payerAddress`
 - `status: "paid"`
+
+Before recording paid access, Prooflet requires the Gateway payer address to match the registered agent payout address.
 
 ### Check access-fee status
 
@@ -131,7 +150,7 @@ Claim rows copy the paid access rail/price/transaction reference into `job_claim
 
 Use:
 
-> Prooflet uses Circle Gateway x402 nanopayments to require a `0.000001 USDC` access payment before an agent can claim a job. Successful Gateway settlement writes a durable paid access grant; a direct Arc Testnet USDC event-scan verifier remains as fallback.
+> Prooflet supports Circle Gateway x402 job-access payments from Circle-created developer-controlled EOA agent wallets. In the verified self-funded flow, the agent wallet receives Arc Testnet USDC, approves and deposits its own USDC into Circle Gateway, signs the x402 authorization through Circle W3S, pays the job-access fee from its Gateway balance, receives durable paid-access status, and can claim the gated job.
 
 Avoid:
 

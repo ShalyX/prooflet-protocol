@@ -64,7 +64,7 @@ npm run settlement:daemon:dry-run -- --once
 ```
 
 ## Live URLs
-- **Landing:** https://prooflet-protocol.vercel.app
+- **Landing:** https://prooflet.xyz
 - **API:** https://prooflet-api.onrender.com
 - **Repo:** https://github.com/ShalyX/prooflet-protocol
 

@@ -41,7 +41,7 @@ export async function createAgentWallet(agentId, name) {
     throw e;
   }
   try {
-    const r = await c.createWallets({ accountType: "SCA", blockchains: ["ARC-TESTNET"], count: 1, walletSetId: wsId });
+    const r = await c.createWallets({ accountType: "EOA", blockchains: ["ARC-TESTNET"], count: 1, walletSetId: wsId });
     const w = r.data?.wallets?.[0];
     if (!w) throw new Error("API returned no wallets.");
     return { walletId: w.id, address: w.address, blockchain: w.blockchain, state: w.state, accountType: w.accountType };

@@ -58,6 +58,7 @@
     "escrow:operator": "node --env-file=.env workers/settlement-operator.mjs",
     "nanopayment:check": "node --env-file=.env scripts/nanopayment-check.mjs",
     "gateway:pay-access": "node --no-warnings --env-file-if-exists=.env scripts/pay-job-access.mjs",
+    "gateway:pay-access:circle-wallet": "node --no-warnings --env-file-if-exists=.env scripts/pay-job-access-circle-wallet.mjs",
     "agent-wallet:check": "node --no-warnings scripts/agent-wallet-acceptance.mjs"
   },
   "dependencies": {

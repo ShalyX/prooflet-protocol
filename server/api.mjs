@@ -24,12 +24,13 @@ import {
 export function createApp({
   db = openDatabase(),
   walletService = { createAgentWallet, createIssuerWallet, getCircleStatus, isCircleConfigured, getWalletBalance, sendUsdc, getWalletDetails },
+  gatewayMiddleware = createGatewayMiddleware(gatewayConfig()),
 } = {}) {
   const circle = walletService;
   seedDatabase(db);
   backfillReputation(db);
   const app = express();
-  const gateway = createGatewayMiddleware(gatewayConfig());
+  const gateway = gatewayMiddleware;
   app.disable("x-powered-by");
   app.use(express.json({ limit: "3mb" }));
   app.use((request, response, next) => {
@@ -621,13 +622,18 @@ export function createApp({
     requireId(agentId, "agentId");
     const job = db.prepare("SELECT * FROM jobs WHERE job_id=?").get(request.params.jobId);
     if (!job) throw httpError(404, `Job ${request.params.jobId} does not exist.`);
+    const agent = db.prepare("SELECT payout_address FROM agents WHERE agent_id=?").get(agentId);
+    if (!agent) throw httpError(404, `Agent ${agentId} does not exist.`);
+    const payerAddress = request.payment?.payer || null;
+    if (!payerAddress || !isAddress(payerAddress)) throw httpError(403, "Gateway payment payer address is required.");
+    if (!agent.payout_address || agent.payout_address.toLowerCase() !== payerAddress.toLowerCase()) throw httpError(403, "Gateway payment payer must match the registered agent payout address.");
     if (request.payment?.transaction && db.prepare("SELECT 1 FROM job_access_payments WHERE gateway_transaction_id=? AND NOT (job_id=? AND agent_id=?)").get(request.payment.transaction, request.params.jobId, agentId)) throw httpError(409, "Gateway payment transaction was already used for another job or agent.");
     const payment = recordAccessPayment(db, {
       jobId: request.params.jobId,
       agentId,
       rail: "circle_gateway_x402",
       amount: nanopaymentConfig().accessFee,
-      payerAddress: request.payment?.payer || null,
+      payerAddress,
       gatewayTransactionId: request.payment?.transaction || null,
       network: request.payment?.network || nanopaymentConfig().network,
       metadata: { payment: request.payment || null, resource: "job_access" },

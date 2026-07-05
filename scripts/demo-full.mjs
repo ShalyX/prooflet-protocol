@@ -20,9 +20,9 @@ const API_URL = (process.env["USEFUL_WAITING_API_URL"] || "http://127.0.0.1:8787
 const ISSUER_ID = "useful_waiting_protocol";
 const ISSUER_KEY = "uwp_issuer_useful_waiting_protocol_dev";
 const AGENTS = {
-  link: { worker: "link-sentinel", agentId: "agent_lynx", apiKey: "uwp_agent_lynx_dev", args: ["--once", "--fetch-timeout-ms", "15000"] },
-  freshness: { worker: "freshness-clerk", agentId: "agent_mira", apiKey: "uwp_agent_mira_dev", args: ["--once", "--fetch-timeout-ms", "15000"] },
-  compress: { worker: "context-press", agentId: "agent_byte", apiKey: "uwp_agent_byte_dev", args: ["--once", "--fetch-timeout-ms", "30000"] },
+  link: { worker: "link-sentinel", agentId: "agent_lynx", apiKey: "uwp_agent_lynx_dev", capabilities: ["link_verification"], args: ["--once", "--fetch-timeout-ms", "15000"] },
+  freshness: { worker: "freshness-clerk", agentId: "agent_mira", apiKey: "uwp_agent_mira_dev", capabilities: ["freshness_check"], args: ["--once", "--fetch-timeout-ms", "15000"] },
+  compress: { worker: "context-press", agentId: "agent_byte", apiKey: "uwp_agent_byte_dev", capabilities: ["context_compression"], args: ["--once", "--fetch-timeout-ms", "30000"] },
 };
 
 const runId = `${Date.now()}_${Math.random().toString(16).slice(2, 8)}`;
@@ -160,8 +160,11 @@ async function main() {
     return result.job;
   }, (job) => `${job.jobId} reward=${job.rewardAmount}`);
 
+  await step("Grant Link Sentinel x402 access", async () => ensurePaidAccessForOpenJobs(AGENTS.link), accessSummary);
   await step("Run Link Sentinel worker", async () => runWorker(AGENTS.link), workerSummary);
+  await step("Grant Freshness Clerk x402 access", async () => ensurePaidAccessForOpenJobs(AGENTS.freshness), accessSummary);
   await step("Run Freshness Clerk worker", async () => runWorker(AGENTS.freshness), workerSummary);
+  await step("Grant Context Press x402 access", async () => ensurePaidAccessForOpenJobs(AGENTS.compress), accessSummary);
   await step("Run Context Press worker", async () => runWorker(AGENTS.compress), workerSummary);
 
   await step("Dashboard state", async () => {
@@ -253,11 +256,68 @@ function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
 
+async function ensurePaidAccessForOpenJobs(spec) {
+  const listed = await request("/jobs");
+  const candidates = (listed.jobs || []).filter((job) =>
+    job.status === "open" &&
+    ["reserved", "funded"].includes(job.fundingStatus) &&
+    spec.capabilities.includes(job.jobType)
+  );
+  if (candidates.length === 0) return { checked: 0, alreadyPaid: 0, granted: 0, rail: "none" };
+
+  const agent = await request(`/agents/${encodeURIComponent(spec.agentId)}`, { headers: apiKey(spec.apiKey) });
+  const unpaid = [];
+  let alreadyPaid = 0;
+  for (const job of candidates) {
+    const status = await request(`/jobs/${encodeURIComponent(job.jobId)}/access-fee/status?agentId=${encodeURIComponent(spec.agentId)}`, {
+      headers: apiKey(spec.apiKey),
+    });
+    if (status.paid) alreadyPaid += 1;
+    else unpaid.push(job);
+  }
+  if (unpaid.length === 0) return { checked: candidates.length, alreadyPaid, granted: 0, rail: "circle_gateway_x402" };
+
+  if (!isLocalApi()) {
+    throw new Error(`Gateway x402 access required for ${unpaid.length} ${spec.worker} job(s). Run npm run gateway:pay-access before demo:full against non-local APIs.`);
+  }
+
+  const { openDatabase } = await import("../server/db.mjs");
+  const { recordAccessPayment } = await import("../server/circle-nanopayment.mjs");
+  const db = openDatabase();
+  try {
+    for (const job of unpaid) {
+      recordAccessPayment(db, {
+        jobId: job.jobId,
+        agentId: spec.agentId,
+        rail: "circle_gateway_x402",
+        amount: "0.000001",
+        payerAddress: agent.agent.payoutAddress,
+        gatewayTransactionId: `demo-local-gateway-${runId}-${job.jobId}-${spec.agentId}`,
+        network: "eip155:5042002",
+        metadata: { demo: "local_x402_access_grant", worker: spec.worker, note: "Local demo grant; no USDC sent." },
+      });
+    }
+  } finally {
+    db.close();
+  }
+  return { checked: candidates.length, alreadyPaid, granted: unpaid.length, rail: "circle_gateway_x402", mode: "local_demo_grant_no_usdc_sent" };
+}
+
+function accessSummary(result) {
+  return `checked=${result.checked} alreadyPaid=${result.alreadyPaid} granted=${result.granted} rail=${result.rail}${result.mode ? ` mode=${result.mode}` : ""}`;
+}
+
+function isLocalApi() {
+  const hostname = new URL(API_URL).hostname;
+  return new Set(["127.0.0.1", "localhost", "0.0.0.0", "::1"]).has(hostname);
+}
+
 async function runWorker(spec) {
   const result = await runCommand("node", ["--no-warnings", `workers/${spec.worker}.mjs`, ...spec.args], 45000, {
     USEFUL_WAITING_API_URL: API_URL,
     AGENT_ID: spec.agentId,
     AGENT_API_KEY: spec.apiKey,
+    WORKER_CAPABILITIES: spec.capabilities.join(","),
   });
   assert(result.code === 0, `${spec.worker} exited ${result.code}: ${compactOutput(result.stderr || result.stdout)}`);
   assert(/proof created|verification result|No eligible open job is available/i.test(result.stdout + result.stderr), `${spec.worker} produced no recognizable outcome`);
