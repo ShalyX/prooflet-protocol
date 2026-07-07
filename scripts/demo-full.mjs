@@ -320,7 +320,7 @@ async function runWorker(spec) {
     WORKER_CAPABILITIES: spec.capabilities.join(","),
   });
   assert(result.code === 0, `${spec.worker} exited ${result.code}: ${compactOutput(result.stderr || result.stdout)}`);
-  assert(/proof created|verification result|No eligible open job is available/i.test(result.stdout + result.stderr), `${spec.worker} produced no recognizable outcome`);
+  assert(/proof created|verification result|no eligible job|all ranked jobs exhausted|No eligible open job is available/i.test(result.stdout + result.stderr), `${spec.worker} produced no recognizable outcome`);
   return { ...result, worker: spec.worker };
 }
 

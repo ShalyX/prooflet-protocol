@@ -37,6 +37,4 @@ Ask testers to note whether the landing page, dashboard, proof packet, and dry-r
 
 ## Pending Settlement Evidence
 
-External hosted run evidence has been received. Remaining item before claiming paid external usage:
-
-- Optional after proof is payable: tiny Arc Testnet USDC execute from a local operator/treasury environment using `npm run settlement:remote:execute`, then replace `FRESH_DEMO_TX_HASH_HERE` in submission docs.
+External hosted run evidence has been received. Optional tiny Arc Testnet USDC execution can be performed from a local operator/treasury environment with `npm run settlement:remote:execute`; dry-run evidence remains the default public-safe path.

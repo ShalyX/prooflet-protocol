@@ -100,8 +100,6 @@ Original transaction hashes remain unchanged:
 - `0x9ad7d702921178fc1c396bd6e0db2e862a0d3f6c87223a20d018237aeb6cde3d`
 - `0x3a68ec718ca3390f10a44a7435a78431dda0549ad14be1cc48088d5e91fa4e0a`
 
-Fresh demo settlement tx hash, if execute mode is intentionally run during recording: `FRESH_DEMO_TX_HASH_HERE`.
-
 The historical batch is preserved. Dry-run sends nothing. Execute mode sends Arc Testnet USDC only and should only be run with explicit confirmation and tiny testnet amounts.
 
 ## Safety Properties

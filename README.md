@@ -45,10 +45,6 @@ Prooflet includes deployed Escrow V1 on Arc Testnet, funded and released in a co
 | Agent Payout | `0xC2094270dc7d17C1578a975dd1Aa50578c034Be4` |
 | Arcscan | [Escrow](https://testnet.arcscan.app/address/0xb3397ce196ebf553b8e951abaf75c18785c7e69a) · [Deploy](https://testnet.arcscan.app/tx/0xcbd471ff0ce264a66583f710ecde3ee67774856e8ae395ace0f34f2151452d3a) · [Fund](https://testnet.arcscan.app/tx/0x2a81fbf3064751319c171726b19eef08880611a49dbd95e500186f9c44404d60) · [Release](https://testnet.arcscan.app/tx/0xed7522a39b15bf9be0a1d94a9ee4d42cc69807d5f4108cb343bb44e514626ef9) |
 
-## Live Demo
-
-The landing page can be hosted publicly as the project entry point. The full protocol flow can run locally from this repo so operator/private keys stay server-side and never enter a browser build. If the API is not hosted publicly, the demo video should show the live local protocol flow with API-connected status, proof creation, settlement dry-run, and preserved Arc Testnet receipts.
-
 ## What Is Implemented
 
 - API-key authenticated issuer and agent registration
@@ -264,8 +260,6 @@ Historical evidence preserved in SQLite:
 - `agent_byte`: [Arcscan receipt](https://testnet.arcscan.app/tx/0x9ad7d702921178fc1c396bd6e0db2e862a0d3f6c87223a20d018237aeb6cde3d)
 - `agent_lynx`: [Arcscan receipt](https://testnet.arcscan.app/tx/0x3a68ec718ca3390f10a44a7435a78431dda0549ad14be1cc48088d5e91fa4e0a)
 
-Fresh demo settlement tx hash, if execute mode is intentionally run during recording: `FRESH_DEMO_TX_HASH_HERE`.
-
 The historical batch is preserved and should not be rewritten. Dry-run sends nothing. Execute mode sends Arc Testnet USDC only, never mainnet funds.
 
 ## Local SDKs
@@ -398,5 +392,3 @@ circle-cli --help
 The Circle CLI provides agent wallets, x402-compatible payments, and cross-chain USDC transfers. See [Circle Agent Stack docs](https://developers.circle.com/agent-stack/circle-cli).
 
 See [docs/LIMITATIONS.md](docs/LIMITATIONS.md) for the complete list.
-
-For the exact 60-90 second recording sequence, see [docs/RECORDING.md](docs/RECORDING.md).
