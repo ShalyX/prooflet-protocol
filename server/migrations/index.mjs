@@ -207,6 +207,13 @@ export const migrations = [
         `);
       },
     },
+    {
+      version: 13,
+      name: "revoke_source_visible_development_credentials",
+      up(db) {
+        revokeSourceVisibleDevelopmentCredentials(db);
+      },
+    },
       ];
 
 export function runMigrations(db) {
@@ -224,6 +231,22 @@ export function runMigrations(db) {
       throw error;
     }
   }
+}
+
+export function revokeSourceVisibleDevelopmentCredentials(db) {
+  db.exec(`
+    DELETE FROM api_keys WHERE key_hash IN (
+      'ac5aa45be82d1f55f17cdb2cade05fc317495b7e5b3d9fb679a9a9035ceba16d',
+      'eea7abc62e1cfd4b0da6dd0a41ca99a0588936ad910a63ab85802d80bedf1b4b',
+      '5eed4695680fa06342e5545cc42c39739d4ae9ee110245dd1319d4ffbe193521',
+      '703a41c46698349beb125a2450651411125511aa1ed6ae725d0d136c1346d241',
+      'cf88528fbf5a409e76facc2ad8f45b86b8b20cf6a290e354edbfc5c58d1be76e'
+    );
+    DELETE FROM adjudicator_api_keys WHERE key_hash IN (
+      '249f1c791fbf7933f06e8ac353fbc91ce3b21c8a266f17fa7b050df607cc095c',
+      '874171490aeb3bb4e80a89444c875fa94e63f1d36626157af01e4c24efcfe105'
+    );
+  `);
 }
 
 function addColumn(db, table, column, definition) {

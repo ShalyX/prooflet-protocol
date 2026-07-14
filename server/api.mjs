@@ -6,7 +6,7 @@ import { formatUnits, isAddress, parseUnits } from "viem";
 import { authenticate, generateApiKey, storeApiKey } from "./auth.mjs";
 import { authenticateAdjudicator } from "./auth.mjs";
 import { createAgentWallet, createIssuerWallet, getCircleStatus, isCircleConfigured, getWalletBalance, sendUsdc, getWalletDetails } from "./circle-wallet.mjs";
-import { expireLeases, json, openDatabase, parseJson, withTransaction } from "./db.mjs";
+import { databaseStorageStatus, expireLeases, json, openDatabase, parseJson, withTransaction } from "./db.mjs";
 import { seedDatabase } from "./seed.mjs";
 import { createSettlementBatch, recordSettledBatch, settlementSummary } from "./settlement.mjs";
 import { canonicalJson, proofFingerprint, verifyProof } from "./verifiers.mjs";
@@ -25,25 +25,56 @@ export function createApp({
   db = openDatabase(),
   walletService = { createAgentWallet, createIssuerWallet, getCircleStatus, isCircleConfigured, getWalletBalance, sendUsdc, getWalletDetails },
   gatewayMiddleware = createGatewayMiddleware(gatewayConfig()),
+  seedDemoData = shouldSeedDemoData(),
 } = {}) {
   const circle = walletService;
-  seedDatabase(db);
-  backfillReputation(db);
+  if (seedDemoData) {
+    seedDatabase(db);
+    backfillReputation(db);
+  }
   const app = express();
   const gateway = gatewayMiddleware;
   app.disable("x-powered-by");
   app.use(express.json({ limit: "3mb" }));
   app.use((request, response, next) => {
+    const suppliedRequestId = request.get("x-request-id");
+    const clientRequestId = suppliedRequestId && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(suppliedRequestId)
+      ? suppliedRequestId
+      : null;
+    const requestId = randomUUID();
+    request.requestId = requestId;
+    request.clientRequestId = clientRequestId;
     response.set({
-      "Access-Control-Allow-Origin": request.get("origin") || "*",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization, X-API-Key",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization, X-API-Key, X-Request-Id",
       "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+      "X-Request-Id": requestId,
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY",
+      "Referrer-Policy": "no-referrer",
+      "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
     });
+    const origin = request.get("origin");
+    if (origin) {
+      response.vary("Origin");
+      if (allowedOrigins().has(origin)) response.set("Access-Control-Allow-Origin", origin);
+    }
     if (request.method === "OPTIONS") return response.sendStatus(204);
     next();
   });
 
-  app.get("/health", (_request, response) => response.json({ ok: true, protocol: "Prooflet", version: "v0" }));
+  app.get("/health", (request, response) => {
+    response.set("Cache-Control", "no-store");
+    const migrationVersion = db.prepare("SELECT COALESCE(MAX(version), 0) AS version FROM schema_migrations").get().version;
+    const foreignKeys = db.prepare("PRAGMA foreign_keys").get().foreign_keys === 1;
+    response.json({
+      ok: true,
+      protocol: "Prooflet",
+      version: "v0",
+      requestId: request.requestId,
+      database: { connected: true, migrationVersion, foreignKeys },
+      storage: databaseStorageStatus(),
+    });
+  });
 
   app.post("/issuers/register", async (request, response) => {
     let { issuerId, name, treasuryAddress = null, email = null, description = null } = request.body || {};
@@ -67,7 +98,7 @@ export function createApp({
       walletProvisioning = {
         status: "failed",
         code: err.code || "CIRCLE_WALLET_CREATE_FAILED",
-        message: err.code ? err.message : "Circle issuer wallet could not be created. Check server Circle configuration."
+        message: "Circle issuer wallet could not be created. Check server Circle configuration."
       };
     }
 
@@ -108,7 +139,7 @@ export function createApp({
          issuer.circle_wallet_id = wallet.walletId;
          return response.json({ wallet: { walletId: wallet.walletId, address: wallet.address, balance: "0" }, walletProvisioning: { status: "success" } });
        } catch (e) {
-         return response.json({ wallet: null, walletProvisioning: { status: "failed", code: e.code || "CIRCLE_WALLET_CREATE_FAILED", message: e.code ? e.message : "Circle issuer wallet could not be created. Check server Circle configuration." } });
+         return response.json({ wallet: null, walletProvisioning: { status: "failed", code: e.code || "CIRCLE_WALLET_CREATE_FAILED", message: "Circle issuer wallet could not be created. Check server Circle configuration." } });
        }
     }
 
@@ -129,7 +160,7 @@ export function createApp({
       db.prepare("UPDATE issuers SET circle_wallet_id = ? WHERE issuer_id = ?").run(wallet.walletId, issuerId);
       response.json({ wallet: { walletId: wallet.walletId, address: wallet.address, balance: "0" }, walletProvisioning: { status: "success" } });
     } catch (e) {
-      response.json({ wallet: null, walletProvisioning: { status: "failed", code: e.code || "CIRCLE_WALLET_CREATE_FAILED", message: e.code ? e.message : "Circle issuer wallet could not be created. Check server Circle configuration." } });
+      response.json({ wallet: null, walletProvisioning: { status: "failed", code: e.code || "CIRCLE_WALLET_CREATE_FAILED", message: "Circle issuer wallet could not be created. Check server Circle configuration." } });
     }
   });
 
@@ -207,7 +238,7 @@ export function createApp({
         walletProvisioning = {
           status: "failed",
           code: walletError.code || "CIRCLE_WALLET_CREATE_FAILED",
-          message: walletError.code ? walletError.message : "Circle wallet could not be created. Check server Circle configuration.",
+          message: "Circle wallet could not be created. Check server Circle configuration.",
         };
         circleWallet = null;
         if (!hasFallbackPayout) {
@@ -667,12 +698,26 @@ export function createApp({
     response.json({ ...result, payment: result.paid ? serializeAccessPayment(getAccessPayment(db, request.params.jobId, agentId)) : null });
   });
 
-  app.use((error, _request, response, _next) => {
+  app.use((error, request, response, _next) => {
     const status = error.status || 500;
-    if (status >= 500) console.error(error.stack || error);
-    response.status(status).json({ error: error.message || "Internal server error.", ...(error.code ? { code: error.code } : {}), ...(error.payment ? { payment: error.payment } : {}), ...(error.eligibility ? { eligibility: error.eligibility } : {}), ...(error.walletProvisioning ? { walletProvisioning: error.walletProvisioning } : {}) });
+    if (status >= 500 && error.expose !== true) {
+      console.error(`[${request.requestId}]`, error.stack || error);
+      return response.status(status).json({ error: "Internal server error.", code: "internal_error", requestId: request.requestId });
+    }
+    if (status >= 500) console.error(`[${request.requestId}]`, error.stack || error);
+    response.status(status).json({ error: error.message || "Request failed.", requestId: request.requestId, ...(error.code ? { code: error.code } : {}), ...(error.payment ? { payment: error.payment } : {}), ...(error.eligibility ? { eligibility: error.eligibility } : {}), ...(error.walletProvisioning ? { walletProvisioning: error.walletProvisioning } : {}) });
   });
   return { app, db };
+}
+
+function allowedOrigins(env = process.env) {
+  const configured = env["PROOFLET_ALLOWED_ORIGINS"] || "https://prooflet.xyz,https://www.prooflet.xyz,http://127.0.0.1:5173,http://localhost:5173";
+  return new Set(configured.split(",").map((item) => item.trim()).filter(Boolean));
+}
+
+function shouldSeedDemoData(env = process.env) {
+  if (env["PROOFLET_SEED_DEMO_DATA"] !== undefined) return env["PROOFLET_SEED_DEMO_DATA"] === "true";
+  return env["NODE_ENV"] !== "production";
 }
 
 function buildDashboard(db, circle) {
@@ -690,7 +735,7 @@ function buildDashboard(db, circle) {
   return {
     protocol: "Prooflet",
     version: "v0",
-    issuer: { issuerId: issuer.issuer_id, name: issuer.name, treasuryAddress: issuer.treasury_address },
+    issuer: issuer ? { issuerId: issuer.issuer_id, name: issuer.name, treasuryAddress: issuer.treasury_address } : null,
     treasury: { network: "Arc Testnet", asset: "USDC", reservedRewards: reserved, pendingPayout: sum("payable"), paidOut: sum("paid") },
     agents,
     jobs,
@@ -824,6 +869,7 @@ function normalizedReward(value) {
 function httpError(status, message, details = null) {
   const error = new Error(message);
   error.status = status;
+  error.expose = status < 500;
   if (details) error.walletProvisioning = details;
   return error;
 }
