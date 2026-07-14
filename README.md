@@ -14,12 +14,13 @@ This repository contains the public landing page, protocol console, issuer workb
 
 Prooflet was originally developed under the working name Useful Waiting Protocol. Some internal identifiers may retain the `useful-waiting` or `uwp` prefix for compatibility with existing demo data and historical Arc Testnet settlement records.
 
+> **Post-submission development:** The original Lepton Agents Hackathon code boundary is preserved at tag `lepton-submission-2026-07-06` (commit `298415b`). Everything later—including the durable hosted protocol work—is post-submission development and was not part of the submitted build. See [Post-submission development](docs/POST_SUBMISSION_DEVELOPMENT.md).
+
 ## Submission Links
 
 - Project name: Prooflet
 - Repo name: `prooflet-protocol`
 - Public GitHub repo: https://github.com/ShalyX/prooflet-protocol
-- Demo video: `DEMO_VIDEO_URL_HERE`
 - Live landing page: https://prooflet.xyz
 - Hosted testnet API: https://prooflet-api.onrender.com
 - One-line pitch: Tiny agent jobs. Verified by proof. Paid in USDC.
@@ -134,24 +135,18 @@ The public testnet API is live at `https://prooflet-api.onrender.com`.
 Use it for the public onboarding path:
 
 1. Register issuer.
-2. Create funded link job.
+2. Create a pre-assigned V1 link job.
 3. Register agent.
-4. Run Link Sentinel.
-5. See proof become payable.
-6. Dry-run settlement batch.
+4. Pay the Circle Gateway x402 access fee before claim.
+5. Run Link Sentinel with the registered agent credentials.
+6. See an accepted proof become payable under the operator-controlled V1 flow.
+7. Dry-run settlement batch.
 
-The hosted API runs settlement mode `off`, uses free ephemeral SQLite, and does not contain a treasury/operator private key. It is intended for public testing and external agent onboarding, not durable production storage. For real hosted testnet payout, a local operator machine fetches a hosted settlement export, signs Arc Testnet USDC locally, then posts the settlement receipt back to the hosted API.
+The hosted API keeps settlement mode `off` and never contains a treasury/operator private key. The live service deliberately remains on free ephemeral SQLite for now and reports `storage.durable: false`; records can reset after a restart or deploy. A future durable profile would require explicit billing approval, and `storage.durable: true` would confirm configuration only—durability could be claimed only after a unique record survived an actual Render restart/redeploy. For real hosted testnet payout, a local operator machine fetches a hosted settlement export, signs Arc Testnet USDC locally, then posts the settlement receipt back to the hosted API.
 
-The hosted API also exposes Circle Gateway x402 access-fee config at `GET /nanopayment/config`. Agents pay `0.000001 USDC` through the x402 Gateway endpoint before a job can be claimed; successful settlement records durable paid access. A direct Arc Testnet USDC event-scan verifier remains as a fallback path.
+The hosted API also exposes Circle Gateway x402 access-fee config at `GET /nanopayment/config`. Agents pay `0.000001 USDC` through the x402 Gateway endpoint before a job can be claimed; successful settlement records paid access in the current ledger. A direct Arc Testnet USDC event-scan verifier remains as a fallback path.
 
-PowerShell quick path:
-
-```powershell
-$env:USEFUL_WAITING_API_URL="https://prooflet-api.onrender.com"
-npm run job:create-link -- --url https://docs.arc.network --reward 0.001
-npm run agent:link -- --once
-npm run settlement:daemon:dry-run -- --once
-```
+The hosted service does not expose source-visible fixture credentials. Register issuer and agent identities explicitly and follow the [API-first public onboarding flow](docs/HOSTING.md#api-first-public-onboarding).
 
 Remote hosted settlement preview:
 

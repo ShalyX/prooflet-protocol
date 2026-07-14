@@ -2,6 +2,7 @@ node_modules
 dist
 outputs
 recordings
+backups
 coverage
 .cache
 .vite
@@ -16,6 +17,7 @@ coverage
 *.tmp
 *.sqlite
 *.sqlite-*
+*.restore-*
 *.db
 *.db-*
 settlement/agent-addresses.json

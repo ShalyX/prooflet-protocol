@@ -50,7 +50,7 @@ Prooflet is a test-phase protocol and has not received a production security aud
 
 1. Review payout plans in dry-run before every execute session.
 2. Use tiny Arc Testnet amounts and separately controlled recipient wallets.
-3. Stop API, workers, and daemon before copying SQLite backups; copy the database with its `-wal` and `-shm` companions.
+3. Create backups with `npm run db:backup -- --output <unique-path>.sqlite`; retain the generated manifest and copy both files off-service. Restore only the manifest-backed artifact while the API, workers, and daemon are stopped. Raw database/sidecar copies are not accepted by the supported restore command.
 4. Rotate any API, Circle, treasury, or operator credential that appears in logs or screenshots.
 5. Run `npm run submission:check` and `npm audit` before demos and releases.
 
