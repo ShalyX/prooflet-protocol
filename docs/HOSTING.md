@@ -1,20 +1,21 @@
 # Hosted API Notes
 
-Prooflet can run its public API on Render as a free Node web service using `render.yaml`.
+Prooflet's public API runs on Render's free/ephemeral profile. The paid persistent-disk rollout is intentionally deferred; `render.yaml` remains free-tier configuration.
 
 Hosted API: `https://prooflet-api.onrender.com`
 
-## Render Free API
+## Render API
 
 The Blueprint deploys one service:
 
 - Service: `prooflet-api`
 - Runtime: Node
-- Plan: free
+- Plan: Free
+- Instances: one API writer
 - Start command: `node --no-warnings server/api.mjs`
 - Health check: `/health`
 - Settlement mode: `off`
-- Database path: `/tmp/prooflet.sqlite`
+- Database path: `/tmp/prooflet.sqlite` (ephemeral)
 
 This is intentionally safe for public onboarding:
 
@@ -22,7 +23,33 @@ This is intentionally safe for public onboarding:
 - No Arc Testnet execute flow runs on Render.
 - The API can register issuers/agents, attempt Circle W3S wallet provisioning when configured, create jobs, require Circle Gateway x402 access fees before claims, submit proofs, and export dry-run settlement batches.
 
-The free service uses ephemeral SQLite storage. It is enough for a public testnet onboarding session, but records may be reset after deploys or service restarts. For durable hosted usage, move persistence to Neon Postgres or attach a paid Render disk before inviting sustained external users.
+The current service deliberately reports `storage.durable: false`. Registrations, jobs, proofs, and access records can disappear after a restart or deploy. The post-submission code includes fail-closed persistent-path validation and backup/restore tooling for a future durable profile, but no paid disk is configured.
+
+The free hosted profile can be checked with:
+
+```bash
+PROOFLET_SMOKE_URL=https://prooflet-api.onrender.com \
+npm run smoke:hosted
+```
+
+This check must continue to report `storage.durable: false` on the free profile. If a durable profile is approved later, configuration alone is still insufficient: a unique record must survive an actual restart/redeploy before durability is claimed.
+
+For a future persistent-disk deployment, the disk remains a single failure domain. Online backups would also need to be copied off-service.
+
+## Deferred paid-disk cutover reference
+
+Do not execute this section while the project is staying on the free plan. A future cutover requires explicit approval for paid compute, disk, and a maintenance window.
+
+1. Record fresh `/dashboard`, `/agents`, `/jobs`, and `/proofs` inventories and stop public writes.
+2. Compare them with the audited submission fixtures (4 agents, 6 jobs, 4 proofs). If any non-fixture record exists, stop the cutover and export it before changing the database path.
+3. If the ledger is fixture-only, intentionally start the durable ledger clean. Do not copy the known development credentials or synthetic settlement history into production.
+4. Apply the Blueprint, paid plan, and `/var/data` disk.
+5. Confirm migration 13 is present, production seeding is false, and no source-visible development key authenticates.
+6. Run the hosted configuration smoke check and create a uniquely identified test record.
+7. Restart/redeploy Render and verify that record plus all post-cutover counts survive unchanged.
+8. Create a manifest-backed backup, copy both files off-service, and retain a rollback record of the pre-cutover inventory.
+
+Rollback before accepting new writes means restoring the previous service configuration and acknowledging that its `/tmp` ledger is ephemeral. After accepting new writes, rollback must preserve the durable database; never point the service back to `/tmp` as if it contained the authoritative ledger.
 
 ## Render Environment Variables
 
@@ -42,38 +69,16 @@ Do **not** put private signing keys on Render for the public test deployment. Se
 ## Public Onboarding Flow
 
 1. Register issuer.
-2. Create funded link job.
+2. Create a pre-assigned V1 link job.
 3. Register agent.
-4. Run Link Sentinel against the hosted API.
-5. See proof become payable.
-6. Export the hosted settlement batch.
-7. Sign/send Arc Testnet USDC locally from the operator wallet if execute is intentionally enabled.
-8. Post the settlement receipt back to the hosted API.
-9. Check `/nanopayment/config` and pay the Gateway x402 job-access fee before claim.
+4. Check `/nanopayment/config` and pay the Circle Gateway x402 access fee before claim.
+5. Run Link Sentinel against the hosted API.
+6. See an accepted proof become payable under the V1 operator-controlled flow.
+7. Export the hosted settlement batch.
+8. Sign/send Arc Testnet USDC locally from the operator wallet if execute is intentionally enabled.
+9. Post the settlement receipt back to the hosted API.
 
 Workers should point `USEFUL_WAITING_API_URL` at the Render API URL.
-
-## Quick Hosted CLI Path
-
-PowerShell:
-
-```powershell
-$env:USEFUL_WAITING_API_URL="https://prooflet-api.onrender.com"
-npm run job:create-link -- --url https://docs.arc.network --reward 0.001
-npm run agent:link -- --once
-npm run settlement:daemon:dry-run -- --once
-```
-
-Bash:
-
-```bash
-export USEFUL_WAITING_API_URL="https://prooflet-api.onrender.com"
-npm run job:create-link -- --url https://docs.arc.network --reward 0.001
-npm run agent:link -- --once
-npm run settlement:daemon:dry-run -- --once
-```
-
-The CLI path uses the seeded Prooflet issuer and seeded Link Sentinel agent. For external testers who want their own identities, use the registration endpoints below.
 
 ## API-First Public Onboarding
 
@@ -91,7 +96,7 @@ curl -s -X POST "$API/issuers/register" \
   -d '{"issuerId":"issuer_demo_alex","name":"Demo Issuer","treasuryAddress":"0x0000000000000000000000000000000000000011"}'
 ```
 
-Create funded link job using the returned issuer API key:
+Create a pre-assigned V1 link job using the returned issuer API key:
 
 ```bash
 curl -s -X POST "$API/jobs" \

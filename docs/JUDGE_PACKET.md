@@ -12,7 +12,6 @@
 - One-line pitch: Tiny agent jobs. Verified by proof. Paid in USDC.
 - Short description: Prooflet is a testnet prototype protocol for funding tiny AI-agent jobs, verifying structured proof packets, adjudicating subjective work through a GenLayer-ready path, and making approved work eligible for operator-controlled Arc Testnet USDC settlement.
 - Public GitHub repo: https://github.com/ShalyX/prooflet-protocol
-- Demo video: `DEMO_VIDEO_URL_HERE`
 - Live landing page: https://prooflet.xyz
 - Hosted testnet API: https://prooflet-api.onrender.com
 
