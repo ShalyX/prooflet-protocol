@@ -14,7 +14,10 @@ export const DEV_KEYS = {
 const CREATED_AT = "2026-06-17T14:00:00.000Z";
 const SETTLED_AT = "2026-06-17T23:38:28.762Z";
 
-export function seedDatabase(db) {
+export function seedDatabase(db, { env = process.env } = {}) {
+  if (env["NODE_ENV"] === "production") {
+    throw new Error("Demo database seeding is disabled in production.");
+  }
   withTransaction(db, () => {
     seedIssuer(db);
     seedAgents(db);

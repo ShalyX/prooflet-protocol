@@ -1,7 +1,7 @@
 import { erc20Abi } from "viem";
 import { mkdir, writeFile } from "node:fs/promises";
 import { openDatabase } from "../server/db.mjs";
-import { seedDatabase } from "../server/seed.mjs";
+
 import { recordSettledBatch } from "../server/settlement.mjs";
 import {
   ARC_CHAIN_ID,
@@ -25,7 +25,6 @@ const privateKey = process.env.TREASURY_PRIVATE_KEY || process.env.PRIVATE_KEY;
 const treasuryAddress = process.env.TREASURY_ADDRESS;
 const stateFile = process.env.SETTLEMENT_STATE_FILE || "settlement/settlement-state.json";
 const db = openDatabase();
-seedDatabase(db);
 
 if (execute && process.env.CONFIRM_ARC_TESTNET_USDC_SEND !== "true") {
   throw new Error("Set CONFIRM_ARC_TESTNET_USDC_SEND=true in .env to execute transfers. Dry-run works without it.");
