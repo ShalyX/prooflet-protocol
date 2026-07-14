@@ -221,5 +221,5 @@ function serializeRequest(row, decision) {
 }
 function positiveInt(value, fallback) { const number = Number(value || fallback); return Number.isInteger(number) && number > 0 ? number : fallback; }
 function withTimeout(promise, timeoutMs, message) { return Promise.race([promise, new Promise((_, reject) => setTimeout(() => reject(new Error(message)), timeoutMs))]); }
-function genLayerError(status, code, message) { const error = new Error(message); error.status = status; error.code = code; return error; }
-function normalizeGenLayerError(error) { return error?.code ? error : genLayerError(502, "genlayer_request_failed", String(error?.message || error)); }
+function genLayerError(status, code, message) { const error = new Error(message); error.status = status; error.code = code; error.expose = true; return error; }
+function normalizeGenLayerError(error) { return error?.expose === true ? error : genLayerError(502, "genlayer_request_failed", "GenLayer request failed."); }

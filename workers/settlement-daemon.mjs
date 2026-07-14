@@ -2,7 +2,7 @@ import { erc20Abi, formatUnits, http, isAddress, parseUnits, createPublicClient,
 import { privateKeyToAccount } from "viem/accounts";
 import { arcTestnet } from "viem/chains";
 import { json, openDatabase, withTransaction } from "../server/db.mjs";
-import { seedDatabase } from "../server/seed.mjs";
+
 import { ARC_CHAIN_ID, createSettlementBatch } from "../server/settlement.mjs";
 import { appendReputationEvent } from "../server/reputation.mjs";
 
@@ -30,7 +30,6 @@ const config = {
 
 validateConfig();
 const db = openDatabase();
-seedDatabase(db);
 const publicClient = createPublicClient({ chain: arcTestnet, transport: http(config.rpcUrl, { timeout: 10000 }) });
 
 try {
