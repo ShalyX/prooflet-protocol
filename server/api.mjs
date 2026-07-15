@@ -366,8 +366,9 @@ export function createApp({
           apiKey,
           createdAt: now,
         });
-        await appendReputationEvent(db, { eventId: `registered:${agentId}`, agentId, eventType: "agent_registered", createdAt: now });
       });
+      // After commit: reputation event must see the agent row (Postgres FK).
+      await appendReputationEvent(db, { eventId: `registered:${agentId}`, agentId, eventType: "agent_registered", createdAt: now });
     } catch (error) {
       if (error?.code === "UNIQUE_VIOLATION" || String(error.message).includes("UNIQUE")) {
         throw httpError(409, `Agent ${agentId} already exists.`);
@@ -438,8 +439,8 @@ export function createApp({
           apiKey,
           createdAt: now,
         });
-        await appendReputationEvent(db, { eventId: `registered:${agentId}`, agentId, eventType: "agent_registered", createdAt: now });
       });
+      await appendReputationEvent(db, { eventId: `registered:${agentId}`, agentId, eventType: "agent_registered", createdAt: now });
     } catch (error) {
       if (error?.code === "UNIQUE_VIOLATION" || String(error.message).includes("UNIQUE")) {
         throw httpError(409, `Agent ${agentId} already exists.`);
