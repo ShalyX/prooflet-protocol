@@ -77,9 +77,9 @@ export function gatewayConfig() {
   };
 }
 
-export function recordAccessPayment(db, { jobId, agentId, rail, amount = ACCESS_FEE_USDC, payerAddress = null, txHash = null, gatewayTransactionId = null, network = NETWORK, metadata = {} }) {
+export async function recordAccessPayment(db, { jobId, agentId, rail, amount = ACCESS_FEE_USDC, payerAddress = null, txHash = null, gatewayTransactionId = null, network = NETWORK, metadata = {} }) {
   const now = new Date().toISOString();
-  db.prepare(`
+  await Promise.resolve(db.prepare(`
     INSERT INTO job_access_payments
       (job_id, agent_id, rail, amount, payer_address, tx_hash, gateway_transaction_id, network, status, metadata_json, created_at, updated_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'paid', ?, ?, ?)
@@ -93,16 +93,16 @@ export function recordAccessPayment(db, { jobId, agentId, rail, amount = ACCESS_
       status='paid',
       metadata_json=excluded.metadata_json,
       updated_at=excluded.updated_at
-  `).run(jobId, agentId, rail, amount, payerAddress, txHash, gatewayTransactionId, network, JSON.stringify(metadata), now, now);
+  `).run(jobId, agentId, rail, amount, payerAddress, txHash, gatewayTransactionId, network, JSON.stringify(metadata), now, now));
   return getAccessPayment(db, jobId, agentId);
 }
 
-export function getAccessPayment(db, jobId, agentId) {
-  return db.prepare("SELECT * FROM job_access_payments WHERE job_id=? AND agent_id=?").get(jobId, agentId) || null;
+export async function getAccessPayment(db, jobId, agentId) {
+  return (await Promise.resolve(db.prepare("SELECT * FROM job_access_payments WHERE job_id=? AND agent_id=?").get(jobId, agentId))) || null;
 }
 
-export function hasPaidAccess(db, jobId, agentId) {
-  return !!db.prepare("SELECT 1 FROM job_access_payments WHERE job_id=? AND agent_id=? AND status='paid'").get(jobId, agentId);
+export async function hasPaidAccess(db, jobId, agentId) {
+  return !!(await Promise.resolve(db.prepare("SELECT 1 FROM job_access_payments WHERE job_id=? AND agent_id=? AND status='paid'").get(jobId, agentId)));
 }
 
 export function serializeAccessPayment(row) {

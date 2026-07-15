@@ -69,7 +69,7 @@ export async function runGenLayerDemo({ decision = readDecision(), quiet = false
     const status = await request(baseUrl, "GET", `/adjudication/genlayer/proofs/${proofId}`, null, DEV_KEYS.genlayerOperator);
     const proof = db.prepare("SELECT funding_status,settlement_status,verification_status FROM proofs WHERE proof_id=?").get(proofId);
     const preparedBatch = proof.funding_status === "payable"
-      ? createSettlementBatch(db, { issuerId: "useful_waiting_protocol", batchId: `genlayer_demo_batch_${suffix}`, proofIds: [proofId] })
+      ? await createSettlementBatch(db, { issuerId: "useful_waiting_protocol", batchId: `genlayer_demo_batch_${suffix}`, proofIds: [proofId] })
       : null;
     const includedInSettlement = Boolean(db.prepare(`SELECT 1 FROM proofs WHERE proof_id=? AND outcome='accepted'
       AND funding_status='payable' AND settlement_status!='Settled on Arc Testnet' AND tx_hash IS NULL`).get(proofId));

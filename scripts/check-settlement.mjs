@@ -14,7 +14,7 @@ try {
   const now = new Date().toISOString();
   db.prepare("INSERT INTO jobs (job_id,issuer_id,job_type,input_json,reward_amount,proof_requirements_json,created_at,updated_at) VALUES ('settlement_check_job','useful_waiting_protocol','link_verification',?,'0.001',?,?,?)").run(json({url:"https://example.com"}),json({}),now,now);
   db.prepare(`INSERT INTO proofs (proof_id,job_id,agent_id,job_type,input_json,result_json,verification_route,proof_timestamp,fingerprint,outcome,funding_status,settlement_status,created_at) VALUES ('settlement_check_proof','settlement_check_job','agent_lynx','link_verification',?,?,?,?,'settlement-check-fingerprint','accepted','payable','Awaiting Arc Testnet settlement',?)`).run(json({url:"https://example.com"}),json({status:200}),"link_verification_v0",now,now);
-  const batch = createSettlementBatch(db,{batchId:"settlement_check_batch"});
+  const batch = await createSettlementBatch(db,{batchId:"settlement_check_batch"});
   assert.deepEqual(batch.proofs.map((proof)=>proof.proofId),["settlement_check_proof"]);
   assert.ok(!batch.proofs.some((proof)=>["paid","rejected"].includes(proof.fundingStatus)));
   const first=db.prepare("UPDATE settlement_batches SET status='executing' WHERE batch_id=? AND status='prepared'").run(batch.batchId);

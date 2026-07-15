@@ -66,31 +66,63 @@ export function parseJson(value, fallback = null) {
 }
 
 export function withTransaction(db, operation) {
-  db.exec("BEGIN IMMEDIATE");
-  try {
-    const result = operation();
-    db.exec("COMMIT");
-    return result;
-  } catch (error) {
-    db.exec("ROLLBACK");
-    throw error;
+  const begin = db.exec("BEGIN IMMEDIATE");
+  const start = () => {
+    try {
+      const result = operation();
+      if (result && typeof result.then === "function") {
+        return Promise.resolve(begin).then(() => result).then(
+          async (value) => {
+            await Promise.resolve(db.exec("COMMIT"));
+            return value;
+          },
+          async (error) => {
+            try {
+              await Promise.resolve(db.exec("ROLLBACK"));
+            } catch {
+              // preserve original
+            }
+            throw error;
+          },
+        );
+      }
+      db.exec("COMMIT");
+      return result;
+    } catch (error) {
+      try {
+        db.exec("ROLLBACK");
+      } catch {
+        // preserve original
+      }
+      throw error;
+    }
+  };
+
+  // Async db.exec (postgres proxy) must settle before BEGIN completes.
+  if (begin && typeof begin.then === "function") {
+    return Promise.resolve(begin).then(start, async (error) => {
+      throw error;
+    });
   }
+  return start();
 }
 
-export function expireLeases(db, now = new Date().toISOString()) {
-  const expired = db.prepare(`
+export async function expireLeases(db, now = new Date().toISOString()) {
+  const expired = await Promise.resolve(db.prepare(`
     SELECT job_id FROM job_claims
     WHERE status = 'active' AND lease_expires_at <= ?
-  `).all(now);
+  `).all(now));
 
-  if (expired.length === 0) return 0;
+  if (!expired?.length) return 0;
   const jobIds = expired.map((row) => row.job_id);
   const placeholders = jobIds.map(() => "?").join(",");
-  db.prepare(`UPDATE job_claims SET status = 'expired' WHERE status = 'active' AND job_id IN (${placeholders})`).run(...jobIds);
-  db.prepare(`
+  await Promise.resolve(
+    db.prepare(`UPDATE job_claims SET status = 'expired' WHERE status = 'active' AND job_id IN (${placeholders})`).run(...jobIds),
+  );
+  await Promise.resolve(db.prepare(`
     UPDATE jobs
     SET status = 'open', claimed_by = NULL, lease_expires_at = NULL, updated_at = ?
     WHERE status = 'claimed' AND job_id IN (${placeholders})
-  `).run(now, ...jobIds);
+  `).run(now, ...jobIds));
   return expired.length;
 }
