@@ -1,5 +1,7 @@
 import { createRequire } from "node:module";
 import { openDatabase } from "../db.mjs";
+import { createIdentityRepository } from "./repositories/identity.mjs";
+import { createJobsRepository } from "./repositories/jobs.mjs";
 
 const nodeRequire = createRequire(import.meta.url);
 const DEFAULT_POOL_MAX = 3;
@@ -48,11 +50,11 @@ export function postgresPoolConfig(env = process.env) {
   };
 }
 
-export async function createStore({ env = process.env, sqlite = {}, schema, pool } = {}) {
+export async function createStore({ env = process.env, sqlite = {}, schema, pool, sharePool } = {}) {
   const dialect = resolveDialect(env);
   if (dialect === "postgres") {
     const { createPostgresStore } = await import("./postgres.mjs");
-    return createPostgresStore({ env, schema, pool });
+    return createPostgresStore({ env, schema, pool, sharePool });
   }
   return createSqliteStore({ env, ...sqlite });
 }
@@ -106,7 +108,7 @@ export function createSqliteStore({ env = process.env, path, reset = false } = {
       }
     },
   };
-  return store;
+  return attachRepositories(store);
 }
 
 export async function withPostgresTransaction(pool, operation) {
@@ -168,4 +170,10 @@ function boundedPositiveInteger(value, fallback, maximum) {
   const parsed = Number(value);
   if (!Number.isInteger(parsed) || parsed <= 0) return fallback;
   return Math.min(parsed, maximum);
+}
+
+export function attachRepositories(store) {
+  store.identity = createIdentityRepository(store);
+  store.jobs = createJobsRepository(store);
+  return store;
 }
