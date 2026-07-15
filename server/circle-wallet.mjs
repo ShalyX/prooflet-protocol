@@ -62,21 +62,27 @@ export async function createIssuerWallet(issuerId) {
 export async function sendUsdc(opts) {
   const c = g();
   if (!c) throw new Error("Circle not configured");
+  // Prefer ERC-20 USDC on Arc Testnet (escrow/fund path). Fall back to provided tokenId.
+  const tokenId = opts.tokenId || process.env.CIRCLE_ARC_USDC_TOKEN_ID || "ef87c8c3-85de-598a-af50-c5135eecfa74";
   const r = await c.createTransaction({
     idempotencyKey: opts.idempotencyKey || "send-" + Date.now(),
     walletId: opts.sourceWalletId,
-    tokenId: "USDC-ARC",
+    tokenId,
+    // SDK accepts amount (docs) / amounts (types) — amount is the working shape on this client.
+    amount: [String(opts.amount)],
     amounts: [String(opts.amount)],
     destinationAddress: opts.destinationAddress,
-    fee: { type: "level", config: { feeLevel: "MEDIUM" } },
+    fee: { type: "level", config: { feeLevel: opts.feeLevel || "HIGH" } },
   });
-  const tx = r.data?.transaction;
+  const tx = r.data?.transaction || r.data;
   return tx
     ? {
         transactionId: tx.id,
         state: tx.state,
-        hash: tx.transactionHash || null,
-        explorer: tx.transactionHash ? `https://testnet.arcscan.app/tx/${tx.transactionHash}` : null,
+        hash: tx.txHash || tx.transactionHash || null,
+        explorer: (tx.txHash || tx.transactionHash)
+          ? `https://testnet.arcscan.app/tx/${tx.txHash || tx.transactionHash}`
+          : null,
       }
     : null;
 }
@@ -88,8 +94,7 @@ export async function executeContract({
   abiParameters = [],
   callData = null,
   amount = undefined,
-  idempotencyKey = null,
-  feeLevel = "MEDIUM",
+  feeLevel = "HIGH",
   waitForState = "COMPLETE",
   pollMs = 2500,
   timeoutMs = 180_000,
@@ -121,8 +126,10 @@ export async function executeContract({
     return {
       transactionId: tx.id,
       state: tx.state,
-      hash: tx.transactionHash || null,
-      explorer: tx.transactionHash ? `https://testnet.arcscan.app/tx/${tx.transactionHash}` : null,
+      hash: tx.txHash || tx.transactionHash || null,
+      explorer: (tx.txHash || tx.transactionHash)
+        ? `https://testnet.arcscan.app/tx/${tx.txHash || tx.transactionHash}`
+        : null,
     };
   }
 
@@ -139,14 +146,15 @@ export async function executeContract({
       e.transaction = latest;
       throw e;
     }
-    if (waitForState === "SENT" && latest.transactionHash && ["SENT", "CONFIRMED", "COMPLETE"].includes(state)) break;
+    if (waitForState === "SENT" && (latest.txHash || latest.transactionHash) && ["SENT", "CONFIRMED", "COMPLETE"].includes(state)) break;
     await new Promise((r) => setTimeout(r, pollMs));
   }
+  const hash = latest.txHash || latest.transactionHash || null;
   return {
     transactionId: latest.id || tx.id,
     state: latest.state,
-    hash: latest.transactionHash || null,
-    explorer: latest.transactionHash ? `https://testnet.arcscan.app/tx/${latest.transactionHash}` : null,
+    hash,
+    explorer: hash ? `https://testnet.arcscan.app/tx/${hash}` : null,
     raw: latest,
   };
 }
