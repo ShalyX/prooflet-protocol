@@ -61,6 +61,10 @@ export async function createStore({ env = process.env, sqlite = {}, schema, pool
 
 export function createSqliteStore({ env = process.env, path, reset = false } = {}) {
   const db = openDatabase({ env, path, reset });
+  return createSqliteStoreFromDatabase(db, { ownsConnection: true });
+}
+
+export function createSqliteStoreFromDatabase(db, { ownsConnection = false } = {}) {
   let queue = Promise.resolve();
   let closed = false;
   let closing = false;
@@ -101,7 +105,7 @@ export function createSqliteStore({ env = process.env, path, reset = false } = {
       closing = true;
       try {
         await queue;
-        if (!closed) db.close();
+        if (!closed && ownsConnection) db.close();
       } finally {
         closed = true;
         closing = false;

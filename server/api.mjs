@@ -7,6 +7,7 @@ import { authenticate, generateApiKey, storeApiKey } from "./auth.mjs";
 import { authenticateAdjudicator } from "./auth.mjs";
 import { createAgentWallet, createIssuerWallet, getCircleStatus, isCircleConfigured, getWalletBalance, sendUsdc, getWalletDetails } from "./circle-wallet.mjs";
 import { databaseStorageStatus, expireLeases, json, openDatabase, parseJson, withTransaction } from "./db.mjs";
+import { createSqliteStoreFromDatabase } from "./storage/index.mjs";
 import { seedDatabase } from "./seed.mjs";
 import { createSettlementBatch, recordSettledBatch, settlementSummary } from "./settlement.mjs";
 import { canonicalJson, proofFingerprint, verifyProof } from "./verifiers.mjs";
@@ -23,10 +24,12 @@ import {
 
 export function createApp({
   db = openDatabase(),
+  store,
   walletService = { createAgentWallet, createIssuerWallet, getCircleStatus, isCircleConfigured, getWalletBalance, sendUsdc, getWalletDetails },
   gatewayMiddleware = createGatewayMiddleware(gatewayConfig()),
   seedDemoData = shouldSeedDemoData(),
 } = {}) {
+  const appStore = store || createSqliteStoreFromDatabase(db, { ownsConnection: false });
   const circle = walletService;
   if (seedDemoData) {
     seedDatabase(db);
@@ -103,15 +106,28 @@ export function createApp({
     }
 
     try {
-      withTransaction(db, () => {
-        db.prepare(`
-          INSERT INTO issuers (issuer_id, name, treasury_address, email, description, status, created_at, circle_wallet_id)
-          VALUES (?, ?, ?, ?, ?, 'active', ?, ?)
-        `).run(issuerId, name, treasuryAddress, email, description, now, walletCreated ? walletCreated.walletId : null);
-        storeApiKey(db, "issuer", issuerId, apiKey, now);
+      await appStore.transaction(async (tx) => {
+        await tx.identity.createIssuer({
+          issuerId,
+          name,
+          treasuryAddress,
+          email,
+          description,
+          status: "active",
+          createdAt: now,
+          circleWalletId: walletCreated ? walletCreated.walletId : null,
+        });
+        await tx.identity.storeApiKey({
+          ownerType: "issuer",
+          ownerId: issuerId,
+          apiKey,
+          createdAt: now,
+        });
       });
     } catch (error) {
-      if (String(error.message).includes("UNIQUE")) throw httpError(409, `Issuer ${issuerId} already exists.`);
+      if (error?.code === "UNIQUE_VIOLATION" || String(error.message).includes("UNIQUE")) {
+        throw httpError(409, `Issuer ${issuerId} already exists.`);
+      }
       throw error;
     }
     
@@ -177,7 +193,7 @@ export function createApp({
     throw httpError(400, "Open marketplace funding requires ProofletEscrowV2. Coming soon.");
   });
 
-  app.post("/agents/register", (request, response) => {
+  app.post("/agents/register", async (request, response) => {
     const { agentId: requestedAgentId, handle = null, name, capabilities, payoutAddress, status = "idle", reputationScore = 50 } = request.body || {};
     const agentId = requestedAgentId || generateCanonicalId("agent", db, "agents", "agent_id");
     requireId(agentId, "agentId");
@@ -192,17 +208,30 @@ export function createApp({
     const apiKey = generateApiKey("agent");
     const now = new Date().toISOString();
     try {
-      withTransaction(db, () => {
-        db.prepare(`
-          INSERT INTO agents
-            (agent_id, handle, name, capabilities_json, payout_address, status, reputation_score, created_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(agentId, normalizedHandle, name, json([...new Set(capabilities)]), payoutAddress, status, score, now);
-        storeApiKey(db, "agent", agentId, apiKey, now);
+      await appStore.transaction(async (tx) => {
+        await tx.identity.createAgent({
+          agentId,
+          handle: normalizedHandle,
+          name,
+          capabilities: [...new Set(capabilities)],
+          payoutAddress,
+          status,
+          reputationScore: score,
+          createdAt: now,
+          circleWalletId: null,
+        });
+        await tx.identity.storeApiKey({
+          ownerType: "agent",
+          ownerId: agentId,
+          apiKey,
+          createdAt: now,
+        });
         appendReputationEvent(db, { eventId: `registered:${agentId}`, agentId, eventType: "agent_registered", createdAt: now });
       });
     } catch (error) {
-      if (String(error.message).includes("UNIQUE")) throw httpError(409, `Agent ${agentId} already exists.`);
+      if (error?.code === "UNIQUE_VIOLATION" || String(error.message).includes("UNIQUE")) {
+        throw httpError(409, `Agent ${agentId} already exists.`);
+      }
       throw error;
     }
     response.status(201).json({ agent: { agentId, handle: normalizedHandle, name, capabilities, payoutAddress, status, reputationScore: score }, apiKey });
@@ -251,17 +280,30 @@ export function createApp({
     }
 
     try {
-      withTransaction(db, () => {
-        db.prepare(`
-          INSERT INTO agents
-            (agent_id, handle, name, capabilities_json, payout_address, status, reputation_score, circle_wallet_id, created_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(agentId, normalizedHandle, name, json([...new Set(capabilities)]), finalPayoutAddress, status, score, circleWallet?.walletId || null, now);
-        storeApiKey(db, "agent", agentId, apiKey, now);
+      await appStore.transaction(async (tx) => {
+        await tx.identity.createAgent({
+          agentId,
+          handle: normalizedHandle,
+          name,
+          capabilities: [...new Set(capabilities)],
+          payoutAddress: finalPayoutAddress,
+          status,
+          reputationScore: score,
+          createdAt: now,
+          circleWalletId: circleWallet?.walletId || null,
+        });
+        await tx.identity.storeApiKey({
+          ownerType: "agent",
+          ownerId: agentId,
+          apiKey,
+          createdAt: now,
+        });
         appendReputationEvent(db, { eventId: `registered:${agentId}`, agentId, eventType: "agent_registered", createdAt: now });
       });
     } catch (error) {
-      if (String(error.message).includes("UNIQUE")) throw httpError(409, `Agent ${agentId} already exists.`);
+      if (error?.code === "UNIQUE_VIOLATION" || String(error.message).includes("UNIQUE")) {
+        throw httpError(409, `Agent ${agentId} already exists.`);
+      }
       throw error;
     }
     response.status(201).json({
@@ -272,7 +314,7 @@ export function createApp({
     });
   });
 
-  app.post("/jobs", (request, response) => {
+  app.post("/jobs", async (request, response) => {
     const {
       jobId: requestedJobId, issuerReferenceId = null, issuerId, jobType, input, rewardAmount, rewardAsset = "USDC",
       network = "Arc Testnet", fundingStatus = "reserved", status = "open", proofRequirements, verificationMode = "deterministic",
@@ -295,14 +337,32 @@ export function createApp({
     if (!accessLevel) throw httpError(400, "rewardAmount exceeds the v0 maximum of 0.10 USDC.");
     const now = new Date().toISOString();
     try {
-      db.prepare(`
-        INSERT INTO jobs
-          (job_id, issuer_reference_id, issuer_id, job_type, input_json, reward_amount, reward_asset, network,
-           funding_status, status, proof_requirements_json, verification_mode, required_access_level, funding_rail, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, 'USDC', 'Arc Testnet', ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(jobId, normalizedIssuerReferenceId, issuerId, jobType, json(input), normalizedReward(rewardAmount), fundingStatus, status, json(proofRequirements), verificationMode, accessLevel, fundingRail, now, now);
+      await appStore.transaction(async (tx) => {
+        await tx.jobs.createJob({
+          jobId,
+          issuerReferenceId: normalizedIssuerReferenceId,
+          issuerId,
+          jobType,
+          input,
+          rewardAmount: normalizedReward(rewardAmount),
+          rewardAsset: "USDC",
+          network: "Arc Testnet",
+          fundingStatus,
+          status,
+          proofRequirements,
+          verificationMode,
+          requiredAccessLevel: accessLevel,
+          createdAt: now,
+          updatedAt: now,
+        });
+        if (fundingRail && fundingRail !== "direct_treasury") {
+          db.prepare("UPDATE jobs SET funding_rail = ? WHERE job_id = ?").run(fundingRail, jobId);
+        }
+      });
     } catch (error) {
-      if (String(error.message).includes("UNIQUE")) throw httpError(409, `Job ${jobId} already exists.`);
+      if (error?.code === "UNIQUE_VIOLATION" || String(error.message).includes("UNIQUE")) {
+        throw httpError(409, `Job ${jobId} already exists.`);
+      }
       throw error;
     }
     response.status(201).json({ job: serializeJob(db.prepare("SELECT * FROM jobs WHERE job_id = ?").get(jobId)) });
@@ -325,7 +385,7 @@ export function createApp({
     response.json({ compoundJobs: listCompoundJobs(db) });
   });
 
-  app.post("/agents/:agentId/claim-job", (request, response) => {
+  app.post("/agents/:agentId/claim-job", async (request, response) => {
     const { agentId } = request.params;
     if (!authenticate(db, request, "agent", agentId)) throw httpError(401, "Valid agent API key required.");
     const agent = db.prepare("SELECT * FROM agents WHERE agent_id = ?").get(agentId);
@@ -335,7 +395,7 @@ export function createApp({
     const leaseSeconds = Math.min(Math.max(Number(request.body?.leaseSeconds || 60), 5), 3600);
     if (!Number.isFinite(leaseSeconds)) throw httpError(400, "leaseSeconds must be numeric.");
 
-    const claimed = withTransaction(db, () => {
+    const claimed = await appStore.transaction(async (tx) => {
       expireLeasesWithEvents(db);
       const summary = getReputationSummary(db, agentId);
       const activeLeases = db.prepare("SELECT COUNT(*) AS count FROM job_claims WHERE agent_id=? AND status='active'").get(agentId).count;
@@ -360,15 +420,26 @@ export function createApp({
       }
       const claimedAt = new Date();
       const leaseExpiresAt = new Date(claimedAt.getTime() + leaseSeconds * 1000).toISOString();
-      db.prepare(`
-        UPDATE jobs SET status = 'claimed', claimed_by = ?, lease_expires_at = ?, updated_at = ?
-        WHERE job_id = ? AND status = 'open'
-      `).run(agentId, leaseExpiresAt, claimedAt.toISOString(), job.job_id);
       const accessPayment = getAccessPayment(db, job.job_id, agentId);
-      db.prepare(`
-        INSERT INTO job_claims (job_id, agent_id, claimed_at, lease_expires_at, status, claim_access_rail, claim_access_price, claim_access_status, claim_access_tx_hash)
-        VALUES (?, ?, ?, ?, 'active', ?, ?, 'paid', ?)
-      `).run(job.job_id, agentId, claimedAt.toISOString(), leaseExpiresAt, accessPayment?.rail || "circle_gateway_x402", accessPayment?.amount || "0.000001", accessPayment?.tx_hash || accessPayment?.gateway_transaction_id || null);
+      try {
+        await tx.jobs.claimJob({
+          jobId: job.job_id,
+          agentId,
+          claimedAt: claimedAt.toISOString(),
+          leaseExpiresAt,
+          access: {
+            rail: accessPayment?.rail || "circle_gateway_x402",
+            price: accessPayment?.amount || "0.000001",
+            status: "paid",
+            txHash: accessPayment?.tx_hash || accessPayment?.gateway_transaction_id || null,
+          },
+        });
+      } catch (error) {
+        if (error?.code === "JOB_NOT_CLAIMABLE") {
+          throw httpError(409, `Job ${job.job_id} is not open.`);
+        }
+        throw error;
+      }
       appendReputationEvent(db, { agentId, eventType: "job_claimed", jobId: job.job_id, issuerId: job.issuer_id, createdAt: claimedAt.toISOString() });
       return db.prepare("SELECT * FROM jobs WHERE job_id = ?").get(job.job_id);
     });
@@ -707,7 +778,7 @@ export function createApp({
     if (status >= 500) console.error(`[${request.requestId}]`, error.stack || error);
     response.status(status).json({ error: error.message || "Request failed.", requestId: request.requestId, ...(error.code ? { code: error.code } : {}), ...(error.payment ? { payment: error.payment } : {}), ...(error.eligibility ? { eligibility: error.eligibility } : {}), ...(error.walletProvisioning ? { walletProvisioning: error.walletProvisioning } : {}) });
   });
-  return { app, db };
+  return { app, db, store: appStore };
 }
 
 function allowedOrigins(env = process.env) {
