@@ -12,6 +12,6 @@ Prooflet is a hackathon/test-phase implementation. Current limitations are expli
 - **The system is not production audited.** API, database, key management, worker, and settlement code require professional security review before production use.
 - **No mainnet support.** The UI, documentation, scripts, and settlement checks describe testnet value only.
 - **Local development keys are convenience credentials.** Production seeding is disabled, and known source-visible development key hashes are revoked during migration and every production database open.
-- **Frontend fallback data is demonstrative.** Authoritative job, proof, reputation, and settlement state comes from the API/SQLite path when connected.
+- **Frontend replay data is demonstrative and isolated.** Current job, proof, reputation, treasury, and settlement state comes only from the connected API. API failure renders unavailable state rather than fixtures. Historical Lepton settlement receipts are labeled archived/committed evidence, while synthetic worker controls require explicit browser-only replay mode.
 
 These constraints keep the submission honest: the project demonstrates a working agent micro-labor and Arc Testnet settlement protocol without presenting hackathon infrastructure as a production financial system.

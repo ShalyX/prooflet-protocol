@@ -1853,3 +1853,28 @@ input[type="file"]::-webkit-file-upload-button {
   .proof-console-row { grid-template-columns: 34px 1fr; }
   .proof-console-row strong { grid-column: 2; }
 }
+
+.truth-state {
+  border: 1px solid rgba(126, 226, 168, .35);
+  background: rgba(126, 226, 168, .08);
+  color: var(--text);
+  font-weight: 800;
+}
+.truth-state[data-mode="unavailable"] { border-color: rgba(255, 120, 120, .4); background: rgba(255, 120, 120, .08); }
+.truth-state[data-mode="replay"] { border-color: rgba(242, 169, 59, .45); background: rgba(242, 169, 59, .08); }
+.replay-note { color: var(--muted); font-size: .72rem; }
+body:not([data-app-mode="replay"]) .replay-note { display: none; }
+.archive-evidence {
+  border: 1px solid rgba(242, 169, 59, .4);
+  background: rgba(242, 169, 59, .06);
+  padding: 18px;
+  display: grid;
+  gap: 12px;
+}
+.archive-evidence header,
+.archive-evidence div,
+.archive-evidence li { display: flex; justify-content: space-between; gap: 16px; align-items: center; }
+.archive-evidence header { padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+.archive-evidence header span { color: var(--amber); font-weight: 900; }
+.archive-evidence ul { display: grid; gap: 8px; list-style: none; margin: 0; padding: 0; }
+.archive-evidence a { color: var(--mint); }
