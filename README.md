@@ -124,7 +124,7 @@ npm run api
 npm run dev
 ```
 
-Open `/` for the public demo, `/dashboard` for protocol state, or `/issuer` for the issuer workbench. The frontend uses local fallback data if the API is unavailable; API-connected labels make the active mode visible.
+Open `/` for the public product surface, `/dashboard` for current protocol state, `/issuer` for the issuer workbench, or use the explicit replay control for a browser-only simulation. Live surfaces never substitute archived fixtures when the API is empty or unavailable. Historical Lepton settlement receipts appear only under **Archived Lepton submission evidence** and are not counted in live metrics.
 
 `npm run db` is idempotent. Do not use `db:reset` as an upgrade path because it intentionally replaces the local database.
 

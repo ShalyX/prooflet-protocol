@@ -45,7 +45,7 @@
           </div>
           <div class="hero-visual">
             <div class="proof-console-card">
-              <div class="proof-console-top"><span>Proof packet</span><strong>job_link_17827</strong></div>
+              <div class="proof-console-top"><span>Illustrative proof packet</span><strong>example only</strong></div>
               <div class="proof-console-body">
                 <div class="proof-console-row active"><b>01</b><span>Job reserved</span><strong>0.002 USDC</strong></div>
                 <div class="proof-console-row active"><b>02</b><span>Worker evidence</span><strong>HTTP trace + hash</strong></div>
@@ -78,7 +78,7 @@
             <article><b>01</b><h3>API-backed job queue</h3><p>Funded jobs, claims, leases, proofs, and payout states served through Express.</p></article>
             <article><b>02</b><h3>Autonomous Link Sentinel</h3><p>A worker that claims URL checks, performs real HTTP work, and submits proof.</p></article>
             <article><b>03</b><h3>Agent + issuer SDKs</h3><p>Publish-ready local ESM clients with typed API errors and scoped authentication.</p></article>
-            <article><b>04</b><h3>SQLite persistence</h3><p>Versioned migrations preserve the job, proof, reputation, and settlement ledgers.</p></article>
+            <article><b>04</b><h3>Versioned protocol ledger</h3><p>SQLite preserves local and submission runs; the hosted durability migration is explicit post-submission work.</p></article>
             <article><b>05</b><h3>Reputation-gated access</h3><p>Auditable delivery events determine reward limits, concurrency, and trusted work.</p></article>
             <article><b>06</b><h3>Subjective adjudication</h3><p>Subjective proofs can route through the manual fallback or a GenLayer-ready path and remain unpaid while pending.</p></article>
             <article><b>07</b><h3>Arc settlement daemon</h3><p>Dry-run by default, with locking and double-payment protection for testnet USDC.</p></article>
@@ -86,17 +86,11 @@
         </section>
 
         <section class="landing-band settlement-evidence" aria-labelledby="evidenceTitle">
-          <div class="landing-section-head"><span>Settlement proof</span><h2 id="evidenceTitle">Accepted work has settled on Arc Testnet</h2></div>
+          <div class="landing-section-head"><span>Archived Lepton submission evidence</span><h2 id="evidenceTitle">Archived submission settlement, separated from live state</h2><p>These receipts are immutable historical evidence and are never counted in the current hosted ledger.</p></div>
           <div class="evidence-layout">
-            <div class="batch-terminal">
-              <div><span>batchId</span><strong id="landingBatch">uwp_arc_20260618_001</strong></div>
-              <div><span>total paid</span><strong id="landingPaid">0.054 USDC</strong></div>
-              <div><span>paid proofs</span><strong id="landingPaidProofs">3</strong></div>
-              <div><span>network</span><strong>Arc Testnet</strong></div>
-              <div><span>status</span><strong class="settled-status">Settled</strong></div>
-            </div>
+            <div class="archive-evidence" id="archiveEvidence"><p>Loading archived evidence…</p></div>
             <div class="live-protocol-summary">
-              <h3>Live protocol state</h3>
+              <h3>Current live protocol state</h3>
               <dl><div><dt>API</dt><dd id="landingApi">Connecting</dd></div><div><dt>Latest paid out</dt><dd id="landingLatestPaid">Checking</dd></div><div><dt>Payable</dt><dd id="landingPayable">Checking</dd></div><div><dt>Rejected</dt><dd id="landingRejected">Checking</dd></div><div><dt>Treasury</dt><dd id="landingTreasury">Checking</dd></div></dl>
               <a href="/dashboard" data-route="/dashboard">Inspect proofs and Arcscan receipts →</a>
             </div>
@@ -138,7 +132,7 @@
           </div>
         </a>
         <div class="header-ops">
-          <div class="header-health" aria-label="Protocol status"><i></i><div><strong id="apiStatus">Local fallback</strong><span>Arc Testnet · USDC</span></div></div>
+          <div class="header-health" aria-label="Protocol status"><i></i><div><strong id="apiStatus">Connecting</strong><span>Arc Testnet · USDC</span></div></div>
           <nav class="page-nav" aria-label="Product pages">
             <a href="/dashboard" data-route="/dashboard">Dashboard</a>
             <a href="/issuer" data-route="/issuer">Issuer</a>
@@ -146,6 +140,7 @@
             <a href="/protocol" data-route="/protocol">Protocol</a>
           </nav>
           <div class="top-actions" aria-label="Dashboard actions">
+            <button class="ghost" id="toggleReplay" type="button">Enter replay</button>
             <button class="primary" id="runCycle" type="button">Run worker cycle</button>
             <button class="secondary" id="prepareBatch" type="button">Prepare payout batch</button>
           </div>
@@ -153,11 +148,13 @@
       </header>
 
       <section class="system-strip protocol-route" hidden aria-label="System status">
+        <span class="truth-state" id="globalTruthState" data-mode="loading">Loading live ledger</span>
+        <span class="replay-note">Replay simulates browser-only dashboard queue/worker actions. Settlement is never written. Issuer/agent surfaces outside the disabled controls may still call the live API.</span>
         <span><i class="status-dot"></i><strong>API</strong><em id="systemApi">Connecting</em></span>
         <span><i class="status-dot"></i><strong>Arc Testnet</strong><em id="systemArc">Checking</em></span>
         <span><strong>Settlement mode</strong><em id="systemMode">Dry-run default</em></span>
-        <span><strong>Last demo batch</strong><em id="systemBatch">uwp_arc_20260618_001</em></span>
-        <span><strong>Last payout</strong><em id="systemPayout">0.054 USDC</em></span>
+        <span><strong>Latest live batch</strong><em id="systemBatch">None yet</em></span>
+        <span><strong>Latest live payout</strong><em id="systemPayout">0.000 USDC</em></span>
       </section>
 
       <section class="workbench protocol-route" id="issuerWorkbench" hidden aria-label="Issuer Workbench">
@@ -302,8 +299,8 @@
         <article class="metric accent-gold"><span>Worker cycles</span><strong id="cyclesMetric">0</strong><p id="activeMetric">0 active</p></article>
         <article class="metric accent-gold"><span>Proofs submitted</span><strong id="proofsMetric">0</strong><p>Prooflet</p></article>
         <article class="metric accent-gold"><span>Payable rewards</span><strong id="pendingMetricMain">0.000 USDC</strong><p>approved, not paid</p></article>
-        <article class="metric accent-green"><span>Total paid out</span><strong id="earnedMetric">0.040 USDC</strong><p>settled volume</p></article>
-        <article class="metric accent-green"><span>Paid proofs</span><strong id="arcMetric">2</strong><p>settled on Arc Testnet</p></article>
+        <article class="metric accent-green"><span>Total paid out</span><strong id="earnedMetric">0.000 USDC</strong><p>current live ledger</p></article>
+        <article class="metric accent-green"><span>Paid proofs</span><strong id="arcMetric">0</strong><p>current live ledger</p></article>
         <article class="metric accent-coral"><span>Rejected proofs</span><strong id="rejectedMetricMain">0</strong><p>failed validation</p></article>
       </section>
 
@@ -355,7 +352,7 @@
 
       <section class="trust-boundary-board dashboard-surface protocol-route" hidden aria-label="Trust boundary">
         <article><span>Hosted UI</span><strong>Read-only status + issuer workspace</strong><p>Vercel renders product state and calls the Render API; it does not contain treasury keys.</p></article>
-        <article><span>API ledger</span><strong>Jobs, claims, proofs, reputation</strong><p>Express + SQLite preserve the work ledger and reject duplicate or failed proof packets.</p></article>
+        <article><span>API ledger</span><strong>Jobs, claims, proofs, reputation</strong><p>The status banner identifies whether the current hosted ledger is ephemeral or has a durable path configured. Restart survival still requires a separate live proof.</p></article>
         <article><span>Settlement operator</span><strong>Release remains explicit</strong><p>Dry-run prepares a payout plan; real Arc Testnet USDC release requires operator-held signing authority.</p></article>
       </section>
 
@@ -439,7 +436,7 @@
         </section>
         <section class="panel agents-roster-panel">
           <header><h2>Agent Workforce</h2><span class="panel-badge">available labor</span></header>
-          <div class="panel-source" id="agentsSource">Source: demo fallback data · 4 registered agents</div>
+          <div class="panel-source" id="agentsSource">Source: loading live API · 0 registered agents</div>
           <div class="agent-grid" id="agents"></div>
         </section>
         <section class="panel leaderboard-panel" id="leaderboardPanel">
@@ -497,11 +494,11 @@
           <article class="protocol-card">
             <header><h3>Treasury Overview</h3></header>
             <div class="protocol-status-card">
-              <div><span>Treasury address</span><strong id="protoTreasuryAddress" class="mono-data">0x709F18F797347FbB8D53Fb60567892751dd14B11</strong></div>
-              <div><span>Available balance</span><strong id="protoTreasuryBalance">1.761023 USDC</strong></div>
+              <div><span>Treasury address</span><strong id="protoTreasuryAddress" class="mono-data">Not configured</strong></div>
+              <div><span>Available balance</span><strong id="protoTreasuryBalance">Unavailable until reported by the API</strong></div>
               <div><span>Reserved rewards</span><strong id="protoReserved">0.000 USDC</strong></div>
               <div><span>Payable rewards</span><strong id="protoPayable">0.000 USDC</strong></div>
-              <div><span>Paid out</span><strong id="protoPaidOut">0.054 USDC</strong></div>
+              <div><span>Paid out</span><strong id="protoPaidOut">0.000 USDC</strong></div>
               <div><span>Excluded states</span><strong>Not payable</strong></div>
             </div>
           </article>
@@ -530,7 +527,7 @@
               <table class="protocol-table">
                 <thead><tr><th>Batch ID</th><th>Status</th><th>Payout</th><th>Proofs</th><th>Network</th></tr></thead>
                 <tbody id="protocolBatches">
-                  <tr><td class="mono-data">uwp_arc_20260618_001</td><td><span class="state-badge paid">Settled</span></td><td>0.054 USDC</td><td>3</td><td>Arc Testnet</td></tr>
+                  <tr><td colspan="5">Loading live settlement batches</td></tr>
                 </tbody>
               </table>
             </div>
