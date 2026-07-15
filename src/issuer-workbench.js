@@ -264,17 +264,26 @@ export function initIssuerWorkbench({ apiUrl, onNavigate }) {
 
   async function fundJob(jobId) {
     try {
-      setStatus(`Funding escrow for ${jobId}...`, true);
+      setStatus(`Record Arc Testnet Escrow V2 fund for ${jobId}...`, true);
+      const txHash = window.prompt(
+        "Paste the Arc Testnet fundJob transaction hash (0x…).\n\nFund first with:\nnpm run escrow:v2:operator -- --fund=JOB_ID --amount=REWARD",
+        "",
+      );
+      if (!txHash) {
+        setStatus("Funding cancelled — no transaction hash provided.", false);
+        return;
+      }
       const res = await fetch(`${apiUrl}/jobs/${encodeURIComponent(jobId)}/fund-escrow`, {
         method: "POST",
         headers: { "X-API-Key": client.apiKey, "Content-Type": "application/json" },
-        body: JSON.stringify({ issuerId: client.issuerId })
+        body: JSON.stringify({ issuerId: client.issuerId, txHash: txHash.trim() }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-      setStatus(`Escrow funding broadcast for ${jobId}.`, true);
+      if (!res.ok) throw new Error(data.error || data.message || "Fund escrow failed");
+      const verified = data.escrow?.verifiedOnchain ? " (on-chain verified)" : "";
+      setStatus(`Escrow V2 funded for ${jobId}${verified}. Job is open for agents.`, true);
       await refresh();
-      await fetchWallet();
+      if (typeof fetchWallet === "function") await fetchWallet().catch(() => {});
     } catch (error) { setStatus(error.message, false); }
   }
 
@@ -313,7 +322,7 @@ export function initIssuerWorkbench({ apiUrl, onNavigate }) {
       
       if (mode === "external") {
         payload.fundingStatus = "awaiting_wallet_funding";
-        payload.fundingRail = "arc_usdc_escrow";
+        payload.fundingRail = "arc_usdc_escrow_v2";
         payload.status = "draft";
       }
       
@@ -341,7 +350,9 @@ export function initIssuerWorkbench({ apiUrl, onNavigate }) {
     document.querySelector("#issuerJobs").innerHTML=rows.length?table(["Job","Type","Reward","Status","Funding","Claimed by","Access"],rows.map((row)=>{
       let fundingCol = pill(fundingState(row.fundingStatus));
       if (row.fundingStatus === "awaiting_wallet_funding" || (mode === "external" && row.fundingStatus === "awaiting_escrow_funding")) {
-        fundingCol = `${pill("Awaiting wallet funding")} <br><button class="secondary" disabled style="margin-top:6px; font-size:0.7rem; padding:4px 8px;">Requires ProofletEscrowV2</button> <br><span class="issuer-helper" style="display:inline-block; margin-top:4px; max-width: 140px; color: var(--amber);">Open marketplace escrow funding requires ProofletEscrowV2.</span>`;
+        fundingCol = `${pill("Awaiting wallet funding")} <br><button class="secondary" style="margin-top:6px; font-size:0.7rem; padding:4px 8px;" onclick="window.fundJobAction('${escape(row.jobId)}')">Record Escrow V2 fund tx</button> <br><span class="issuer-helper" style="display:inline-block; margin-top:4px; max-width: 180px;">Fund on Arc Testnet with fundJob, then paste the tx hash. Agent is not required at fund time.</span>`;
+      } else if (row.fundingRail === "arc_usdc_escrow_v2" && row.escrowStatus === "funded") {
+        fundingCol = `${pill("Escrow V2 funded")}<br><span class="issuer-helper">${row.escrowTxHash ? escape(String(row.escrowTxHash).slice(0, 12)) + "…" : ""}</span>`;
       }
       return [
         `${escape(row.jobId)}${row.issuerReferenceId ? `<br><span class="issuer-helper">Ref: ${escape(row.issuerReferenceId)}</span>` : ""}`,

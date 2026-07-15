@@ -22,7 +22,7 @@ import {
   createPaymentRequest, gatewayConfig, gatewayPrice, getAccessPayment, hasPaidAccess,
   nanopaymentConfig, recordAccessPayment, serializeAccessPayment, verifyNanopayment,
 } from "./circle-nanopayment.mjs";
-import { escrowV2Config, isTxHash, jobIdToBytes32 } from "./escrow-v2.mjs";
+import { escrowV2Config, isTxHash, jobIdToBytes32, verifyFundJobTransaction } from "./escrow-v2.mjs";
 
 export function createApp({
   db: injectedDb,
@@ -215,12 +215,26 @@ export function createApp({
 
     const v2 = escrowV2Config();
     if (!v2.acceptReportedFunding) {
-      throw httpError(400, "Escrow V2 reported funding is disabled on this deployment.");
+      throw httpError(400, "Escrow V2 funding is disabled on this deployment.");
+    }
+
+    let verification = null;
+    if (v2.requireOnchainVerification) {
+      try {
+        verification = await verifyFundJobTransaction({
+          txHash,
+          jobId,
+          expectedAmountUsdc: job.reward_amount,
+        });
+      } catch (error) {
+        const status = error.code === "INVALID_TX_HASH" ? 400 : 400;
+        throw httpError(status, error.message || "On-chain fund verification failed.");
+      }
     }
 
     const now = new Date().toISOString();
     // Open-market path: fund before agent is known, then open for claim.
-    await db.prepare(`
+    const updatedRows = await db.prepare(`
       UPDATE jobs
       SET funding_rail = ?,
           funding_status = 'reserved',
@@ -230,6 +244,9 @@ export function createApp({
           updated_at = ?
       WHERE job_id = ? AND issuer_id = ? AND funding_status = 'awaiting_wallet_funding'
     `).run(v2.fundingRail, txHash, now, jobId, issuerId);
+    if ((updatedRows?.changes ?? 1) === 0) {
+      throw httpError(409, "Job funding state changed; refresh and retry.");
+    }
 
     const updated = await db.prepare("SELECT * FROM jobs WHERE job_id = ?").get(jobId);
     response.json({
@@ -244,10 +261,14 @@ export function createApp({
         fundingRail: v2.fundingRail,
         jobIdBytes32: jobIdToBytes32(jobId),
         txHash,
-        expiresAt,
-        note: v2.configured
-          ? "Reported Arc Testnet fund receipt recorded. On-chain fundJob() is the source of funds; operator release remains required after proof approval."
-          : "Reported fund receipt recorded. Deploy ProofletEscrowV2 and set ESCROW_V2_ADDRESS for on-chain operator tooling.",
+        expiresAt: verification?.expiresAt || expiresAt,
+        verifiedOnchain: Boolean(verification),
+        verification,
+        note: verification
+          ? "On-chain fundJob verified on Arc Testnet. Job is open for claim; operator release remains required after proof approval."
+          : (v2.configured
+            ? "Fund receipt recorded without on-chain verification (ESCROW_V2_SKIP_ONCHAIN). Prefer verified production path."
+            : "Fund receipt recorded. Deploy ProofletEscrowV2 and set ESCROW_V2_ADDRESS for on-chain verification."),
       },
     });
   });
