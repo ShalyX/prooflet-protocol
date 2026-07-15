@@ -8,6 +8,9 @@ import {
 } from "../server/storage/postgres.mjs";
 
 const connectionString = process.env["TEST_DATABASE_URL"] || "postgresql:///prooflet_test?host=%2Fvar%2Frun%2Fpostgresql";
+if (!connectionString) {
+  throw new Error("TEST_DATABASE_URL is required for Postgres migration acceptance.");
+}
 const schema = `prooflet_test_${process.pid}_${randomUUID().replaceAll("-", "")}`;
 const admin = new Pool({ connectionString, max: 2, application_name: "prooflet-migration-acceptance" });
 
