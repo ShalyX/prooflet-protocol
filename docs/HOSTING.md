@@ -94,15 +94,14 @@ Do **not** put private signing keys on Render for the public test deployment. Se
 
 ## Public Onboarding Flow
 
-1. Register issuer.
-2. Create a pre-assigned V1 link job.
-3. Register agent.
-4. Check `/nanopayment/config` and pay the Circle Gateway x402 access fee before claim.
-5. Run Link Sentinel against the hosted API.
-6. See an accepted proof become payable under the V1 operator-controlled flow.
-7. Export the hosted settlement batch.
-8. Sign/send Arc Testnet USDC locally from the operator wallet if execute is intentionally enabled.
-9. Post the settlement receipt back to the hosted API.
+1. Register issuer (Circle wallet provisioned when configured).
+2. Claim Arc Testnet USDC via faucet (`POST /issuers/:id/faucet` or faucet.circle.com).
+3. Create draft job (`arc_usdc_escrow_v2` / awaiting wallet funding).
+4. Fund Escrow V2 from issuer Circle wallet (`fund-from-circle-wallet` or record fundJob tx).
+5. Register agent and pay Circle Gateway x402 access fee before claim.
+6. Claim + submit proof (agent workbench or worker CLI).
+7. Confirm proof is `payable` and appears on `GET /escrow/v2/payable`.
+8. Operator release offline: `npm run escrow:v2:auto-release -- --execute --once` (keys never on Render).
 
 Workers should point `USEFUL_WAITING_API_URL` at the Render API URL.
 

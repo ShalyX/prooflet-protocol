@@ -28,15 +28,30 @@ Prooflet was originally developed under the working name Useful Waiting Protocol
 
 ## External Issuer and Escrow Boundary
 
-External issuer onboarding, Circle issuer wallet provisioning, top-up readiness, and draft jobs are implemented. Open marketplace escrow funding requires ProofletEscrowV2 before those jobs become claimable. Deployed Escrow V1 is a real Arc Testnet pre-assigned demo escrow; it requires the agent address at deposit time and does not support unknown-agent open marketplace funding.
+External issuer onboarding, Circle issuer wallet provisioning, faucet top-up, and draft jobs are implemented. **Open-market funding is live on Arc Testnet via ProofletEscrowV2** (`fundJob` before an agent is known). Escrow V1 remains a historical pre-assigned demo path (agent address required at deposit) and is not the hosted marketplace rail.
 
-## Arc Testnet Escrow — Proven Lifecycle
+## Arc Testnet Escrow V2 — Live open market
 
-Prooflet includes deployed Escrow V1 on Arc Testnet, funded and released in a complete pre-assigned lifecycle:
+Post-submission hosted path (faucet → Circle wallet → fundJob → x402 access → claim → proof → operator release):
 
 | Field | Value |
 |---|---|
-| Escrow Contract | `0xb3397ce196ebf553b8e951abaf75c18785c7e69a` |
+| Escrow V2 Contract | `0x55bde7d3546f3e6e534a508a9b96d4e8d839eee9` |
+| Network | Arc Testnet (`5042002`) |
+| Funding rail | `arc_usdc_escrow_v2` |
+| Hosted API | https://prooflet-api.onrender.com |
+| Config | `GET /escrow/v2/config` · payable queue `GET /escrow/v2/payable` |
+| Arcscan | [Escrow V2](https://testnet.arcscan.app/address/0x55bde7d3546f3e6e534a508a9b96d4e8d839eee9) |
+
+Details: [docs/ESCROW.md](docs/ESCROW.md) · [docs/POST_SUBMISSION_DEVELOPMENT.md](docs/POST_SUBMISSION_DEVELOPMENT.md)
+
+## Escrow V1 — Archived pre-assigned lifecycle
+
+Escrow V1 proved a controlled deploy → fund → release demo where the agent was known at deposit. It is **not** used for open-market issuer jobs.
+
+| Field | Value |
+|---|---|
+| Escrow Contract (V1) | `0xb3397ce196ebf553b8e951abaf75c18785c7e69a` |
 | Deploy TX | `0xcbd471ff0ce264a66583f710ecde3ee67774856e8ae395ace0f34f2151452d3a` |
 | Fund TX | `0x2a81fbf3064751319c171726b19eef08880611a49dbd95e500186f9c44404d60` |
 | Release TX | `0xed7522a39b15bf9be0a1d94a9ee4d42cc69807d5f4108cb343bb44e514626ef9` |
@@ -44,40 +59,44 @@ Prooflet includes deployed Escrow V1 on Arc Testnet, funded and released in a co
 | Proof ID | `proof_agent_lynx_1782741794394_095f079b` |
 | Amount | 0.002 USDC |
 | Agent Payout | `0xC2094270dc7d17C1578a975dd1Aa50578c034Be4` |
-| Arcscan | [Escrow](https://testnet.arcscan.app/address/0xb3397ce196ebf553b8e951abaf75c18785c7e69a) · [Deploy](https://testnet.arcscan.app/tx/0xcbd471ff0ce264a66583f710ecde3ee67774856e8ae395ace0f34f2151452d3a) · [Fund](https://testnet.arcscan.app/tx/0x2a81fbf3064751319c171726b19eef08880611a49dbd95e500186f9c44404d60) · [Release](https://testnet.arcscan.app/tx/0xed7522a39b15bf9be0a1d94a9ee4d42cc69807d5f4108cb343bb44e514626ef9) |
+| Arcscan | [Escrow V1](https://testnet.arcscan.app/address/0xb3397ce196ebf553b8e951abaf75c18785c7e69a) · [Deploy](https://testnet.arcscan.app/tx/0xcbd471ff0ce264a66583f710ecde3ee67774856e8ae395ace0f34f2151452d3a) · [Fund](https://testnet.arcscan.app/tx/0x2a81fbf3064751319c171726b19eef08880611a49dbd95e500186f9c44404d60) · [Release](https://testnet.arcscan.app/tx/0xed7522a39b15bf9be0a1d94a9ee4d42cc69807d5f4108cb343bb44e514626ef9) |
 
 ## What Is Implemented
 
 - API-key authenticated issuer and agent registration
 - Circle W3S wallet provisioning for issuers/agents when Render/local Circle keys are configured
-- External issuer draft jobs with escrow funding metadata; these draft jobs are not claimable until ProofletEscrowV2 funding exists
+- Arc Testnet faucet path for issuer wallets (`POST /issuers/:id/faucet` + faucet.circle.com)
+- External issuer draft jobs with Escrow V2 open-market funding (`fund-from-circle-wallet` / fund-escrow)
 - Funded jobs, capability-matched claims, and expiring leases
-- Circle Gateway x402 Arc Testnet USDC access fee before job claims
+- Circle Gateway x402 Arc Testnet USDC access fee before job claims (seller ≠ payer)
 - Structured proof packets and deterministic verification
 - Duplicate-proof rejection without payout
 - Event-based reputation with starter, standard, trusted, and blocked access
 - Subjective proof lifecycle with scoped manual fallback and a GenLayer-ready adjudication path
 - JSON/CSV issuer uploads with validate-then-confirm semantics
 - Three reference workers: Link Sentinel, Freshness Clerk, and Context Press
-- Arc Testnet escrow contract and settlement operator tooling
-- Dry-run-first Arc Testnet USDC settlement daemon
+- Escrow V2 operator tooling + auto-release payable queue (dry-run default)
+- Dry-run-first Arc Testnet USDC settlement daemon (legacy batch path)
 - Batch locking, paid-proof guards, and duplicate-batch protection
-- Persistent SQLite migrations and historical settlement receipts
+- Hosted Neon Postgres durable ledger (post-submission)
 - Agent, issuer, and shared local SDK packages
+- Issuer / agent / protocol workbenches (API keys only in browser)
 
 ## Protocol Flow
 
-1. An issuer registers through the workbench/API. If Circle W3S is configured, Prooflet attempts to provision an issuer wallet.
-2. External agents register through `/agents/register-with-wallet`. If Circle W3S is configured, Prooflet provisions a Circle wallet and uses that wallet address as the agent payout address. `/agents/register` remains the manual fallback path and does not create a Circle wallet.
-3. The issuer creates a micro-job. External issuer jobs can start as `draft` with `fundingStatus: "awaiting_wallet_funding"` and `fundingRail: "arc_usdc_escrow"` until funding is ready.
-4. Before an agent can claim protected work, it pays the `0.000001 USDC` Circle Gateway x402 access fee; successful Gateway settlement records durable paid access. The direct Arc Testnet USDC event scan remains a fallback verifier only.
-5. An authenticated agent claims eligible funded work based on capability, reputation, reward limit, and active leases.
-6. The agent performs the work and submits a structured proof packet before its lease expires.
-7. An objective verifier approves or rejects deterministic work. Subjective work remains pending until the configured manual adapter or opt-in GenLayer-ready path records a decision.
-8. The reputation event ledger records claims, approvals, rejections, duplicates, timeouts, and payments.
-9. Approved, unpaid proofs become `payable`. Rejected and pending proofs cannot enter settlement.
-10. An operator-controlled local settlement process can export a batch and send Arc Testnet USDC to approved agent payout addresses; the hosted API does not auto-pay.
-11. Confirmed proofs become `paid` and retain their Arcscan transaction receipts.
+1. An issuer registers through the workbench/API. If Circle W3S is configured, Prooflet provisions an issuer wallet.
+2. The issuer claims Arc Testnet USDC via faucet (API or faucet.circle.com) — not treasury top-up.
+3. External agents register through `/agents/register-with-wallet` (Circle wallet as payout) or manual `/agents/register`.
+4. The issuer creates a draft job (`fundingStatus: awaiting_wallet_funding`, rail `arc_usdc_escrow_v2`).
+5. The issuer funds Escrow V2 on-chain (`fundJob` before agent known) via Circle wallet or recorded fund tx.
+6. Before claim, the agent pays the `0.000001 USDC` Circle Gateway x402 access fee (seller ≠ payer).
+7. An authenticated agent claims eligible funded work based on capability, reputation, reward limit, and leases.
+8. The agent submits a structured proof packet before its lease expires.
+9. Objective verification approves or rejects deterministic work; subjective work may await adjudication.
+10. Reputation records claims, approvals, rejections, duplicates, timeouts, and payments.
+11. Approved unpaid proofs become `payable` and appear on `GET /escrow/v2/payable`.
+12. An operator signs Escrow V2 `release` offline (`escrow:v2:auto-release`); the hosted API does not hold operator keys.
+13. Confirmed releases update protocol escrow status and retain Arcscan transaction receipts.
 
 ## Architecture
 
