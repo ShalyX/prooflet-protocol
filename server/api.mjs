@@ -22,6 +22,7 @@ import {
   createPaymentRequest, gatewayConfig, gatewayPrice, getAccessPayment, hasPaidAccess,
   nanopaymentConfig, recordAccessPayment, serializeAccessPayment, verifyNanopayment,
 } from "./circle-nanopayment.mjs";
+import { escrowV2Config, isTxHash, jobIdToBytes32 } from "./escrow-v2.mjs";
 
 export function createApp({
   db: injectedDb,
@@ -202,15 +203,69 @@ export function createApp({
 
   app.post("/jobs/:jobId/fund-escrow", async (request, response) => {
     const { jobId } = request.params;
-    const { issuerId } = request.body || {};
+    const { issuerId, txHash, expiresAt = null } = request.body || {};
     requireId(issuerId, "issuerId");
-    verifyApiKey(request, db, "issuer", issuerId);
+    if (!await authenticate(db, request, "issuer", issuerId)) throw httpError(401, "Valid issuer API key required.");
+    if (!isTxHash(txHash)) throw httpError(400, "txHash must be a 0x-prefixed 32-byte hex transaction hash.");
 
     const job = await db.prepare("SELECT * FROM jobs WHERE job_id = ? AND issuer_id = ?").get(jobId, issuerId);
     if (!job) throw httpError(404, "Job not found");
     if (job.funding_status !== "awaiting_wallet_funding") throw httpError(400, "Job is not awaiting wallet funding");
+    if (job.network !== "Arc Testnet") throw httpError(400, "Open marketplace escrow funding is Arc Testnet only.");
 
-    throw httpError(400, "Open marketplace funding requires ProofletEscrowV2. Coming soon.");
+    const v2 = escrowV2Config();
+    if (!v2.acceptReportedFunding) {
+      throw httpError(400, "Escrow V2 reported funding is disabled on this deployment.");
+    }
+
+    const now = new Date().toISOString();
+    // Open-market path: fund before agent is known, then open for claim.
+    await db.prepare(`
+      UPDATE jobs
+      SET funding_rail = ?,
+          funding_status = 'reserved',
+          status = 'open',
+          escrow_status = 'funded',
+          escrow_tx_hash = ?,
+          updated_at = ?
+      WHERE job_id = ? AND issuer_id = ? AND funding_status = 'awaiting_wallet_funding'
+    `).run(v2.fundingRail, txHash, now, jobId, issuerId);
+
+    const updated = await db.prepare("SELECT * FROM jobs WHERE job_id = ?").get(jobId);
+    response.json({
+      ok: true,
+      protocol: "Prooflet",
+      escrowVersion: 2,
+      network: "Arc Testnet",
+      chainId: v2.chainId,
+      job: serializeJob(updated),
+      escrow: {
+        contract: v2.address,
+        fundingRail: v2.fundingRail,
+        jobIdBytes32: jobIdToBytes32(jobId),
+        txHash,
+        expiresAt,
+        note: v2.configured
+          ? "Reported Arc Testnet fund receipt recorded. On-chain fundJob() is the source of funds; operator release remains required after proof approval."
+          : "Reported fund receipt recorded. Deploy ProofletEscrowV2 and set ESCROW_V2_ADDRESS for on-chain operator tooling.",
+      },
+    });
+  });
+
+  app.get("/escrow/v2/config", (_request, response) => {
+    const v2 = escrowV2Config();
+    response.json({
+      ok: true,
+      escrowVersion: 2,
+      network: v2.network,
+      chainId: v2.chainId,
+      usdc: v2.usdc,
+      contract: v2.address,
+      configured: v2.configured,
+      fundingRail: v2.fundingRail,
+      acceptReportedFunding: v2.acceptReportedFunding,
+      mainnet: false,
+    });
   });
 
   app.post("/agents/register", async (request, response) => {

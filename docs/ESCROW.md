@@ -56,32 +56,53 @@ Escrow V1 was deployed, funded, and released on Arc Testnet:
 
 ## ProofletEscrowV2 — Required Marketplace Escrow Boundary
 
-ProofletEscrowV2 is the required next escrow contract for open external issuer funding.
+ProofletEscrowV2 is the open-marketplace escrow for Arc Testnet USDC.
 
-V2 should let an issuer fund a marketplace job before any agent is known, then release only to the approved agent after proof verification.
+**Post-submission development — not part of the original Lepton Agents Hackathon submission.**
 
-Proposed V2 shape:
+V2 lets an issuer fund a marketplace job **before any agent is known**, then release only to the approved agent after proof verification.
 
-```solidity
-fundJob(jobId, amount, expiresAt)
-release(jobId, proofId, agent, amount)
-refundJob(jobId)
-```
+### V2 functions
 
-Expected V2 behavior:
+| Function | Who | What |
+|---|---|---|
+| `fundJob(jobId, amount, expiresAt)` | Issuer | Locks USDC for a job with unknown agent |
+| `release(jobId, proofId, agent, amount)` | Settlement operator | Pays approved agent after verification |
+| `refundJob(jobId)` | Settlement operator | Returns USDC to issuer on reject/cancel |
+| `refundExpired(jobId)` | Issuer | Reclaims funds after `expiresAt` if still funded |
+| `getEscrow(jobId)` | Anyone | Reads escrow status |
 
-- issuer funds a job before agent assignment;
-- job remains unclaimable until funding is confirmed;
-- agent claims and submits proof through Prooflet;
-- Prooflet verification/adjudication approves or rejects the proof;
-- settlement operator releases to the approved agent only after approval;
-- expired or rejected jobs can be refunded through `refundJob(jobId)`.
+Solidity: `contracts/EscrowV2.sol`
+Artifacts: `contracts/out/EscrowV2.{abi,bin}`
+Deploy (optional, needs deployer key): `npm run escrow:v2:deploy`
 
-## Current External Issuer Boundary
+### Protocol API (hosted)
 
-External issuer onboarding, Circle issuer wallet provisioning, top-up readiness, and draft jobs are implemented. Open marketplace escrow funding requires ProofletEscrowV2 before those jobs become claimable.
+- `GET /escrow/v2/config` — Arc Testnet V2 config (`mainnet: false`)
+- `POST /jobs/:jobId/fund-escrow` — issuer reports Arc Testnet `fundJob` tx hash for a draft/`awaiting_wallet_funding` job
 
-Current external issuer jobs should remain `draft` / `awaiting_wallet_funding` and must not be exposed as claimable open marketplace jobs until V2 funding exists.
+On successful fund receipt:
+
+- `funding_rail` → `arc_usdc_escrow_v2`
+- `funding_status` → `reserved`
+- `status` → `open` (claimable under normal access rules)
+- `escrow_status` → `funded`
+
+### Expected V2 lifecycle
+
+1. Issuer creates draft job with `fundingStatus: awaiting_wallet_funding`
+2. Issuer calls on-chain `fundJob` (agent still unknown)
+3. Issuer posts fund tx hash to `/jobs/:jobId/fund-escrow`
+4. Agent claims + submits proof through Prooflet
+5. Settlement operator calls on-chain `release` after approval (or `refundJob` on reject)
+
+### Safety
+
+- Arc Testnet only in protocol validation
+- Mainnet funds not supported
+- Hosted API does not custody issuer funds
+- Operator-controlled release remains explicit
+- No production audit
 
 ## Settlement Operator CLI for V1
 
