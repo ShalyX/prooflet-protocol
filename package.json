@@ -78,7 +78,8 @@
     "escrow:v2:deploy": "node --env-file=.env scripts/deploy-escrow-v2.mjs",
     "escrow:v2:operator": "node --env-file=.env workers/escrow-v2-operator.mjs",
     "escrow-v2:claim-proof:check": "node --no-warnings scripts/escrow-v2-claim-proof-acceptance.mjs",
-    "escrow:v2:live-claim": "node --no-warnings --env-file-if-exists=.env scripts/escrow-v2-live-claim.mjs"
+    "escrow:v2:live-claim": "node --no-warnings --env-file-if-exists=.env scripts/escrow-v2-live-claim.mjs",
+    "escrow:v2:x402-e2e": "node --no-warnings --env-file-if-exists=.env scripts/escrow-v2-x402-e2e.mjs"
   },
   "dependencies": {
     "@circle-fin/developer-controlled-wallets": "^10.7.1",

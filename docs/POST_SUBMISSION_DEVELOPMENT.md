@@ -35,6 +35,16 @@ Live (after UI fund):
 JOB_ID=job_xxx AGENT_ID=agent_xxx PRIVATE_KEY=0x... npm run escrow:v2:live-claim
 ```
 
+### Full live x402 e2e
+
+```bash
+USEFUL_WAITING_API_URL=https://prooflet-api.onrender.com \
+PRIVATE_KEY=0x... \
+npm run escrow:v2:x402-e2e
+```
+
+Proven path: draft → fundJob → fund-escrow → **circle_gateway_x402** → claim → payable proof → release.
+
 ### Circle Gateway x402 note
 
 Access fees use Circle Gateway x402. **Seller must not equal payer**:
