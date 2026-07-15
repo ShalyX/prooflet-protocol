@@ -290,6 +290,58 @@ export function createApp({
     });
   });
 
+  // Operator queue: V2 jobs with approved payable proofs not yet released on-chain.
+  app.get("/escrow/v2/payable", async (_request, response) => {
+    const rows = await db.prepare(`
+      SELECT
+        p.proof_id AS proof_id,
+        p.job_id AS job_id,
+        p.agent_id AS agent_id,
+        p.funding_status AS proof_funding_status,
+        p.outcome AS outcome,
+        p.created_at AS proof_created_at,
+        j.reward_amount AS reward_amount,
+        j.funding_rail AS funding_rail,
+        j.funding_status AS job_funding_status,
+        j.escrow_status AS escrow_status,
+        j.escrow_tx_hash AS escrow_tx_hash,
+        j.status AS job_status,
+        j.network AS network,
+        a.payout_address AS agent_payout_address
+      FROM proofs p
+      JOIN jobs j ON j.job_id = p.job_id
+      LEFT JOIN agents a ON a.agent_id = p.agent_id
+      WHERE p.funding_status = 'payable'
+        AND p.outcome = 'accepted'
+        AND j.funding_rail = 'arc_usdc_escrow_v2'
+        AND j.network = 'Arc Testnet'
+        AND COALESCE(j.escrow_status, '') IN ('funded', '')
+        AND COALESCE(j.escrow_status, '') != 'released'
+      ORDER BY p.created_at ASC
+    `).all();
+
+    const items = (rows || []).map((row) => ({
+      proofId: row.proof_id,
+      jobId: row.job_id,
+      agentId: row.agent_id,
+      agentPayoutAddress: row.agent_payout_address,
+      rewardAmount: row.reward_amount,
+      jobStatus: row.job_status,
+      escrowStatus: row.escrow_status || "funded",
+      fundTxHash: row.escrow_tx_hash,
+      proofCreatedAt: row.proof_created_at,
+      ready: Boolean(row.agent_payout_address && isAddress(row.agent_payout_address)),
+    }));
+
+    response.json({
+      ok: true,
+      escrowVersion: 2,
+      network: "Arc Testnet",
+      count: items.length,
+      items,
+    });
+  });
+
   // Record an on-chain V2 release against a protocol job (public if on-chain verifies).
   app.post("/jobs/:jobId/escrow-release-receipt", async (request, response) => {
     const { jobId } = request.params;
