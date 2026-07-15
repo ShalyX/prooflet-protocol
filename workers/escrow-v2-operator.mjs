@@ -153,6 +153,21 @@ async function release(jobId, agent, proofId, amountUsdc) {
     blockNumber: Number(receipt.blockNumber),
     explorer: `https://testnet.arcscan.app/tx/${hash}`,
   }, null, 2));
+
+  const apiUrl = process.env.PROOFLET_API_URL || process.env.UWP_API_URL;
+  if (apiUrl) {
+    try {
+      const res = await fetch(`${apiUrl.replace(/\/$/, "")}/jobs/${encodeURIComponent(jobId)}/escrow-release-receipt`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ txHash: hash, agentAddress: agent }),
+      });
+      const body = await res.json().catch(() => ({}));
+      console.log(JSON.stringify({ protocolLedger: res.ok ? "updated" : "failed", status: res.status, body }, null, 2));
+    } catch (error) {
+      console.log(JSON.stringify({ protocolLedger: "error", message: String(error.message || error) }, null, 2));
+    }
+  }
 }
 
 async function refund(jobId) {
