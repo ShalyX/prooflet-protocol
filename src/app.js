@@ -22,126 +22,18 @@ let apiError = null;
 let hydrationVersion = 0;
 let replayGeneration = 0;
 
-const REPLAY_AGENTS = [
-  { id: "lynx", agentId: "agent_lynx", name: "Link Sentinel", skill: "Verifies stale links and redirect chains", icon: "LK", payoutWallet: "0xC2094270dc7d17C1578a975dd1Aa50578c034Be4", status: "idle", earned: 0.084, score: 97 },
-  { id: "mira", agentId: "agent_mira", name: "Freshness Clerk", skill: "Checks source recency and cache freshness", icon: "FR", payoutWallet: "0x1DcB045123730e606A88380BCe534332F50332d2", status: "idle", earned: 0.062, score: 94 },
-  { id: "byte", agentId: "agent_byte", name: "Context Press", skill: "Compresses long traces into reusable context", icon: "CP", payoutWallet: "0x110997DF4d76895ce37B64Bc2665ba2A8e639b1e", status: "idle", earned: 0.119, score: 99 },
-  { id: "vera", agentId: "agent_vera", name: "Label Judge", skill: "Labels low-confidence snippets for eval sets", icon: "LB", payoutWallet: "0xE6cDb25252E0f07AE50560ee6F104d48Cfc33667", status: "idle", earned: 0.041, score: 91 },
-];
+// Live collections start empty — only API hydrate or explicit replay fills them.
 let agents = [];
-
-const REPLAY_JOBS = [
-  { id: "J-1042", type: "link_verify", title: "Verify 12 CCTP docs links", reward: 0.018, issuer: "Prooflet protocol", fundingStatus: "payable", estimate: "22 sec", priority: "high", state: "done", proof: "HTTP 200/301 trace captured", secondsSaved: 22 },
-  { id: "J-1043", type: "freshness_check", title: "Refresh Arc fee claim citations", reward: 0.014, issuer: "Prooflet protocol", fundingStatus: "paid", estimate: "18 sec", priority: "med", state: "done", proof: "cache TTL refreshed", secondsSaved: 18 },
-  { id: "J-1044", type: "context_compress", title: "Compress 9-agent trace to 1.5K tokens", reward: 0.026, issuer: "Prooflet protocol", fundingStatus: "reserved", estimate: "35 sec", priority: "high", state: "queued" },
-  { id: "J-1045", type: "label", title: "Label 20 eval rows for answer quality", reward: 0.011, issuer: "Prooflet protocol", fundingStatus: "reserved", estimate: "26 sec", priority: "low", state: "queued" },
-];
 let jobs = [];
-
-const REPLAY_LEDGER = [
-  {
-    id: "0x9b31",
-    jobId: "job_0002",
-    jobType: "context_compression",
-    agentId: "agent_byte",
-    agent: "Context Press",
-    job: "Compressed research trace",
-    amount: 0.024,
-    tx: null,
-    explorer: null,
-    proof: "semantic checksum preserved",
-    outcome: "accepted",
-    fundingStatus: "paid",
-    settlementStatus: "Settled on Arc Testnet",
-    input: { traceId: "trace_arc_demo_019", maxTokens: 1500 },
-    result: { originalTokens: 9142, compressedTokens: 1478, semanticChecksum: "0x9c24b8f3" },
-    secondsSaved: 35,
-    proofTimestamp: "2026-06-17T15:00:00Z",
-  },
-  {
-    id: "0x72fa",
-    jobId: "job_0001",
-    jobType: "link_verification",
-    agentId: "agent_lynx",
-    agent: "Link Sentinel",
-    job: "Verified docs links",
-    amount: 0.016,
-    tx: null,
-    explorer: null,
-    proof: "HTTP 200/301 trace captured",
-    outcome: "accepted",
-    fundingStatus: "paid",
-    settlementStatus: "Settled on Arc Testnet",
-    input: { url: "https://developers.circle.com/stablecoins" },
-    result: { status: 200, responseTimeMs: 183, contentHash: "0x31a9d4e7" },
-    secondsSaved: 22,
-    proofTimestamp: "2026-06-17T14:58:00Z",
-  },
-  {
-    id: "0xseed",
-    jobId: "job_1043",
-    jobType: "freshness_check",
-    agentId: "agent_mira",
-    agent: "Freshness Clerk",
-    job: "Refresh Arc fee claim citations",
-    amount: 0.014,
-    tx: null,
-    explorer: null,
-    proof: "cache TTL refreshed",
-    outcome: "accepted",
-    fundingStatus: "paid",
-    settlementStatus: "Settled on Arc Testnet",
-    input: { sourceUrl: "https://docs.arc.network", maxAgeHours: 24 },
-    result: { lastModified: "2026-06-17T13:42:00Z", stale: false, cacheTtlHours: 24 },
-    secondsSaved: 18,
-    proofTimestamp: "2026-06-17T15:01:00Z",
-  },
-  {
-    id: "0xopen",
-    jobId: "job_1042",
-    jobType: "link_verification",
-    agentId: "agent_lynx",
-    agent: "Link Sentinel",
-    job: "Verify 12 CCTP docs links",
-    amount: 0.018,
-    tx: null,
-    proof: "HTTP 200/301 trace captured",
-    outcome: "accepted",
-    fundingStatus: "payable",
-    settlementStatus: "Awaiting next Arc Testnet settlement batch",
-    input: { url: "https://developers.circle.com/cctp" },
-    result: { status: 200, responseTimeMs: 211, contentHash: "0x68b91a2d" },
-    secondsSaved: 22,
-    proofTimestamp: "2026-06-18T00:05:00Z",
-  },
-  {
-    id: "reject_01",
-    jobId: "job_0003",
-    jobType: "link_verification",
-    agentId: "agent_spare_07",
-    agent: "Spare Worker 07",
-    job: "Submitted duplicate link proof",
-    amount: 0,
-    tx: null,
-    proof: "duplicate proof rejected",
-    outcome: "rejected",
-    fundingStatus: "rejected",
-    settlementStatus: "Excluded from payout",
-    rejectionReason: "Proof reused contentHash from job_0001 without rerunning measurement.",
-    input: { url: "https://developers.circle.com/stablecoins" },
-    result: { status: "rejected", duplicateOf: "job_0001", contentHash: "0x31a9d4e7" },
-    secondsSaved: 0,
-    proofTimestamp: "2026-06-17T14:59:00Z",
-  },
-];
 let ledger = [];
 
+// Replay-only job templates (used exclusively when appMode === "replay").
 const jobTemplates = [
   ["link_verify", "Check redirect drift for partner APIs", 0.012],
   ["freshness_check", "Validate cached market facts older than 24h", 0.017],
   ["context_compress", "Distill failed agent run into reusable memory", 0.022],
   ["label", "Classify ambiguous user intents for evals", 0.009],
-  ["link_verify", "Confirm demo README links before submission", 0.015],
+  ["link_verify", "Confirm documentation links", 0.015],
 ];
 
 const jobToAgent = { link_verify: "lynx", freshness_check: "mira", context_compress: "byte", label: "vera" };
@@ -151,44 +43,7 @@ let running = false;
 let latestBatchPayload = null;
 let activeQueueFilter = "priority";
 const systemStatus = { api: "Connecting", arc: "Checking", mode: "Unavailable until live state loads", batch: null, payout: 0 };
-let eventSeq = 5;
-const REPLAY_EVENTS = [
-  {
-    id: "evt_005",
-    kind: "settlement",
-    title: "Arc batch settled",
-    detail: "Replay settlement completed across three simulated agent wallets",
-    meta: "3 tx confirmed",
-  },
-  {
-    id: "evt_004",
-    kind: "approved",
-    title: "proof paid",
-    detail: "Replay proof reached the simulated settled state",
-    meta: "paid",
-  },
-  {
-    id: "evt_003",
-    kind: "approved",
-    title: "proof submitted",
-    detail: "job_0001 produced HTTP status, response time, and content hash",
-    meta: "link_verification",
-  },
-  {
-    id: "evt_002",
-    kind: "rejected",
-    title: "duplicate proof rejected",
-    detail: "agent_spare_07 reused contentHash from job_0001 without rerunning measurement",
-    meta: "no payout",
-  },
-  {
-    id: "evt_001",
-    kind: "settlement",
-    title: "batch settlement ready",
-    detail: "payable proofs aggregate into an Arc Testnet USDC batch",
-    meta: "2 approved / 1 rejected",
-  },
-];
+let eventSeq = 1;
 let events = [];
 
 const $ = (selector) => document.querySelector(selector);
@@ -908,14 +763,26 @@ async function hydrateEscrowV2ProtocolPanel() {
   const contractEl = document.getElementById("protoEscrowV2");
   const sellerEl = document.getElementById("protoX402Seller");
   const body = document.getElementById("protocolV2Payable");
+  const settleEl = document.getElementById("protoSettlementMode");
+  const storageEl = document.getElementById("protoStorageMode");
   if (!body) return;
   try {
-    const [cfgRes, payRes] = await Promise.all([
+    const [cfgRes, payRes, healthRes] = await Promise.all([
       fetch(`${API_URL}/escrow/v2/config`),
       fetch(`${API_URL}/escrow/v2/payable`),
+      fetch(`${API_URL}/health`),
     ]);
     const cfg = await cfgRes.json().catch(() => ({}));
     const payable = await payRes.json().catch(() => ({}));
+    const health = await healthRes.json().catch(() => ({}));
+    if (settleEl) {
+      const mode = health.settlement?.mode || health.settlementMode || (health.ok ? "Hosted API · operator release offline" : "Unavailable");
+      settleEl.textContent = mode;
+    }
+    if (storageEl) {
+      const st = health.storage || {};
+      storageEl.textContent = st.mode ? `${st.mode}${st.durable ? " · durable" : ""}` : "Unavailable";
+    }
     if (contractEl) {
       contractEl.textContent = cfg.contract || "Not configured";
       if (cfg.contract) {
@@ -946,6 +813,8 @@ async function hydrateEscrowV2ProtocolPanel() {
   } catch {
     if (countEl) countEl.textContent = "Unavailable";
     if (contractEl) contractEl.textContent = "Unavailable";
+    if (settleEl) settleEl.textContent = "Unavailable";
+    if (storageEl) storageEl.textContent = "Unavailable";
     body.innerHTML = '<tr><td colspan="5">Unable to load Escrow V2 payable queue</td></tr>';
   }
 }

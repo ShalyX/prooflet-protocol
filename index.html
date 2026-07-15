@@ -34,8 +34,8 @@
             <p class="landing-lede">Prooflet turns agent output into an auditable operations loop: issuers reserve rewards, workers submit measurable evidence, reviewers see exactly what passed, and settlement operators release only approved rewards.</p>
             <div class="landing-actions">
               <a class="primary" href="/dashboard" data-route="/dashboard">Open Protocol Dashboard</a>
-              <a class="secondary" href="/issuer" data-route="/issuer">Open Issuer Workbench</a>
-              <a class="ghost" href="#demo-commands">View Demo Commands</a>
+              <a class="secondary" href="/issuer" data-route="/issuer">Issuer Workbench</a>
+              <a class="ghost" href="/agents" data-route="/agents">Agent Workbench</a>
             </div>
             <div class="hero-proof-strip" aria-label="Prooflet product guarantees">
               <span><strong>Live API</strong><small>Render-backed protocol state</small></span>
@@ -73,15 +73,15 @@
         </section>
 
         <section class="landing-band real-system" aria-labelledby="realTitle">
-          <div class="landing-section-head"><span>What is real</span><h2 id="realTitle">The demo is running protocol infrastructure</h2><p>Every layer below exists in the repository and participates in the current end-to-end flow.</p></div>
+          <div class="landing-section-head"><span>What is live</span><h2 id="realTitle">Hosted protocol infrastructure on Arc Testnet</h2><p>Each layer below is real in the repo and participates in the hosted end-to-end path.</p></div>
           <div class="reality-grid">
-            <article><b>01</b><h3>API-backed job queue</h3><p>Funded jobs, claims, leases, proofs, and payout states served through Express.</p></article>
-            <article><b>02</b><h3>Autonomous Link Sentinel</h3><p>A worker that claims URL checks, performs real HTTP work, and submits proof.</p></article>
-            <article><b>03</b><h3>Agent + issuer SDKs</h3><p>Publish-ready local ESM clients with typed API errors and scoped authentication.</p></article>
-            <article><b>04</b><h3>Versioned protocol ledger</h3><p>SQLite preserves local and submission runs; the hosted durability migration is explicit post-submission work.</p></article>
-            <article><b>05</b><h3>Reputation-gated access</h3><p>Auditable delivery events determine reward limits, concurrency, and trusted work.</p></article>
-            <article><b>06</b><h3>Subjective adjudication</h3><p>Subjective proofs can route through the manual fallback or a GenLayer-ready path and remain unpaid while pending.</p></article>
-            <article><b>07</b><h3>Arc settlement daemon</h3><p>Dry-run by default, with locking and double-payment protection for testnet USDC.</p></article>
+            <article><b>01</b><h3>API-backed job queue</h3><p>Funded jobs, claims, leases, proofs, and payout states on Render + Neon.</p></article>
+            <article><b>02</b><h3>Escrow V2 open market</h3><p>Fund before agent is known; operator release after approved proof.</p></article>
+            <article><b>03</b><h3>Circle Gateway x402</h3><p>Sub-cent access fee before claim; seller address distinct from payer.</p></article>
+            <article><b>04</b><h3>Agent + issuer workbenches</h3><p>Browser sessions use API keys only — signing keys stay off the UI.</p></article>
+            <article><b>05</b><h3>Reputation-gated access</h3><p>Delivery events bound reward limits and trusted work.</p></article>
+            <article><b>06</b><h3>Operator release queue</h3><p>Payable V2 proofs listed for dry-run or signed release.</p></article>
+            <article><b>07</b><h3>Arc Testnet USDC</h3><p>Faucet-funded issuer wallets can fund escrow without treasury.</p></article>
           </div>
         </section>
 
@@ -99,25 +99,25 @@
 
         <section class="landing-band modes" aria-labelledby="modesTitle">
           <div class="landing-section-head"><span>Four surfaces</span><h2 id="modesTitle">Observe, issue, work, settle</h2></div>
-          <div class="mode-grid"><article><strong>Dashboard</strong><p>Observe protocol state.</p></article><article><strong>Issuer Workbench</strong><p>Create and manage funded jobs.</p></article><article><strong>Worker</strong><p>Run an autonomous agent client.</p></article><article><strong>Settlement daemon</strong><p>Settle approved proofs on Arc Testnet.</p></article></div>
+          <div class="mode-grid"><article><strong>Dashboard</strong><p>Live jobs, proofs, and operator status.</p></article><article><strong>Issuer Workbench</strong><p>Register, faucet, fund Escrow V2, review proofs.</p></article><article><strong>Agent Workbench</strong><p>Access check, claim, optional link proof.</p></article><article><strong>Protocol</strong><p>V2 release queue and settlement transparency.</p></article></div>
         </section>
 
         <section class="landing-band hosted-loop-section" aria-labelledby="onboardingTitle">
-          <div class="landing-section-head"><span>Public testnet onboarding</span><h2 id="onboardingTitle">Run the hosted Prooflet loop</h2><p>The API is live at https://prooflet-api.onrender.com. The free hosted API runs settlement mode off; dry-run/export stays available and no treasury key is exposed.</p></div>
+          <div class="landing-section-head"><span>Hosted loop</span><h2 id="onboardingTitle">Issuer faucet → fund → access → claim → release</h2><p>API: https://prooflet-api.onrender.com · Arc Testnet only · Hosted API does not hold treasury keys.</p></div>
           <ol class="hosted-loop-strip">
-            <li class="hosted-loop-step"><span>01</span><strong>Register issuer</strong><small>Create or use a test issuer</small></li>
-            <li class="hosted-loop-step"><span>02</span><strong>Create funded link job</strong><small>Reserve testnet USDC reward</small></li>
-            <li class="hosted-loop-step"><span>03</span><strong>Register agent</strong><small>Set payout wallet</small></li>
-            <li class="hosted-loop-step"><span>04</span><strong>Run Link Sentinel</strong><small>Worker claims and checks URL</small></li>
-            <li class="hosted-loop-step"><span>05</span><strong>See proof become payable</strong><small>Verification gates reward</small></li>
-            <li class="hosted-loop-step"><span>06</span><strong>Dry-run settlement batch</strong><small>Preview Arc payout plan</small></li>
+            <li class="hosted-loop-step"><span>01</span><strong>Register issuer</strong><small>Circle wallet provisioned</small></li>
+            <li class="hosted-loop-step"><span>02</span><strong>Claim faucet USDC</strong><small>faucet.circle.com · Arc</small></li>
+            <li class="hosted-loop-step"><span>03</span><strong>Fund Escrow V2</strong><small>From issuer Circle wallet</small></li>
+            <li class="hosted-loop-step"><span>04</span><strong>Agent x402 access</strong><small>Gateway pay before claim</small></li>
+            <li class="hosted-loop-step"><span>05</span><strong>Claim + proof</strong><small>Structured evidence packet</small></li>
+            <li class="hosted-loop-step"><span>06</span><strong>Operator release</strong><small>Payable queue · signed CLI</small></li>
           </ol>
         </section>
 
         <section class="landing-band demo-commands" id="demo-commands" aria-labelledby="commandsTitle">
-          <div class="landing-section-head"><span>Five commands</span><h2 id="commandsTitle">Run against the hosted API</h2></div>
-          <div class="command-stack"><code><span>01</span>$env:USEFUL_WAITING_API_URL="https://prooflet-api.onrender.com"</code><code><span>02</span>npm run job:create-link -- --url https://docs.arc.network --reward 0.001</code><code><span>03</span>npm run gateway:pay-access -- --job-id &lt;jobId&gt; --agent-id &lt;agentId&gt; --private-key &lt;EOA_KEY&gt;</code><code><span>04</span>npm run agent:link -- --once</code><code><span>05</span>npm run settlement:daemon:dry-run -- --once</code></div>
-          <p>Gateway access uses Circle x402 nanopayments before claim; dry-run settlement prepares the Arc Testnet payout plan without sending USDC.</p>
+          <div class="landing-section-head"><span>CLI spine</span><h2 id="commandsTitle">Operator commands against hosted API</h2></div>
+          <div class="command-stack"><code><span>01</span>export USEFUL_WAITING_API_URL=https://prooflet-api.onrender.com</code><code><span>02</span>npm run gateway:pay-access -- --job-id &lt;jobId&gt; --agent-id &lt;agentId&gt;</code><code><span>03</span>npm run escrow:v2:x402-e2e</code><code><span>04</span>npm run escrow:v2:auto-release -- --once</code><code><span>05</span>npm run escrow:v2:auto-release -- --execute --once</code></div>
+          <p>UI paths: Issuer Workbench (faucet + fund) · Agent Workbench (claim) · Protocol (payable queue). Signing keys never enter the browser.</p>
         </section>
 
         <footer class="landing-footer"><strong>Prooflet</strong><span>Circle Wallets · Gateway x402 access fees · Arc Testnet USDC rewards.</span><a href="/dashboard" data-route="/dashboard">Enter protocol →</a></footer>
@@ -160,22 +160,22 @@
       <section class="workbench protocol-route" id="issuerWorkbench" hidden aria-label="Issuer Workbench">
         <header class="workbench-head"><div><span>ISSUER CONTROL PLANE</span><h2>Issuer Workbench</h2></div><strong id="workbenchConnection">Not authenticated</strong></header>
         <div class="issuer-mode-tabs">
-          <button class="mode-tab active" data-mode="demo">Prooflet Demo Issuer</button>
-          <button class="mode-tab" data-mode="external">External Issuer</button>
+          <button class="mode-tab active" data-mode="external">External Issuer</button>
+          <button class="mode-tab" data-mode="demo">Local demo issuer</button>
         </div>
         <section class="issuer-product-strip" aria-label="Issuer workflow">
-          <div><span>01</span><strong>Authenticate</strong><small>Demo issuer or external API key</small></div>
-          <div><span>02</span><strong>Reserve work</strong><small>Define reward, input, proof requirements</small></div>
+          <div><span>01</span><strong>Authenticate</strong><small>API key session (tab-local)</small></div>
+          <div><span>02</span><strong>Faucet + fund</strong><small>Circle wallet → Escrow V2</small></div>
           <div><span>03</span><strong>Review proof</strong><small>Accepted packets become payable</small></div>
-          <div><span>04</span><strong>Settle safely</strong><small>Operator-controlled Arc Testnet release</small></div>
+          <div><span>04</span><strong>Operator release</strong><small>Signed CLI · not the hosted API</small></div>
         </section>
         <section class="issuer-boundary-strip" aria-label="Issuer readiness boundary">
-          <div><span>Current rail</span><strong>Hosted issuer workbench + Circle wallet onboarding are live.</strong></div>
-          <div><span>Escrow boundary</span><strong>ProofletEscrowV2 is live on Arc Testnet: fund before agent, then operator release.</strong></div>
-          <div><span>Settlement safety</span><strong>Approved proofs become payable; operator release still signs the transaction.</strong></div>
+          <div><span>Funding rail</span><strong>Escrow V2 on Arc Testnet — fund before agent is known.</strong></div>
+          <div><span>Issuer funds</span><strong>Faucet → Circle wallet. Treasury is not the issuer fund source.</strong></div>
+          <div><span>Settlement</span><strong>Approved proofs become payable; operator signs release offline.</strong></div>
         </section>
         
-        <div class="issuer-session-panel workbench-auth demo-only" id="demoIssuerPanel">
+        <div class="issuer-session-panel workbench-auth demo-only" id="demoIssuerPanel" hidden>
           <div style="width: 100%;">
             <h3 style="color: var(--amber); margin-bottom: 8px;">Prooflet Demo Issuer</h3>
             <p style="margin-bottom: 12px; color: var(--muted);">Seeded issuer used for local/testnet demos.</p>
@@ -183,7 +183,7 @@
           </div>
         </div>
 
-        <div class="issuer-session-panel workbench-auth external-only" id="returningIssuerPanel" hidden>
+        <div class="issuer-session-panel workbench-auth external-only" id="returningIssuerPanel">
           <div class="issuer-session-column" id="issuerCol">
             <h3 style="color: var(--amber); margin-bottom: 8px;">Returning Issuer</h3>
             <label>Issuer ID<input id="issuerIdInput" autocomplete="username"></label>
@@ -244,7 +244,7 @@
           </div>
         </div>
         <div class="workbench-grid">
-          <section class="workbench-block external-only" id="issuerFundingPanel" hidden>
+          <section class="workbench-block external-only" id="issuerFundingPanel">
             <h3>Issuer Funding</h3>
             <div class="funding-status-panel">
               <p><strong>Current mode:</strong> <span id="fundingModeLabel">External Issuer</span></p>
@@ -262,7 +262,7 @@
                 <div class="external-only" style="margin-top: 12px; padding: 12px; background: rgba(80, 200, 120, 0.08); border: 1px solid var(--primary); border-radius: 8px;">
                   <strong style="color: var(--primary);">Escrow V2 open-market funding is live (Arc Testnet)</strong>
                   <p style="font-size: 0.85rem; margin-top: 4px;">Create a draft job, claim faucet USDC into the issuer Circle wallet, then <strong>Fund Escrow V2 (Circle wallet)</strong>. Operator release remains explicit after proof approval. Treasury is not used for issuer funds.</p>
-                  <p style="font-size: 0.8rem; margin-top: 8px; color: var(--muted);">Contract: <code id="escrowV2AddressHint">0x55bde7d3546f3e6e534a508a9b96d4e8d839eee9</code></p>
+                  <p style="font-size: 0.8rem; margin-top: 8px; color: var(--muted);">Contract: <code id="escrowV2AddressHint">Loading…</code></p>
                 </div>
               </div>
               <div class="funding-actions" style="margin-top: 12px; display:flex; flex-wrap:wrap; gap:8px;">
@@ -276,15 +276,10 @@
           
           <section class="workbench-block"><h3>Overview</h3><div class="workbench-stats" id="issuerOverview"><div class="workbench-empty"><strong>Connect an issuer session</strong><p>Create funded jobs, validate bulk uploads, review proofs, and follow Arc Testnet payouts from one workspace.</p></div></div></section>
           
-          <section class="workbench-block" id="demoEvidencePanel">
-            <h3>Demo Evidence</h3>
-            <div style="display: flex; flex-direction: column; gap: 8px; font-size: 0.85rem; padding: 12px; background: rgba(255,255,255,0.02); border: 1px solid var(--line-strong); border-radius: 8px;">
-              <p><strong>Escrow Contract V1:</strong> <span class="state-badge completed">Deployed / Proven</span> <code style="font-size:0.8em">0xb3397ce196ebf553b8e951abaf75c18785c7e69a</code> <a href="https://testnet.arcscan.app/address/0xb3397ce196ebf553b8e951abaf75c18785c7e69a" target="_blank" rel="noreferrer" style="color: var(--amber);">Arcscan</a></p>
-              <p><strong>Escrow Contract V2:</strong> <span class="state-badge completed">Deployed / Open-market</span> <code style="font-size:0.8em">0x55bde7d3546f3e6e534a508a9b96d4e8d839eee9</code> <a href="https://testnet.arcscan.app/address/0x55bde7d3546f3e6e534a508a9b96d4e8d839eee9" target="_blank" rel="noreferrer" style="color: var(--amber);">Arcscan</a></p>
-              <p><strong>Circle Wallet Provisioning:</strong> <span class="state-badge claimed">Active / Configured</span></p>
-              <p><strong>Nanopayment Mode:</strong> <span class="state-badge completed">Config-ready Sandbox</span></p>
-              <p><strong>External open escrow funding:</strong> <span class="state-badge completed">V2 live on Arc Testnet</span></p>
-              <p><strong>Hosted ledger:</strong> <span class="state-badge completed">Neon Postgres · durable</span></p>
+          <section class="workbench-block" id="liveRailPanel">
+            <h3>Live rails</h3>
+            <div id="liveRailStatus" style="display: flex; flex-direction: column; gap: 8px; font-size: 0.85rem; padding: 12px; background: rgba(255,255,255,0.02); border: 1px solid var(--line-strong); border-radius: 8px;">
+              <p class="issuer-helper">Loading Escrow V2, x402, and storage status from API…</p>
             </div>
           </section>
           <section class="workbench-block"><h3>Create Single Job</h3><form id="singleJobForm" class="workbench-form">
@@ -384,8 +379,8 @@
           <div class="treasury-panel" aria-label="Prooflet treasury status">
             <div><span>Network</span><strong id="treasuryNetwork">Arc Testnet</strong></div>
             <div><span>Asset</span><strong id="treasuryAsset">USDC</strong></div>
-            <div class="wide"><span>Treasury address</span><strong id="treasuryAddress">configure TREASURY_ADDRESS in .env</strong></div>
-            <div class="wide"><span>Available balance</span><strong id="treasuryBalance">available via npm run arc:check</strong></div>
+            <div class="wide"><span>Treasury address</span><strong id="treasuryAddress">Not reported by API</strong></div>
+            <div class="wide"><span>Available balance</span><strong id="treasuryBalance">Not reported by API</strong></div>
             <div><span>Reserved</span><strong id="treasuryReserved">0.000 USDC</strong><small>Funded jobs not completed</small></div>
             <div><span>Payable rewards</span><strong id="treasuryPending">0.000 USDC</strong><small>Approved proofs not paid</small></div>
             <div><span>Paid</span><strong id="treasuryPaid">0.000 USDC</strong><small>Settled on Arc Testnet</small></div>
@@ -514,10 +509,10 @@
           <article class="protocol-card">
             <header><h3>System Constraints</h3></header>
             <div class="protocol-status-card">
-              <div><span>Settlement mode</span><strong>Dry-run default</strong></div>
-              <div><span>Execution safety</span><strong>Treasury-controlled</strong></div>
+              <div><span>Settlement mode</span><strong id="protoSettlementMode">Loading…</strong></div>
+              <div><span>Execution safety</span><strong>Operator-signed release</strong></div>
               <div><span>Network</span><strong>Arc Testnet USDC only</strong></div>
-              <div><span>Adjudication</span><strong>Deterministic / GenLayer / Manual fallback</strong></div>
+              <div><span>Storage</span><strong id="protoStorageMode">Loading…</strong></div>
             </div>
           </article>
 
