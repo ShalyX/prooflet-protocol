@@ -94,6 +94,7 @@ try {
   assert.equal(funded.data.job.escrowStatus, "funded");
   assert.equal(funded.data.job.escrowTxHash, fundTx);
   assert.equal(funded.data.escrow.jobIdBytes32, jobIdToBytes32(jobId));
+  assert.equal(funded.data.escrow.verifiedOnchain, false); // ESCROW_V2_SKIP_ONCHAIN in this check
 
   // Claim path requires agent + access fee in full stack; assert job is claim-funding eligible.
   const listed = await json("GET", "/jobs");

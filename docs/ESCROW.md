@@ -107,6 +107,28 @@ On successful fund receipt:
 - Operator-controlled release remains explicit
 - No production audit
 
+### Operator CLI (V2)
+
+```bash
+npm run escrow:v2:operator -- --list
+npm run escrow:v2:operator -- --fund=JOB_ID --amount=0.01
+npm run escrow:v2:operator -- --status=JOB_ID
+npm run escrow:v2:operator -- --release=JOB_ID --agent=0x... --proof=PROOF_ID
+npm run escrow:v2:operator -- --refund=JOB_ID
+```
+
+Hosted `POST /jobs/:jobId/fund-escrow` verifies the fund tx on-chain when `ESCROW_V2_ADDRESS` is set (skip only with `ESCROW_V2_SKIP_ONCHAIN=true` for tests).
+
+### Verified Arc Testnet V2 lifecycle (post-submission)
+
+| Phase | Evidence |
+|---|---|
+| Contract | `0x55bde7d3546f3e6e534a508a9b96d4e8d839eee9` |
+| Fund (agent unknown) | [`0x73ad8a50…33a9be`](https://testnet.arcscan.app/tx/0x73ad8a50f2a8a74888ca7a825103b7b640872caa56b50280362f0a9f2b33a9be) |
+| Job | `job_v2_e2e_1784127033` / amount `0.01` USDC |
+| Protocol fund verify | on-chain JobFunded + getEscrow Funded → job `reserved`/`open` |
+| Release to agent | [`0x3925ab99…7a1c00`](https://testnet.arcscan.app/tx/0x3925ab998b0dbc925c5b8a70d9d4ad0bbc1970054c8e7d4ea0779a61257a1c00) → agent `0xC209…4Be4` |
+
 ## Settlement Operator CLI for V1
 
 ```bash

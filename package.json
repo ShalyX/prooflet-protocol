@@ -73,9 +73,10 @@
     "gateway:pay-access": "node --no-warnings --env-file-if-exists=.env scripts/pay-job-access.mjs",
     "gateway:pay-access:circle-wallet": "node --no-warnings --env-file-if-exists=.env scripts/pay-job-access-circle-wallet.mjs",
     "agent-wallet:check": "node --no-warnings scripts/agent-wallet-acceptance.mjs",
-    "escrow-v2:check": "node --no-warnings scripts/escrow-v2-acceptance.mjs",
+    "escrow-v2:check": "ESCROW_V2_SKIP_ONCHAIN=true node --no-warnings scripts/escrow-v2-acceptance.mjs",
     "escrow:v2:compile": "npx --yes solc --bin --abi --optimize -o contracts/out contracts/EscrowV2.sol && cp contracts/out/contracts_EscrowV2_sol_ProofletEscrowV2.abi contracts/out/EscrowV2.abi && cp contracts/out/contracts_EscrowV2_sol_ProofletEscrowV2.bin contracts/out/EscrowV2.bin",
-    "escrow:v2:deploy": "node --env-file=.env scripts/deploy-escrow-v2.mjs"
+    "escrow:v2:deploy": "node --env-file=.env scripts/deploy-escrow-v2.mjs",
+    "escrow:v2:operator": "node --env-file=.env workers/escrow-v2-operator.mjs"
   },
   "dependencies": {
     "@circle-fin/developer-controlled-wallets": "^10.7.1",
