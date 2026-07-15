@@ -160,8 +160,17 @@ function render() {
   const openJobs = jobs.filter((job) => ["queued", "open"].includes(job.state));
   const actionProofs = [...payableProofs, ...rejectedProofs].slice(0, 4);
 
-  $("#cyclesMetric").textContent = idleCyclesUsed;
-  $("#activeMetric").textContent = `${active.length} active`;
+  if (appMode === "replay") {
+    $("#cyclesMetricLabel").textContent = "Worker cycles";
+    $("#cyclesMetric").textContent = idleCyclesUsed;
+    $("#activeMetric").textContent = `${active.length} active`;
+    if ($("#proofsMetricNote")) $("#proofsMetricNote").textContent = "replay simulation";
+  } else {
+    $("#cyclesMetricLabel").textContent = "Open jobs";
+    $("#cyclesMetric").textContent = openJobs.length;
+    $("#activeMetric").textContent = `${active.length} claimed`;
+    if ($("#proofsMetricNote")) $("#proofsMetricNote").textContent = "current live ledger";
+  }
   $("#proofsMetric").textContent = ledger.length;
   $("#pendingMetricMain").textContent = `${money(pendingPayout)} USDC`;
   $("#earnedMetric").textContent = `${money(settled)} USDC`;
@@ -192,7 +201,7 @@ function render() {
   $("#batchRejected").textContent = batch.rejectedProofs;
   $("#treasuryNetwork").textContent = TREASURY.network || "Not reported";
   $("#treasuryAsset").textContent = TREASURY.asset || "Not reported";
-  $("#treasuryAddress").textContent = TREASURY.address || "Not configured";
+  $("#treasuryAddress").textContent = TREASURY.address || "Not reported by API";
   $("#treasuryBalance").textContent = TREASURY.availableBalance || "Not reported by API";
   $("#treasuryReserved").textContent = `${money(reservedRewards)} USDC`;
   $("#treasuryPending").textContent = `${money(pendingPayout)} USDC`;
