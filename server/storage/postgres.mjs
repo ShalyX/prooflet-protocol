@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { Pool } from "pg";
 import {
+  attachRepositories,
   getSharedPostgresPool,
   postgresPoolConfig,
   sanitizeStorageError,
@@ -80,16 +81,19 @@ export async function createPostgresStore({
     },
     transaction(operation) {
       if (closed) return Promise.reject(new Error("Store is closed."));
-      return withPostgresTransaction(pool, async (client) => operation({
-        dialect: "postgres",
-        query: async (text, values = []) => {
-          try {
-            return await client.query(text, values);
-          } catch (error) {
-            throw sanitizeStorageError(error);
-          }
-        },
-      }));
+      return withPostgresTransaction(pool, async (client) => {
+        const transactionStore = attachRepositories({
+          dialect: "postgres",
+          query: async (text, values = []) => {
+            try {
+              return await client.query(text, values);
+            } catch (error) {
+              throw sanitizeStorageError(error);
+            }
+          },
+        });
+        return operation(transactionStore);
+      });
     },
     async close() {
       if (closed) return;
@@ -99,7 +103,7 @@ export async function createPostgresStore({
       void shared;
     },
   };
-  return store;
+  return attachRepositories(store);
 }
 
 export async function runPostgresMigrations(pool, { schema = "public" } = {}) {
