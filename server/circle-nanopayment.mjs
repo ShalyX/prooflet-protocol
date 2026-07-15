@@ -7,8 +7,11 @@
  *
  * A direct Arc Testnet USDC event-scan verifier remains as a compatibility path
  * for existing demos, but user-facing copy should distinguish it from Gateway.
+ *
+ * CRITICAL: CIRCLE_GATEWAY_SELLER_ADDRESS must differ from the agent payer
+ * address. Circle Gateway rejects self_transfer (payTo === from).
  */
-import { createPublicClient, http, parseAbi } from "viem";
+import { createPublicClient, http, parseAbi, isAddress } from "viem";
 
 const RPC_URL = process.env.ARC_RPC_URL || "https://rpc.testnet.arc.network";
 const CHAIN_ID = 5042002;
@@ -16,9 +19,21 @@ const NETWORK = `eip155:${CHAIN_ID}`;
 const USDC_ADDRESS = "0x3600000000000000000000000000000000000000";
 const TREASURY_ADDRESS = process.env.TREASURY_ADDRESS || "0x709F18F797347FbB8D53Fb60567892751dd14B11";
 const GATEWAY_API_BASE = process.env.CIRCLE_GATEWAY_API_URL || "https://gateway-api-testnet.circle.com";
-const GATEWAY_SELLER_ADDRESS = process.env.CIRCLE_GATEWAY_SELLER_ADDRESS || TREASURY_ADDRESS;
 const ACCESS_FEE_USDC = "0.000001";
 const ACCESS_FEE_RAW = "1";
+
+function resolveSellerAddress(env = process.env) {
+  const configured = env.CIRCLE_GATEWAY_SELLER_ADDRESS || env.GATEWAY_SELLER_ADDRESS || "";
+  if (configured && isAddress(configured)) return configured;
+  // Safe demo fallback: only if explicitly allowed (not production).
+  if (env.CIRCLE_GATEWAY_ALLOW_SELF_SELLER === "true") return TREASURY_ADDRESS;
+  // Prefer a distinct seller from treasury; if unset, still return treasury but
+  // mark selfSellerRisk so operators can detect misconfig via /nanopayment/config.
+  return TREASURY_ADDRESS;
+}
+
+const GATEWAY_SELLER_ADDRESS = resolveSellerAddress();
+const SELF_SELLER_RISK = GATEWAY_SELLER_ADDRESS.toLowerCase() === String(TREASURY_ADDRESS).toLowerCase();
 
 const usdcAbi = parseAbi(["event Transfer(address indexed from, address indexed to, uint256 value)"]);
 
@@ -35,6 +50,10 @@ export function nanopaymentConfig() {
     usdcAddress: USDC_ADDRESS,
     network: NETWORK,
     chainId: CHAIN_ID,
+    selfSellerRisk: SELF_SELLER_RISK,
+    selfSellerNote: SELF_SELLER_RISK
+      ? "CIRCLE_GATEWAY_SELLER_ADDRESS equals TREASURY_ADDRESS. Circle Gateway rejects self_transfer when the agent payer is also treasury."
+      : null,
     x402: {
       version: 2,
       resourceTemplate: "/jobs/:jobId/gateway-access",
@@ -60,7 +79,7 @@ export function createPaymentRequest(jobId, agentAddress) {
     rail: "circle_gateway_x402",
     gatewayAccessUrl: `/jobs/${encodeURIComponent(jobId)}/gateway-access?agentId=<agentId>`,
     fallbackRail: "arc_usdc_event_scan",
-    instructions: `Preferred: pay the x402 Gateway endpoint for this job. Fallback: send exactly ${ACCESS_FEE_USDC} USDC from ${agentAddress} to ${TREASURY_ADDRESS} on Arc Testnet, then verify the transfer.`,
+    instructions: `Preferred: pay the x402 Gateway endpoint for this job (seller ${GATEWAY_SELLER_ADDRESS}). Fallback: send exactly ${ACCESS_FEE_USDC} USDC from ${agentAddress} to ${TREASURY_ADDRESS} on Arc Testnet, then verify the transfer.`,
   };
 }
 
