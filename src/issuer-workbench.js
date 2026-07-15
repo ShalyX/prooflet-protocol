@@ -3,9 +3,9 @@ import { IssuerClient } from "@useful-waiting/issuer-sdk";
 export function initIssuerWorkbench({ apiUrl, onNavigate }) {
   const panel=document.querySelector("#issuerWorkbench"), toggle=document.querySelector("#toggleWorkbench");
   const issuerInput=document.querySelector("#issuerIdInput"), keyInput=document.querySelector("#issuerKeyInput"), message=document.querySelector("#workbenchMessage");
-  let client=null, preview=null, mode="demo";
+  let client=null, preview=null, mode="external";
   
-  issuerInput.value=sessionStorage.getItem("uwp.issuerId")||issuerInput.value; keyInput.value=sessionStorage.getItem("uwp.issuerApiKey")||"";
+  issuerInput.value=sessionStorage.getItem("uwp.extIssuerId")||sessionStorage.getItem("uwp.issuerId")||issuerInput.value; keyInput.value=sessionStorage.getItem("uwp.extIssuerApiKey")||sessionStorage.getItem("uwp.issuerApiKey")||"";
   
   if(import.meta.env.DEV){const helper=document.createElement("button");helper.className="ghost dev-issuer-helper";helper.type="button";helper.textContent="Use local dev issuer";helper.addEventListener("click",()=>{issuerInput.value="useful_waiting_protocol";keyInput.value="uwp_issuer_useful_waiting_protocol_dev";message.textContent="Local development credentials loaded. Select Connect to start the issuer session.";message.dataset.state="ok";document.querySelector("#workbenchConnection").textContent="Credentials loaded";});document.querySelector("#issuerCol").append(helper);}
   
@@ -13,7 +13,7 @@ export function initIssuerWorkbench({ apiUrl, onNavigate }) {
     document.querySelectorAll(".mode-tab").forEach(b => b.classList.remove("active"));
     e.target.classList.add("active");
     mode = e.target.dataset.mode;
-    document.querySelector("#fundingModeLabel").textContent = mode === "external" ? "External Issuer" : "Prooflet Demo Issuer";
+    document.querySelector("#fundingModeLabel").textContent = mode === "external" ? "External Issuer" : "Local demo issuer";
     
     // Reset panels
     document.querySelector("#demoIssuerPanel").hidden = true;
@@ -26,13 +26,15 @@ export function initIssuerWorkbench({ apiUrl, onNavigate }) {
       document.querySelector("#issuerFundingPanel").hidden = false;
       document.querySelector("#issuerIdInput").value = sessionStorage.getItem("uwp.extIssuerId")||"";
       document.querySelector("#issuerKeyInput").value = sessionStorage.getItem("uwp.extIssuerApiKey")||"";
-      document.querySelector("#demoEvidencePanel").hidden = true;
+      const rail = document.querySelector("#liveRailPanel");
+      if (rail) rail.hidden = false;
     } else {
       document.querySelector("#demoIssuerPanel").hidden = false;
       document.querySelector("#issuerFundingPanel").hidden = true;
-      document.querySelector("#issuerIdInput").value = sessionStorage.getItem("uwp.issuerId")||"useful_waiting_protocol";
+      document.querySelector("#issuerIdInput").value = sessionStorage.getItem("uwp.issuerId")||"";
       document.querySelector("#issuerKeyInput").value = sessionStorage.getItem("uwp.issuerApiKey")||"";
-      document.querySelector("#demoEvidencePanel").hidden = false;
+      const rail = document.querySelector("#liveRailPanel");
+      if (rail) rail.hidden = false;
     }
     client = null;
     renderUnauthenticated();
@@ -455,7 +457,48 @@ export function initIssuerWorkbench({ apiUrl, onNavigate }) {
     uploadBtn.disabled = true;
     uploadBtn.textContent = "Connect issuer to validate batch";
   }
-  return {show(){panel.hidden=false;if(keyInput.value)connect();},hide(){panel.hidden=true;}};
+  async function hydrateLiveRails() {
+    const root = document.querySelector("#liveRailStatus");
+    if (!root) return;
+    try {
+      const [health, escrow, nano] = await Promise.all([
+        fetch(`${apiUrl}/health`).then((r) => r.json()).catch(() => ({})),
+        fetch(`${apiUrl}/escrow/v2/config`).then((r) => r.json()).catch(() => ({})),
+        fetch(`${apiUrl}/nanopayment/config`).then((r) => r.json()).catch(() => ({})),
+      ]);
+      const storage = health.storage || {};
+      const durable = storage.durable === true;
+      const mode = storage.mode || "unknown";
+      const contract = escrow.contract || "Not configured";
+      const contractHtml = escrow.contract
+        ? `<a href="https://testnet.arcscan.app/address/${escape(escrow.contract)}" target="_blank" rel="noreferrer">${escape(escrow.contract)}</a>`
+        : escape(contract);
+      const seller = nano.sellerAddress || "—";
+      const risk = nano.selfSellerRisk ? "self_transfer risk" : "seller ≠ treasury";
+      root.innerHTML = [
+        `<p><strong>Storage:</strong> <span class="state-badge ${durable ? "completed" : "draft"}">${escape(mode)}${durable ? " · durable" : ""}</span></p>`,
+        `<p><strong>Escrow V2:</strong> ${escrow.configured ? '<span class="state-badge completed">Configured</span>' : '<span class="state-badge draft">Not configured</span>'} ${contractHtml}</p>`,
+        `<p><strong>x402 seller:</strong> <code style="font-size:0.8em">${escape(seller)}</code> <span class="issuer-helper">${escape(risk)}</span></p>`,
+        `<p><strong>Access fee:</strong> ${escape(nano.accessFee || "0.000001")} USDC · rail ${escape(nano.rail || "circle_gateway_x402")}</p>`,
+        `<p class="issuer-helper">Live values from API — not static marketing copy.</p>`,
+      ].join("");
+      const hint = document.querySelector("#escrowV2AddressHint");
+      if (hint && escrow.contract) hint.textContent = escrow.contract;
+    } catch {
+      root.innerHTML = `<p class="issuer-helper">Unable to load live rails from API.</p>`;
+    }
+  }
+
+  return {
+    show() {
+      panel.hidden = false;
+      hydrateLiveRails();
+      if (keyInput.value) connect();
+    },
+    hide() {
+      panel.hidden = true;
+    },
+  };
 }
 function table(headers,rows,allowHtml=false){return `<table><thead><tr>${headers.map((value)=>`<th>${escape(value)}</th>`).join("")}</tr></thead><tbody>${rows.map((row)=>`<tr>${row.map((value)=>`<td>${allowHtml?value:escape(value)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;}
 function escape(value){return String(value??"").replace(/[&<>"']/g,(char)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[char]);}
