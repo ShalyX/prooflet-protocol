@@ -7,7 +7,8 @@ import { authenticate, generateApiKey, storeApiKey } from "./auth.mjs";
 import { authenticateAdjudicator } from "./auth.mjs";
 import { createAgentWallet, createIssuerWallet, getCircleStatus, isCircleConfigured, getWalletBalance, sendUsdc, getWalletDetails } from "./circle-wallet.mjs";
 import { databaseStorageStatus, expireLeases, json, openDatabase, parseJson, withTransaction } from "./db.mjs";
-import { createSqliteStoreFromDatabase } from "./storage/index.mjs";
+import { createSqliteStoreFromDatabase, createStore, resolveDialect } from "./storage/index.mjs";
+import { storageStatusForStore } from "./storage/db-proxy.mjs";
 import { seedDatabase } from "./seed.mjs";
 import { createSettlementBatch, recordSettledBatch, settlementSummary } from "./settlement.mjs";
 import { canonicalJson, proofFingerprint, verifyProof } from "./verifiers.mjs";
@@ -1034,10 +1035,31 @@ function verifySubjectivePreflight(job, proof, requirements) {
   return missing.length ? { approved: false, route: "subjective_preflight", reason: `Missing required result field(s): ${missing.join(", ")}.` } : null;
 }
 
+export async function createAppFromEnv(env = process.env) {
+  const dialect = resolveDialect(env);
+  if (dialect === "postgres") {
+    // Fail closed: domain repositories are ready, but remaining Express surfaces still
+    // depend on synchronous SQLite statement APIs. Do not half-cut over hosted traffic.
+    throw new Error(
+      "DATABASE_URL selects Postgres, but the hosted Express/Postgres adapter is not complete yet. " +
+        "Unset DATABASE_URL (keep free SQLite) until PROOFLET_POSTGRES_API_READY code lands, " +
+        "or continue local repository work against TEST_DATABASE_URL.",
+    );
+  }
+  const store = await createStore({ env, sqlite: {} });
+  return createApp({ db: store.native, store });
+}
+
 const isMain = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
 if (isMain) {
-  const { app } = createApp();
+  const { app, store } = await createAppFromEnv();
   const port = Number(process.env.PORT || process.env.API_PORT || 8787);
   const host = process.env.API_HOST || (process.env.RENDER ? "0.0.0.0" : "127.0.0.1");
-  app.listen(port, host, () => console.log(`Prooflet API v0 listening at http://${host}:${port}`));
+  const status = store ? storageStatusForStore(store) : databaseStorageStatus();
+  app.listen(port, host, () => {
+    console.log(
+      `Prooflet API v0 listening at http://${host}:${port} ` +
+        `dialect=${store?.dialect || "sqlite"} durable=${status.durable} mode=${status.mode}`,
+    );
+  });
 }
