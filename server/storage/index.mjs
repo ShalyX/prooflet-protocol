@@ -2,6 +2,8 @@ import { createRequire } from "node:module";
 import { openDatabase } from "../db.mjs";
 import { createIdentityRepository } from "./repositories/identity.mjs";
 import { createJobsRepository } from "./repositories/jobs.mjs";
+import { createAccessPaymentsRepository } from "./repositories/access-payments.mjs";
+import { createProofsRepository } from "./repositories/proofs.mjs";
 
 const nodeRequire = createRequire(import.meta.url);
 const DEFAULT_POOL_MAX = 3;
@@ -179,5 +181,7 @@ function boundedPositiveInteger(value, fallback, maximum) {
 export function attachRepositories(store) {
   store.identity = createIdentityRepository(store);
   store.jobs = createJobsRepository(store);
+  store.accessPayments = createAccessPaymentsRepository(store);
+  store.proofs = createProofsRepository(store);
   return store;
 }

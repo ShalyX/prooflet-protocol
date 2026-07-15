@@ -457,7 +457,7 @@ export function createApp({
     if (!authenticate(db, request, "agent", proof.agentId)) throw httpError(401, "Valid agent API key required.");
     if (Number.isNaN(Date.parse(proof.proofTimestamp))) throw httpError(400, "proofTimestamp must be a valid timestamp.");
 
-    const result = withTransaction(db, () => {
+    const result = await appStore.transaction(async (tx) => {
       expireLeasesWithEvents(db);
       const job = db.prepare("SELECT * FROM jobs WHERE job_id = ?").get(jobId);
       if (!job) throw httpError(404, `Job ${jobId} does not exist.`);
@@ -467,15 +467,15 @@ export function createApp({
         ORDER BY claim_id DESC LIMIT 1
       `).get(jobId, proof.agentId);
       if (!claim || claim.lease_expires_at <= new Date().toISOString()) throw httpError(409, "Claim lease expired before proof submission.");
-      if (db.prepare("SELECT 1 FROM proofs WHERE proof_id = ?").get(proof.proofId)) throw httpError(409, `Proof ${proof.proofId} already exists.`);
+      if (await tx.proofs.getProof(proof.proofId)) throw httpError(409, `Proof ${proof.proofId} already exists.`);
 
       const requirements = parseJson(job.proof_requirements_json, {});
       const fingerprint = proofFingerprint(proof);
-      const duplicate = db.prepare("SELECT proof_id, job_id FROM proofs WHERE fingerprint = ? LIMIT 1").get(fingerprint);
+      const duplicate = await tx.proofs.findByFingerprint(fingerprint);
       const subjective = job.verification_mode === "subjective";
       const subjectivePreflight = subjective ? verifySubjectivePreflight(job, proof, requirements) : null;
       const verification = duplicate
-        ? { approved: false, route: "duplicate_proof_v0", reason: `Duplicate proof payload matches ${duplicate.proof_id} from ${duplicate.job_id}.` }
+        ? { approved: false, route: "duplicate_proof_v0", reason: `Duplicate proof payload matches ${duplicate.proofId} from ${duplicate.jobId}.` }
         : subjective ? (subjectivePreflight || { approved: false, pending: true, route: "manual_adapter", reason: null })
         : verifyProof({ jobType: job.job_type, input: parseJson(job.input_json, {}) }, proof, requirements);
       const outcome = verification.pending ? "pending_adjudication" : verification.approved ? "accepted" : "rejected";
@@ -484,22 +484,37 @@ export function createApp({
       const verificationStatus = verification.pending ? "pending_adjudication" : verification.approved ? "deterministic_verified" : duplicate ? "duplicate_rejected" : "deterministic_rejected";
       const adjudicationStatus = verification.pending ? "pending_adjudication" : "not_required";
       const now = new Date().toISOString();
-      db.prepare(`
-        INSERT INTO proofs
-          (proof_id, job_id, agent_id, job_type, input_json, result_json, verification_route,
-           proof_timestamp, fingerprint, outcome, rejection_reason, funding_status,
-           settlement_status, verification_status, adjudication_status, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        proof.proofId, jobId, proof.agentId, proof.jobType, json(proof.input), json(proof.result),
-        verification.route, proof.proofTimestamp, fingerprint, outcome, verification.reason,
-        fundingStatus, settlementStatus, verificationStatus, adjudicationStatus, now,
-      );
-      db.prepare("UPDATE job_claims SET status = 'submitted' WHERE claim_id = ?").run(claim.claim_id);
-      db.prepare(`
-        UPDATE jobs SET status = ?, funding_status = ?, lease_expires_at = NULL, updated_at = ?
-        WHERE job_id = ?
-      `).run(verification.pending ? "pending_adjudication" : verification.approved ? "completed" : "rejected", fundingStatus, now, jobId);
+      let created;
+      try {
+        created = await tx.proofs.createProof({
+          proofId: proof.proofId,
+          jobId,
+          agentId: proof.agentId,
+          jobType: proof.jobType,
+          input: proof.input,
+          result: proof.result,
+          verificationRoute: verification.route,
+          proofTimestamp: proof.proofTimestamp,
+          fingerprint,
+          outcome,
+          rejectionReason: verification.reason,
+          fundingStatus,
+          settlementStatus,
+          verificationStatus,
+          adjudicationStatus,
+          createdAt: now,
+        });
+      } catch (error) {
+        if (error?.code === "UNIQUE_VIOLATION") throw httpError(409, `Proof ${proof.proofId} already exists.`);
+        throw error;
+      }
+      await tx.proofs.markClaimSubmitted(claim.claim_id);
+      await tx.proofs.completeJobAfterProof({
+        jobId,
+        jobStatus: verification.pending ? "pending_adjudication" : verification.approved ? "completed" : "rejected",
+        fundingStatus,
+        updatedAt: now,
+      });
       if (!verification.pending) appendReputationEvent(db, { agentId: proof.agentId, eventType: duplicate ? "duplicate_proof_rejected" : verification.approved ? "proof_approved" : "proof_rejected", jobId, proofId: proof.proofId, issuerId: job.issuer_id, createdAt: now });
       if (verification.pending) pendingManualRequest(proof.proofId, now);
 
@@ -719,7 +734,7 @@ export function createApp({
     response.json({ paid: payment?.status === "paid", payment: serializeAccessPayment(payment), config: nanopaymentConfig() });
   });
 
-  app.get("/jobs/:jobId/gateway-access", validateGatewayAccessTarget(db), gateway.require(gatewayPrice()), (request, response) => {
+  app.get("/jobs/:jobId/gateway-access", validateGatewayAccessTarget(db), gateway.require(gatewayPrice()), async (request, response) => {
     const agentId = String(request.query.agentId || request.get("x-agent-id") || "");
     requireId(agentId, "agentId");
     const job = db.prepare("SELECT * FROM jobs WHERE job_id=?").get(request.params.jobId);
@@ -729,18 +744,29 @@ export function createApp({
     const payerAddress = request.payment?.payer || null;
     if (!payerAddress || !isAddress(payerAddress)) throw httpError(403, "Gateway payment payer address is required.");
     if (!agent.payout_address || agent.payout_address.toLowerCase() !== payerAddress.toLowerCase()) throw httpError(403, "Gateway payment payer must match the registered agent payout address.");
-    if (request.payment?.transaction && db.prepare("SELECT 1 FROM job_access_payments WHERE gateway_transaction_id=? AND NOT (job_id=? AND agent_id=?)").get(request.payment.transaction, request.params.jobId, agentId)) throw httpError(409, "Gateway payment transaction was already used for another job or agent.");
-    const payment = recordAccessPayment(db, {
-      jobId: request.params.jobId,
-      agentId,
-      rail: "circle_gateway_x402",
-      amount: nanopaymentConfig().accessFee,
-      payerAddress,
-      gatewayTransactionId: request.payment?.transaction || null,
-      network: request.payment?.network || nanopaymentConfig().network,
-      metadata: { payment: request.payment || null, resource: "job_access" },
-    });
-    response.json({ ok: true, access: "granted", jobId: request.params.jobId, agentId, payment: serializeAccessPayment(payment) });
+    if (request.payment?.transaction) {
+      const existing = await appStore.accessPayments.findByGatewayTransactionId(request.payment.transaction);
+      if (existing && (existing.jobId !== request.params.jobId || existing.agentId !== agentId)) {
+        throw httpError(409, "Gateway payment transaction was already used for another job or agent.");
+      }
+    }
+    let payment;
+    try {
+      payment = await appStore.accessPayments.recordPaidAccess({
+        jobId: request.params.jobId,
+        agentId,
+        rail: "circle_gateway_x402",
+        amount: nanopaymentConfig().accessFee,
+        payerAddress,
+        gatewayTransactionId: request.payment?.transaction || null,
+        network: request.payment?.network || nanopaymentConfig().network,
+        metadata: { payment: request.payment || null, resource: "job_access" },
+      });
+    } catch (error) {
+      if (error?.code === "UNIQUE_VIOLATION") throw httpError(409, "Gateway payment transaction was already used for another job or agent.");
+      throw error;
+    }
+    response.json({ ok: true, access: "granted", jobId: request.params.jobId, agentId, payment: serializeAccessPaymentRow(payment) });
   });
 
   app.post("/jobs/:jobId/access-fee/verify", async (request, response) => {
@@ -754,19 +780,30 @@ export function createApp({
     if (!agent.payout_address || agent.payout_address.toLowerCase() !== agentAddress.toLowerCase()) throw httpError(403, "agentAddress must match the registered agent payout address.");
     const result = await verifyNanopayment(agentAddress, request.params.jobId);
     if (result.paid) {
-      if (result.txHash && db.prepare("SELECT 1 FROM job_access_payments WHERE tx_hash=? AND NOT (job_id=? AND agent_id=?)").get(result.txHash, request.params.jobId, agentId)) throw httpError(409, "Fallback access payment transaction was already used for another job or agent.");
-      recordAccessPayment(db, {
-        jobId: request.params.jobId,
-        agentId,
-        rail: "arc_usdc_event_scan",
-        amount: result.accessFee,
-        payerAddress: agentAddress,
-        txHash: result.txHash || null,
-        network: nanopaymentConfig().network,
-        metadata: { verifier: "arc_usdc_transfer_event", transferCount: result.transferCount || 0 },
-      });
+      if (result.txHash) {
+        const existing = await appStore.accessPayments.findByTxHash(result.txHash);
+        if (existing && (existing.jobId !== request.params.jobId || existing.agentId !== agentId)) {
+          throw httpError(409, "Fallback access payment transaction was already used for another job or agent.");
+        }
+      }
+      try {
+        await appStore.accessPayments.recordPaidAccess({
+          jobId: request.params.jobId,
+          agentId,
+          rail: "arc_usdc_event_scan",
+          amount: result.accessFee,
+          payerAddress: agentAddress,
+          txHash: result.txHash || null,
+          network: nanopaymentConfig().network,
+          metadata: { verifier: "arc_usdc_transfer_event", transferCount: result.transferCount || 0 },
+        });
+      } catch (error) {
+        if (error?.code === "UNIQUE_VIOLATION") throw httpError(409, "Fallback access payment transaction was already used for another job or agent.");
+        throw error;
+      }
     }
-    response.json({ ...result, payment: result.paid ? serializeAccessPayment(getAccessPayment(db, request.params.jobId, agentId)) : null });
+    const payment = result.paid ? await appStore.accessPayments.getPaidAccess(request.params.jobId, agentId) : null;
+    response.json({ ...result, payment: result.paid ? serializeAccessPaymentRow(payment) : null });
   });
 
   app.use((error, request, response, _next) => {
@@ -852,6 +889,27 @@ function serializeProof(row) {
     fundingStatus: row.funding_status, settlementStatus: row.settlement_status, batchId: row.batch_id,
     txHash: row.tx_hash, explorer: row.explorer_url, verificationStatus: row.verification_status || "deterministic_verified", adjudicationStatus: row.adjudication_status || "not_required",
   };
+}
+
+function serializeAccessPaymentRow(payment) {
+  if (!payment) return null;
+  if (payment.jobId) {
+    return {
+      jobId: payment.jobId,
+      agentId: payment.agentId,
+      rail: payment.rail,
+      amount: payment.amount,
+      payerAddress: payment.payerAddress,
+      txHash: payment.txHash,
+      gatewayTransactionId: payment.gatewayTransactionId,
+      network: payment.network,
+      status: payment.status,
+      metadata: payment.metadata || {},
+      createdAt: payment.createdAt,
+      updatedAt: payment.updatedAt,
+    };
+  }
+  return serializeAccessPayment(payment);
 }
 
 function withAdjudication(db, proof) {
