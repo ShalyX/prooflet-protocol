@@ -1,5 +1,6 @@
 import "./styles.css";
 import { initIssuerWorkbench } from "./issuer-workbench.js";
+import { initAgentWorkbench } from "./agent-workbench.js";
 import { ARCHIVED_SUBMISSION_EVIDENCE, createReplayState } from "./archive-evidence.js";
 
 const ARCSCAN = "https://testnet.arcscan.app";
@@ -1004,6 +1005,7 @@ renderArchiveEvidence();
 render();
 hydrateFromApi();
 const issuerWorkbench = initIssuerWorkbench({ apiUrl: API_URL, onNavigate: navigate });
+const agentWorkbench = initAgentWorkbench({ apiUrl: API_URL });
 
 function navigate(path) {
   if (location.pathname !== path) history.pushState({}, "", path);
@@ -1018,6 +1020,7 @@ function renderRoute() {
   document.querySelectorAll(".agents-surface").forEach((element) => { element.hidden = route !== "/agents"; });
   if ($("#protocolPage")) $("#protocolPage").hidden = route !== "/protocol";
   if (route === "/issuer") issuerWorkbench.show(); else issuerWorkbench.hide();
+  if (route === "/agents") agentWorkbench.show(); else agentWorkbench.hide();
   document.querySelectorAll(".page-nav a").forEach((link) => link.classList.toggle("active", link.pathname === route));
   document.title = route === "/" ? "Prooflet" : route === "/issuer" ? "Issuer Workbench · Prooflet" : route === "/agents" ? "Agent Network · Prooflet" : route === "/protocol" ? "Protocol Transparency · Prooflet" : "Protocol Dashboard · Prooflet";
   window.scrollTo({ top: 0, behavior: "instant" });
@@ -1119,7 +1122,14 @@ async function registerAgentWithWallet(event) {
       <p>API key: <code>${escapeHtml(body.apiKey)}</code></p>
       <p>Payout wallet: <code>${escapeHtml(body.agent.payoutAddress || "not provisioned")}</code></p>
       <p>Circle wallet: ${escapeHtml(body.circleWallet?.walletId || body.walletProvisioning?.status || "not created")}</p>
-      <p class="agent-register-next">Next: set <code>AGENT_ID</code> and <code>AGENT_API_KEY</code> in a worker environment, then run <code>npm run agent:link -- --once</code>.</p>`;
+      <p class="agent-register-next">Next: connect in <strong>Agent workbench</strong> below (fields prefilled), pay access with <code>npm run gateway:pay-access</code>, then claim. Or run <code>npm run agent:link -- --once</code>.</p>`;
+    const sid = document.getElementById("agentSessionId");
+    const skey = document.getElementById("agentSessionKey");
+    if (sid) sid.value = body.agent.agentId;
+    if (skey) skey.value = body.apiKey;
+    try {
+      sessionStorage.setItem("prooflet.agent.session.v1", JSON.stringify({ agentId: body.agent.agentId, apiKey: body.apiKey }));
+    } catch { /* ignore */ }
     await Promise.allSettled([hydrateFromApi(), hydrateLeaderboard()]);
   } catch (error) {
     result.dataset.state = "error";

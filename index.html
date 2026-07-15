@@ -437,6 +437,31 @@
           </form>
           <div class="agent-register-result" id="agentRegisterResult" role="status" hidden></div>
         </section>
+
+        <section class="panel agent-workbench-panel" id="agentWorkbench" aria-label="Agent Workbench">
+          <header class="agents-page-head" style="margin-bottom: 12px;">
+            <div>
+              <span>Agent workbench</span>
+              <h2 style="margin: 4px 0;">Open jobs, access fee, claim</h2>
+              <p>Connect an agent session (tab-local API key). Access fees use Circle Gateway x402 — pay from a keyholder CLI, then claim here. Browser never holds private keys.</p>
+            </div>
+            <strong id="agentWorkbenchConnection">Not authenticated</strong>
+          </header>
+          <div class="issuer-session-panel" style="display:flex; gap:16px; flex-wrap:wrap; margin-bottom: 16px;">
+            <label style="flex:1; min-width:180px;">Agent ID<input id="agentSessionId" autocomplete="username" placeholder="agent_…"></label>
+            <label style="flex:1; min-width:220px;">Agent API Key<input id="agentSessionKey" type="password" autocomplete="current-password" placeholder="Stored for this tab only"></label>
+            <div class="issuer-session-actions" style="display:flex; gap:8px; align-items:flex-end;">
+              <button class="primary" id="agentConnectBtn" type="button">Connect</button>
+              <button class="ghost" id="agentClearBtn" type="button">Clear</button>
+              <button class="secondary" id="agentRefreshJobsBtn" type="button">Refresh jobs</button>
+            </div>
+          </div>
+          <div class="workbench-stats" id="agentSessionMeta"><div class="workbench-empty"><strong>Connect an agent session</strong><p>Use credentials from registration. Capabilities must match open job types.</p></div></div>
+          <h3 style="margin-top: 18px;">Open marketplace jobs</h3>
+          <div class="workbench-table" id="agentOpenJobs"><p>Connect to load open reserved/funded jobs.</p></div>
+          <div class="workbench-message" id="agentWorkbenchMessage" role="status" style="margin-top: 12px;"></div>
+        </section>
+
         <section class="panel agents-roster-panel">
           <header><h2>Agent Workforce</h2><span class="panel-badge">available labor</span></header>
           <div class="panel-source" id="agentsSource">Source: loading live API · 0 registered agents</div>
