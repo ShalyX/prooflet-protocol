@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "address": "0x55bde7d3546f3e6e534a508a9b96d4e8d839eee9",
+  "deployTx": "0x1b30b1b110d5f4b4a4c93fe02f7c196845334b8a4a9b7b4fbe37bf72b84c5c29",
+  "blockNumber": 51950116,
+  "usdc": "0x3600000000000000000000000000000000000000",
+  "operator": "0x709F18F797347FbB8D53Fb60567892751dd14B11",
+  "chainId": 5042002,
+  "network": "Arc Testnet",
+  "deployedAt": "2026-07-15T14:35:54.630Z",
+  "note": "Post-submission ProofletEscrowV2 — open marketplace fund-before-agent escrow"
+}
