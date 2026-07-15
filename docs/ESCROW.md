@@ -72,8 +72,8 @@ V2 lets an issuer fund a marketplace job **before any agent is known**, then rel
 | `refundExpired(jobId)` | Issuer | Reclaims funds after `expiresAt` if still funded |
 | `getEscrow(jobId)` | Anyone | Reads escrow status |
 
-Solidity: `contracts/EscrowV2.sol`  
-Artifacts: `contracts/out/EscrowV2.{abi,bin}`  
+Solidity: `contracts/EscrowV2.sol`
+Artifacts: `contracts/out/EscrowV2.{abi,bin}`
 Deploy (optional, needs deployer key): `npm run escrow:v2:deploy`
 
 ### Protocol API (hosted)
