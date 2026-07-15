@@ -13,6 +13,22 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: prooflet
+          POSTGRES_PASSWORD: prooflet
+          POSTGRES_DB: prooflet_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U prooflet -d prooflet_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql://prooflet:prooflet@127.0.0.1:5432/prooflet_test
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
