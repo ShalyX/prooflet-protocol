@@ -1,62 +1,43 @@
 import "./styles.css";
 import { initIssuerWorkbench } from "./issuer-workbench.js";
+import { ARCHIVED_SUBMISSION_EVIDENCE, createReplayState } from "./archive-evidence.js";
 
 const ARCSCAN = "https://testnet.arcscan.app";
 const DEFAULT_API_URL = import.meta.env.PROD ? "https://prooflet-api.onrender.com" : "http://127.0.0.1:8787";
 const API_URL = window.UWP_API_URL || import.meta.env.VITE_UWP_API_URL || DEFAULT_API_URL;
 const TREASURY = {
-  issuer: "useful_waiting_protocol",
+  issuer: null,
   network: "Arc Testnet",
   asset: "USDC",
-  address: "0x709F18F797347FbB8D53Fb60567892751dd14B11",
-  availableBalance: "1.761023 USDC at last check",
+  address: null,
+  availableBalance: null,
 };
 
 // Loading / error state
-let apiConnected = false;
+let appMode = "loading";
+let storageDurable = null;
 let apiLoading = true;
 let apiError = null;
+let hydrationVersion = 0;
+let replayGeneration = 0;
 
-const SETTLED_BATCH = {
-  batchId: "uwp_arc_20260618_001",
-  settledAt: "2026-06-17T23:38:28.762Z",
-  totalPayout: 0.054,
-  txs: {
-    agent_mira: {
-      hash: "0x3732ce1d02eebb97c213bd88c1d169f6f01eb79fdd6c527f0e19ca9854751552",
-      explorer: "https://testnet.arcscan.app/tx/0x3732ce1d02eebb97c213bd88c1d169f6f01eb79fdd6c527f0e19ca9854751552",
-      blockNumber: "47501957",
-    },
-    agent_byte: {
-      hash: "0x9ad7d702921178fc1c396bd6e0db2e862a0d3f6c87223a20d018237aeb6cde3d",
-      explorer: "https://testnet.arcscan.app/tx/0x9ad7d702921178fc1c396bd6e0db2e862a0d3f6c87223a20d018237aeb6cde3d",
-      blockNumber: "47501959",
-    },
-    agent_lynx: {
-      hash: "0x3a68ec718ca3390f10a44a7435a78431dda0549ad14be1cc48088d5e91fa4e0a",
-      explorer: "https://testnet.arcscan.app/tx/0x3a68ec718ca3390f10a44a7435a78431dda0549ad14be1cc48088d5e91fa4e0a",
-      blockNumber: "47501962",
-    },
-  },
-};
-
-const SEEDED_DEMO_AGENT_IDS = new Set(["agent_lynx", "agent_mira", "agent_byte", "agent_vera"]);
-
-const agents = [
+const REPLAY_AGENTS = [
   { id: "lynx", agentId: "agent_lynx", name: "Link Sentinel", skill: "Verifies stale links and redirect chains", icon: "LK", payoutWallet: "0xC2094270dc7d17C1578a975dd1Aa50578c034Be4", status: "idle", earned: 0.084, score: 97 },
   { id: "mira", agentId: "agent_mira", name: "Freshness Clerk", skill: "Checks source recency and cache freshness", icon: "FR", payoutWallet: "0x1DcB045123730e606A88380BCe534332F50332d2", status: "idle", earned: 0.062, score: 94 },
   { id: "byte", agentId: "agent_byte", name: "Context Press", skill: "Compresses long traces into reusable context", icon: "CP", payoutWallet: "0x110997DF4d76895ce37B64Bc2665ba2A8e639b1e", status: "idle", earned: 0.119, score: 99 },
   { id: "vera", agentId: "agent_vera", name: "Label Judge", skill: "Labels low-confidence snippets for eval sets", icon: "LB", payoutWallet: "0xE6cDb25252E0f07AE50560ee6F104d48Cfc33667", status: "idle", earned: 0.041, score: 91 },
 ];
+let agents = [];
 
-let jobs = [
+const REPLAY_JOBS = [
   { id: "J-1042", type: "link_verify", title: "Verify 12 CCTP docs links", reward: 0.018, issuer: "Prooflet protocol", fundingStatus: "payable", estimate: "22 sec", priority: "high", state: "done", proof: "HTTP 200/301 trace captured", secondsSaved: 22 },
   { id: "J-1043", type: "freshness_check", title: "Refresh Arc fee claim citations", reward: 0.014, issuer: "Prooflet protocol", fundingStatus: "paid", estimate: "18 sec", priority: "med", state: "done", proof: "cache TTL refreshed", secondsSaved: 18 },
   { id: "J-1044", type: "context_compress", title: "Compress 9-agent trace to 1.5K tokens", reward: 0.026, issuer: "Prooflet protocol", fundingStatus: "reserved", estimate: "35 sec", priority: "high", state: "queued" },
   { id: "J-1045", type: "label", title: "Label 20 eval rows for answer quality", reward: 0.011, issuer: "Prooflet protocol", fundingStatus: "reserved", estimate: "26 sec", priority: "low", state: "queued" },
 ];
+let jobs = [];
 
-let ledger = [
+const REPLAY_LEDGER = [
   {
     id: "0x9b31",
     jobId: "job_0002",
@@ -65,8 +46,8 @@ let ledger = [
     agent: "Context Press",
     job: "Compressed research trace",
     amount: 0.024,
-    tx: SETTLED_BATCH.txs.agent_byte.hash,
-    explorer: SETTLED_BATCH.txs.agent_byte.explorer,
+    tx: null,
+    explorer: null,
     proof: "semantic checksum preserved",
     outcome: "accepted",
     fundingStatus: "paid",
@@ -84,8 +65,8 @@ let ledger = [
     agent: "Link Sentinel",
     job: "Verified docs links",
     amount: 0.016,
-    tx: SETTLED_BATCH.txs.agent_lynx.hash,
-    explorer: SETTLED_BATCH.txs.agent_lynx.explorer,
+    tx: null,
+    explorer: null,
     proof: "HTTP 200/301 trace captured",
     outcome: "accepted",
     fundingStatus: "paid",
@@ -103,8 +84,8 @@ let ledger = [
     agent: "Freshness Clerk",
     job: "Refresh Arc fee claim citations",
     amount: 0.014,
-    tx: SETTLED_BATCH.txs.agent_mira.hash,
-    explorer: SETTLED_BATCH.txs.agent_mira.explorer,
+    tx: null,
+    explorer: null,
     proof: "cache TTL refreshed",
     outcome: "accepted",
     fundingStatus: "paid",
@@ -152,6 +133,7 @@ let ledger = [
     proofTimestamp: "2026-06-17T14:59:00Z",
   },
 ];
+let ledger = [];
 
 const jobTemplates = [
   ["link_verify", "Check redirect drift for partner APIs", 0.012],
@@ -167,21 +149,21 @@ let idleCyclesUsed = 0;
 let running = false;
 let latestBatchPayload = null;
 let activeQueueFilter = "priority";
-const systemStatus = { api: "Connecting", arc: "Checking", mode: "Dry-run default", batch: SETTLED_BATCH.batchId, payout: SETTLED_BATCH.totalPayout };
+const systemStatus = { api: "Connecting", arc: "Checking", mode: "Unavailable until live state loads", batch: null, payout: 0 };
 let eventSeq = 5;
-let events = [
+const REPLAY_EVENTS = [
   {
     id: "evt_005",
     kind: "settlement",
     title: "Arc batch settled",
-    detail: `${SETTLED_BATCH.batchId} paid 0.054 testnet USDC across 3 agent wallets`,
+    detail: "Replay settlement completed across three simulated agent wallets",
     meta: "3 tx confirmed",
   },
   {
     id: "evt_004",
     kind: "approved",
     title: "proof paid",
-    detail: "agent_byte proof settled on Arc Testnet in block 47501959",
+    detail: "Replay proof reached the simulated settled state",
     meta: "paid",
   },
   {
@@ -206,9 +188,94 @@ let events = [
     meta: "2 approved / 1 rejected",
   },
 ];
+let events = [];
 
 const $ = (selector) => document.querySelector(selector);
 const money = (value) => value.toLocaleString("en-US", { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+
+function modeLabel() {
+  if (appMode === "live" && storageDurable === true) return "Live · durable path configured";
+  if (appMode === "live" && storageDurable === false) return "Live · ephemeral ledger";
+  if (appMode === "live") return "Live · durability unknown";
+  if (appMode === "unavailable") return "Live state unavailable";
+  if (appMode === "replay") return "Replay · browser-only queue simulation";
+  return "Loading live ledger";
+}
+
+function eventKindClass(kind) { return ["settlement", "proof", "agent", "job"].includes(kind) ? kind : "event"; }
+function agentStatusClass(status) { return ["idle", "working", "active", "offline"].includes(status) ? status : "unknown"; }
+function proofOutcomeClass(outcome) { return outcome === "accepted" || outcome === "rejected" ? outcome : "pending"; }
+function arcscanTxUrl(transactionHash) {
+  const normalizedHash = String(transactionHash || "");
+  return /^0x[0-9a-f]{64}$/i.test(normalizedHash) ? `${ARCSCAN}/tx/${normalizedHash}` : null;
+}
+function settlementLink(item) {
+  const transactionUrl = arcscanTxUrl(item.tx);
+  if (transactionUrl) {
+    return `<a href="${transactionUrl}" target="_blank" rel="noreferrer">Paid · Arc Testnet</a>`;
+  }
+  return `<em>${escapeHtml(proofStatus(item))}</em>`;
+}
+
+function setAppMode(mode, { durable = storageDurable } = {}) {
+  appMode = mode;
+  storageDurable = durable === true ? true : durable === false ? false : null;
+  const truthState = document.getElementById("globalTruthState");
+  if (truthState) {
+    truthState.textContent = modeLabel();
+    truthState.dataset.mode = appMode;
+  }
+  document.body.dataset.appMode = appMode;
+  for (const id of ["runCycle", "prepareBatch", "prepareBatchHero", "addJobs"]) {
+    const control = document.getElementById(id);
+    if (control) control.disabled = appMode !== "replay";
+  }
+  const replayToggle = document.getElementById("toggleReplay");
+  if (replayToggle) replayToggle.textContent = appMode === "replay" ? "Exit replay" : "Enter replay";
+}
+
+function clearLiveState() {
+  agents.splice(0, agents.length);
+  jobs = [];
+  ledger = [];
+  events = [];
+  latestBatchPayload = null;
+  systemStatus.api = "Unavailable";
+  systemStatus.arc = "Unavailable";
+  systemStatus.mode = "Unavailable";
+  systemStatus.batch = null;
+  systemStatus.payout = 0;
+  TREASURY.issuer = null;
+  TREASURY.address = null;
+  TREASURY.availableBalance = null;
+}
+
+function enterReplayMode() {
+  hydrationVersion += 1;
+  replayGeneration += 1;
+  running = false;
+  const replay = createReplayState();
+  agents.splice(0, agents.length, ...replay.agents);
+  jobs = replay.jobs;
+  ledger = replay.ledger;
+  events = replay.events;
+  setAppMode("replay", { durable: false });
+  apiLoading = false;
+  apiError = null;
+  renderLeaderboardUnavailable();
+  render();
+}
+
+function renderArchiveEvidence() {
+  const container = document.getElementById("archiveEvidence");
+  if (!container) return;
+  const evidence = ARCHIVED_SUBMISSION_EVIDENCE;
+  container.innerHTML = `<header><span>${escapeHtml(evidence.label)}</span><strong>Committed on ${escapeHtml(evidence.network)}</strong></header>
+    <div><span>Batch</span><code>${escapeHtml(evidence.batchId)}</code></div>
+    <div><span>Total paid</span><strong>${escapeHtml(evidence.totalPayout)}</strong></div>
+    <div><span>Source commit</span><code>${escapeHtml(evidence.sourceCommit.slice(0, 12))}</code></div>
+    <ul>${evidence.receipts.map((receipt) => `<li><span>${escapeHtml(receipt.agentId)}</span><a href="${ARCSCAN}/tx/${receipt.hash}" target="_blank" rel="noreferrer">block ${escapeHtml(receipt.blockNumber)}</a></li>`).join("")}</ul>`;
+}
 
 function render() {
   // Show loading/error indicators
@@ -219,8 +286,8 @@ function render() {
   if (errorEl) errorEl.textContent = apiError || "";
   // Update connection badge in nav
   document.querySelectorAll(".api-badge").forEach((el) => {
-    el.textContent = apiConnected ? "API Connected" : "Local Demo Data";
-    el.className = `api-badge ${apiConnected ? "connected" : "fallback"}`;
+    el.textContent = modeLabel();
+    el.className = `api-badge ${appMode}`;
   });
 
   const queued = jobs.filter((job) => job.state === "queued");
@@ -267,10 +334,10 @@ function render() {
   $("#batchPending").textContent = `${money(batch.totalPayout)} USDC`;
   $("#batchApproved").textContent = batch.approvedProofs;
   $("#batchRejected").textContent = batch.rejectedProofs;
-  $("#treasuryNetwork").textContent = TREASURY.network;
-  $("#treasuryAsset").textContent = TREASURY.asset;
-  $("#treasuryAddress").textContent = TREASURY.address;
-  $("#treasuryBalance").textContent = TREASURY.availableBalance;
+  $("#treasuryNetwork").textContent = TREASURY.network || "Not reported";
+  $("#treasuryAsset").textContent = TREASURY.asset || "Not reported";
+  $("#treasuryAddress").textContent = TREASURY.address || "Not configured";
+  $("#treasuryBalance").textContent = TREASURY.availableBalance || "Not reported by API";
   $("#treasuryReserved").textContent = `${money(reservedRewards)} USDC`;
   $("#treasuryPending").textContent = `${money(pendingPayout)} USDC`;
   $("#treasuryPaid").textContent = `${money(settled)} USDC`;
@@ -281,30 +348,30 @@ function render() {
   $("#systemBatch").textContent = systemStatus.batch || "None yet";
   $("#systemPayout").textContent = `${money(systemStatus.payout || 0)} USDC`;
   if (latestBatchPayload) renderPreparedBatch(batch);
-  $("#runCycle").disabled = running || queued.length === 0;
+  $("#runCycle").disabled = appMode !== "replay" || running || queued.length === 0;
 
   $("#events").innerHTML = events.map((event) => `
-    <article class="event-row ${event.kind}">
+    <article class="event-row ${eventKindClass(event.kind)}">
       <div class="event-dot"></div>
       <div>
-        <strong>${event.title}</strong>
-        <p>${event.detail}</p>
+        <strong>${escapeHtml(event.title)}</strong>
+        <p>${escapeHtml(event.detail)}</p>
       </div>
-      <span>${event.meta}</span>
+      <span>${escapeHtml(event.meta)}</span>
     </article>
   `).join("");
 
   const visibleJobs = filteredJobs(jobs, activeQueueFilter).filter(job => !job.title?.includes("Fixture") && !job.title?.includes("fixture"));
   $("#jobs").innerHTML = visibleJobs.length ? visibleJobs.map((job) => `
-    <article class="job ${job.state} ${job.compoundParentId ? 'is-subtask' : ''} ${job.type === 'compound_job' ? 'is-compound' : ''}">
+    <article class="job ${queueState(job)} ${job.compoundParentId ? 'is-subtask' : ''} ${job.type === 'compound_job' ? 'is-compound' : ''}">
       <div class="job-main">
         <div style="display:flex; gap: 8px; align-items: center;">
           <span class="state-badge ${jobStatus(job).toLowerCase().replace(' ', '-')}">${jobStatus(job)}</span>
           ${job.type === 'compound_job' ? '<span class="state-badge compound-badge">Compound</span>' : ''}
           ${job.compoundParentId ? `<span class="state-badge subtask-badge">↳ Sub-task</span>` : ''}
         </div>
-        <h3>${job.title}</h3>
-        <p>${job.id} - ${job.estimate} - ${job.issuer}${job.proof ? ` - ${job.proof}` : ""}</p>
+        <h3>${escapeHtml(job.title)}</h3>
+        <p>${escapeHtml(job.id)} - ${escapeHtml(job.estimate)} - ${escapeHtml(job.issuer)}${job.proof ? ` - ${escapeHtml(job.proof)}` : ""}</p>
       </div>
       <div class="payout"><strong>${money(job.reward)}</strong><span>USDC</span></div>
     </article>
@@ -315,21 +382,21 @@ function render() {
     button.dataset.count = count;
   });
 
-  const workforceSource = apiConnected ? "Source: API / registered agents" : "Source: demo fallback data";
+  const workforceSource = appMode === "live" ? "Source: live API / registered agents" : appMode === "replay" ? "Source: browser-only replay" : "Source: live state unavailable";
   const workforceCount = `${agents.length} registered ${agents.length === 1 ? "agent" : "agents"}`;
   const agentsSource = $("#agentsSource");
   if (agentsSource) agentsSource.textContent = `${workforceSource} · ${workforceCount}`;
 
   $("#agents").innerHTML = agents.map((agent) => {
-    const agentKind = SEEDED_DEMO_AGENT_IDS.has(agent.agentId) ? "Seeded demo agent" : "Registered live agent";
+    const agentKind = appMode === "replay" ? "Replay agent" : "Registered live agent";
     const walletKind = agent.circleWalletId ? "Circle wallet" : "Manual payout";
     return `
-    <article class="agent ${agent.status}">
+    <article class="agent ${agentStatusClass(agent.status)}">
       <div class="agent-head">
         <div class="agent-icon">${escapeHtml(agent.icon)}</div>
         <span>${escapeHtml(agent.status)}</span>
       </div>
-      <div class="agent-badges"><span>${agentKind}</span><span>${walletKind}</span></div>
+      <div class="agent-badges"><span>${escapeHtml(agentKind)}</span><span>${escapeHtml(walletKind)}</span></div>
       <h3>${escapeHtml(agent.name)}</h3>
       <p>${escapeHtml(agent.skill)}</p>
       <div class="agent-stats"><span>${money(agent.earned)} USDC</span><span>${Math.round(agent.score)} trust</span></div>
@@ -339,23 +406,24 @@ function render() {
 
   const visibleLedgerItems = ledger.filter(item => !item.job?.includes("Fixture") && !item.job?.includes("fixture"));
   $("#ledger").innerHTML = visibleLedgerItems.map((item) => `
-    <article class="receipt ${item.outcome}">
+    <article class="receipt ${proofOutcomeClass(item.outcome)}">
       <div>
-        <strong>${item.agent}</strong>
-        <p>${item.job}</p>
-        <small>${item.outcome === "accepted" ? (item.proof || "Awaiting decision") : (item.rejectionReason || "Awaiting decision")}</small>
-        ${item.adjudicationRoute ? `<small>${adjudicationLabel(item)}</small>` : ""}
+        <strong>${escapeHtml(item.agent)}</strong>
+        <p>${escapeHtml(item.job)}</p>
+        <small>${escapeHtml(item.outcome === "accepted" ? (item.proof || "Awaiting decision") : (item.rejectionReason || "Awaiting decision"))}</small>
+        ${item.adjudicationRoute ? `<small>${escapeHtml(adjudicationLabel(item))}</small>` : ""}
       </div>
       <div class="receipt-right">
         <span>${item.outcome === "accepted" ? `${money(item.amount)} USDC` : "No payout"}</span>
-        ${item.tx ? `<a href="${item.explorer || `${ARCSCAN}/tx/${item.tx}`}" target="_blank" rel="noreferrer">Paid · Arc Testnet</a>` : `<em>${proofStatus(item)}</em>`}
-        <a class="proof-link" href="${proofHref(item)}" download="${item.id}-proof.json">proof packet</a>
+        ${settlementLink(item)}
+        <a class="proof-link" href="${proofHref(item)}" download="${escapeHtml(item.id)}-proof.json">proof packet</a>
       </div>
     </article>
   `).join("");
 }
 
 function prepareBatch() {
+  if (appMode !== "replay") return;
   setActionState("#prepareBatch, #prepareBatchHero", "loading", "Preparing…");
   latestBatchPayload = buildSettlementBatch();
   renderPreparedBatch(latestBatchPayload);
@@ -376,20 +444,20 @@ function setActionState(selector, state, label) {
       button.disabled = true;
       button.classList.add("is-loading");
     } else if (state === "success") {
-      button.disabled = false;
+      button.disabled = appMode !== "replay";
       button.classList.add("is-success");
     } else if (state === "notice") {
-      button.disabled = false;
+      button.disabled = appMode !== "replay";
       button.classList.add("is-soft-alert");
     } else {
-      button.disabled = false;
+      button.disabled = appMode !== "replay";
     }
     if (label) button.textContent = label;
     const resetDelay = state === "success" || state === "notice" ? 1100 : 0;
     if (resetDelay) {
       window.setTimeout(() => {
         button.classList.remove("is-loading", "is-success", "is-soft-alert");
-        button.disabled = false;
+        button.disabled = appMode !== "replay";
         button.textContent = button.dataset.defaultLabel;
       }, resetDelay);
     }
@@ -440,12 +508,13 @@ function buildSettlementBatch() {
       amount: money(proof.amount),
       fundingStatus: proof.fundingStatus,
       settlementStatus: proof.settlementStatus,
-      previousSettledBatch: SETTLED_BATCH.batchId,
+      replayOnly: true,
     })),
   };
 }
 
 function addJobs() {
+  if (appMode !== "replay") return;
   const next = Array.from({ length: 3 }, (_, index) => {
     const template = jobTemplates[(cycle + index) % jobTemplates.length];
     return {
@@ -466,6 +535,7 @@ function addJobs() {
 }
 
 function runCycle() {
+  if (appMode !== "replay") return;
   const nextJob = jobs.find((job) => job.state === "queued");
   if (running) return;
   if (!nextJob) {
@@ -473,6 +543,7 @@ function runCycle() {
     return;
   }
   const agent = agents.find((item) => item.id === jobToAgent[nextJob.type]);
+  const expectedGeneration = replayGeneration;
   setActionState("#runCycle", "loading", "Cycling worker…");
   idleCyclesUsed += 1;
   pushEvent("claim", "agent claimed job", `${agent.name} claimed ${nextJob.id}: ${nextJob.title}`, `${money(nextJob.reward)} USDC`);
@@ -482,17 +553,23 @@ function runCycle() {
   running = true;
   render();
   window.setTimeout(() => {
+    if (appMode !== "replay" || expectedGeneration !== replayGeneration) return;
     pushEvent("measure", "measurement completed", measurementCopy(nextJob), nextJob.type);
     render();
   }, 320);
   window.setTimeout(() => {
+    if (appMode !== "replay" || expectedGeneration !== replayGeneration) return;
     pushEvent("proof", "proof generated", proofFor(nextJob.type), "packet ready");
     render();
   }, 640);
-  window.setTimeout(() => completeCycle(nextJob, agent), 980);
+  window.setTimeout(() => completeCycle(nextJob, agent, expectedGeneration), 980);
 }
 
-function completeCycle(job, agent) {
+function completeCycle(job, agent, expectedGeneration = replayGeneration) {
+  if (appMode !== "replay" || expectedGeneration !== replayGeneration) {
+    running = false;
+    return;
+  }
   const fakeHash = `0x${crypto.randomUUID().replaceAll("-", "")}${crypto.randomUUID().replaceAll("-", "")}`;
   job.state = "done";
   job.proof = proofFor(job.type);
@@ -607,7 +684,7 @@ function proofHref(item) {
     settlement: {
       chainId: 5042002,
       tx: item.tx,
-      explorer: item.explorer || (item.tx ? `${ARCSCAN}/tx/${item.tx}` : null),
+      explorer: arcscanTxUrl(item.tx),
     },
     secondsSaved: item.secondsSaved,
     proofTimestamp: item.proofTimestamp,
@@ -626,44 +703,60 @@ function formatTime(seconds) {
   return remainder === 0 ? `${minutes} min` : `${minutes}m ${remainder}s`;
 }
 
-async function hydrateFromApi() {
+async function hydrateFromApi({ force = false } = {}) {
+  if (appMode === "replay" && !force) return;
+  const requestVersion = ++hydrationVersion;
+  setAppMode("loading", { durable: null });
   apiLoading = true;
-  apiConnected = false;
   apiError = null;
   render();
   try {
-    const dashboard = await fetchDashboardWithRetry();
+    const dashboard = await fetchDashboardWithRetry(requestVersion);
+    let health = null;
+    try {
+      const healthResponse = await fetch(`${API_URL}/health`, { signal: AbortSignal.timeout(5000) });
+      if (healthResponse.ok) health = await healthResponse.json();
+    } catch {
+      health = null;
+    }
+    if (requestVersion !== hydrationVersion || appMode === "replay") return;
+    clearLiveState();
     applyDashboard(dashboard);
-    apiConnected = true;
     apiLoading = false;
     apiError = null;
+    const reportedDurability = typeof health?.storage?.durable === "boolean" ? health.storage.durable : null;
+    setAppMode("live", { durable: reportedDurability });
     $("#apiStatus").textContent = "API connected";
     systemStatus.api = "Connected";
     systemStatus.arc = dashboard.treasury?.network === "Arc Testnet" ? "Connected" : "Unavailable";
+    systemStatus.mode = "Dry-run default";
     setLandingText("#landingApi", "Connected");
     render();
     hydrateLeaderboard().catch(() => {});
   } catch (error) {
-    apiConnected = false;
+    if (requestVersion !== hydrationVersion || appMode === "replay") return;
     apiLoading = false;
-    apiError = "Demo data mode: API did not respond after warmup retries.";
-    $("#apiStatus").textContent = "Demo data mode";
-    systemStatus.api = "Demo data mode";
-    systemStatus.arc = "Demo data";
-    setLandingText("#landingApi", "Demo data mode");
-    setLandingText("#landingLatestPaid", `${money(SETTLED_BATCH.totalPayout)} USDC`);
-    setLandingText("#landingPayable", `${money(ledger.filter((proof) => proof.fundingStatus === "payable").reduce((sum, proof) => sum + proof.amount, 0))} USDC`);
-    setLandingText("#landingRejected", ledger.filter((proof) => proof.fundingStatus === "rejected").length);
-    setLandingText("#landingTreasury", "Demo data");
+    apiError = "API unavailable — live state cannot be loaded.";
+    clearLiveState();
+    setAppMode("unavailable", { durable: null });
+    $("#apiStatus").textContent = "Live state unavailable";
+    systemStatus.api = "Unavailable";
+    systemStatus.arc = "Unavailable";
+    setLandingText("#landingApi", "Unavailable");
+    setLandingText("#landingLatestPaid", "Unavailable");
+    setLandingText("#landingPayable", "Unavailable");
+    setLandingText("#landingRejected", "Unavailable");
+    setLandingText("#landingTreasury", "Unavailable");
     render();
-    renderLocalLeaderboard();
+    renderLeaderboardUnavailable();
   }
 }
 
-async function fetchDashboardWithRetry() {
+async function fetchDashboardWithRetry(requestVersion) {
   const attempts = [2500, 8000, 25000];
   let lastError = null;
   for (let index = 0; index < attempts.length; index += 1) {
+    if (requestVersion !== hydrationVersion) throw new Error("Dashboard hydration superseded.");
     const controller = new AbortController();
     const timeout = window.setTimeout(() => controller.abort(), attempts[index]);
     try {
@@ -684,47 +777,45 @@ async function fetchDashboardWithRetry() {
 }
 
 function applyDashboard(dashboard) {
-  TREASURY.address = dashboard.issuer?.treasuryAddress || TREASURY.address;
-  TREASURY.network = dashboard.treasury?.network || TREASURY.network;
-  TREASURY.asset = dashboard.treasury?.asset || TREASURY.asset;
-  const existingAgents = new Map(agents.map((agent) => [agent.agentId, agent]));
+  TREASURY.issuer = dashboard.issuer?.issuerId || null;
+  TREASURY.address = dashboard.issuer?.treasuryAddress || null;
+  TREASURY.network = dashboard.treasury?.network || "Arc Testnet";
+  TREASURY.asset = dashboard.treasury?.asset || "USDC";
+  TREASURY.availableBalance = null;
   const paidByAgent = dashboard.proofs
     .filter((proof) => proof.fundingStatus === "paid")
     .reduce((totals, proof) => totals.set(proof.agentId, (totals.get(proof.agentId) || 0) + jobReward(dashboard.jobs, proof.jobId)), new Map());
 
-  agents.splice(0, agents.length, ...dashboard.agents.map((agent, index) => {
-    const fallback = existingAgents.get(agent.agentId);
+  agents.splice(0, agents.length, ...dashboard.agents.map((agent) => {
     return {
       id: agent.agentId.replace(/^agent_/, ""),
       agentId: agent.agentId,
       name: agent.name,
       skill: capabilityLabel(agent.capabilities),
-      icon: fallback?.icon || agent.name.split(/\s+/).map((word) => word[0]).join("").slice(0, 2).toUpperCase(),
+      icon: agent.name.split(/\s+/).map((word) => word[0]).join("").slice(0, 2).toUpperCase(),
       payoutWallet: agent.payoutAddress,
       status: agent.status,
       earned: paidByAgent.get(agent.agentId) || 0,
       score: agent.reputationScore,
       circleWalletId: agent.circleWalletId,
       walletSource: agent.walletSource,
-      source: SEEDED_DEMO_AGENT_IDS.has(agent.agentId) ? "seeded" : "registered",
+      source: "registered",
     };
   }));
 
-  const existingJobs = new Map(jobs.map((job) => [job.id.toLowerCase().replace("j-", "job_"), job]));
   jobs = dashboard.jobs.map((job) => {
-    const fallback = existingJobs.get(job.jobId);
     return {
       id: job.jobId.toUpperCase().replace("JOB_", "J-"),
       type: apiJobType(job.jobType),
-      title: fallback?.title || jobTitle(job),
+      title: jobTitle(job),
       reward: Number(job.rewardAmount),
       issuer: job.issuerId,
       fundingStatus: job.fundingStatus,
-      estimate: fallback?.estimate || "API job",
+      estimate: "API job",
       priority: Number(job.rewardAmount) >= 0.018 ? "high" : Number(job.rewardAmount) >= 0.012 ? "med" : "low",
       state: job.status === "open" ? "queued" : job.status === "claimed" ? "running" : "done",
-      proof: fallback?.proof,
-      secondsSaved: fallback?.secondsSaved || 0,
+      proof: null,
+      secondsSaved: 0,
       agentId: job.claimedBy,
       compoundParentId: job.compoundParentId,
       fundingRail: job.fundingRail,
@@ -732,9 +823,7 @@ function applyDashboard(dashboard) {
     };
   });
 
-  const existingProofs = new Map(ledger.map((proof) => [proof.id, proof]));
   ledger = dashboard.proofs.map((proof) => {
-    const fallback = existingProofs.get(proof.proofId);
     const agent = dashboard.agents.find((item) => item.agentId === proof.agentId);
     const job = dashboard.jobs.find((item) => item.jobId === proof.jobId);
     return {
@@ -743,18 +832,18 @@ function applyDashboard(dashboard) {
       jobType: proof.jobType,
       agentId: proof.agentId,
       agent: agent?.name || proof.agentId,
-      job: fallback?.job || jobTitle(job),
+      job: jobTitle(job),
       amount: Number(job?.rewardAmount || 0),
       tx: proof.txHash,
       explorer: proof.explorer,
-      proof: fallback?.proof || proof.verificationRoute,
+      proof: proof.verificationRoute,
       outcome: proof.outcome,
       fundingStatus: proof.fundingStatus,
       settlementStatus: proof.settlementStatus,
       rejectionReason: proof.rejectionReason,
       input: proof.input,
       result: proof.result,
-      secondsSaved: fallback?.secondsSaved || 0,
+      secondsSaved: 0,
       proofTimestamp: proof.proofTimestamp,
       adjudicationRoute: proof.adjudicationRoute,
       genlayer: proof.genlayer,
@@ -767,13 +856,18 @@ function applyDashboard(dashboard) {
   const reservedRewards = Number(dashboard.treasury?.reservedRewards || 0);
   const pendingPayout = Number(dashboard.treasury?.pendingPayout ?? payableTotal);
   const paidOut = Number(dashboard.treasury?.paidOut || 0);
-  setLandingText("#protoTreasuryAddress", TREASURY.address);
+  setLandingText("#protoTreasuryAddress", TREASURY.address || "Not configured");
+  setLandingText("#protoTreasuryBalance", "Unavailable until reported by the API");
   setLandingText("#protoReserved", `${money(reservedRewards)} USDC`);
   setLandingText("#protoPayable", `${money(pendingPayout)} USDC`);
   setLandingText("#protoPaidOut", `${money(paidOut)} USDC`);
   setLandingText("#landingPayable", `${money(payableTotal)} USDC`);
   setLandingText("#landingRejected", rejectedTotal);
   setLandingText("#landingTreasury", dashboard.issuer?.treasuryAddress ? "Configured" : "Not configured");
+  systemStatus.batch = latestSettled?.batch_id || null;
+  systemStatus.payout = Number(latestSettled?.total_payout || 0);
+  renderProtocolBatches(dashboard.settlements?.batches || []);
+  events = [];
   events = [{
     id: pendingPayout > 0 ? "evt_live_payout_ready" : "evt_live_empty_batch",
     kind: "settlement",
@@ -782,10 +876,8 @@ function applyDashboard(dashboard) {
       ? `${money(pendingPayout)} testnet USDC is approved and awaiting operator-controlled release.`
       : "No approved unpaid proof packets are payable right now; dry-run batch export would be empty.",
     meta: pendingPayout > 0 ? `${dashboard.proofs.filter((proof) => proof.fundingStatus === "payable").length} payable` : "0 payable",
-  }, ...events.filter((event) => !["batch settlement ready", "payout batch ready", "no payout batch ready", "empty payout batch"].includes(event.title))].slice(0, 8);
+  }];
   if (latestSettled) {
-    systemStatus.batch = latestSettled.batch_id;
-    systemStatus.payout = Number(latestSettled.total_payout);
     setLandingText("#landingLatestPaid", `${money(Number(latestSettled.total_payout))} USDC`);
     events = [{
       id: `evt_${latestSettled.batch_id}`,
@@ -793,8 +885,20 @@ function applyDashboard(dashboard) {
       title: "Arc batch settled",
       detail: `${latestSettled.batch_id} paid ${money(Number(latestSettled.total_payout))} testnet USDC`,
       meta: "confirmed",
-    }, ...events.filter((event) => event.title !== "Arc batch settled")].slice(0, 8);
+    }, ...events].slice(0, 8);
+  } else {
+    setLandingText("#landingLatestPaid", "No live payouts");
   }
+}
+
+function renderProtocolBatches(batches) {
+  const body = document.getElementById("protocolBatches");
+  if (!body) return;
+  if (!batches.length) {
+    body.innerHTML = '<tr><td colspan="5">No live settlement batches</td></tr>';
+    return;
+  }
+  body.innerHTML = batches.map((batch) => `<tr><td class="mono-data">${escapeHtml(batch.batch_id)}</td><td>${escapeHtml(batch.status)}</td><td>${money(Number(batch.total_payout || 0))} USDC</td><td>Current ledger</td><td>${escapeHtml(batch.network)}</td></tr>`).join("");
 }
 
 function setLandingText(selector, value) { const element = document.querySelector(selector); if (element) element.textContent = value; }
@@ -884,6 +988,9 @@ $("#addJobs").addEventListener("click", addJobs);
 $("#runCycle").addEventListener("click", runCycle);
 $("#prepareBatch").addEventListener("click", prepareBatch);
 $("#prepareBatchHero").addEventListener("click", prepareBatch);
+$("#toggleReplay").addEventListener("click", () => {
+  if (appMode === "replay") hydrateFromApi({ force: true }); else enterReplayMode();
+});
 const agentRegisterForm = document.getElementById("agentRegisterForm");
 if (agentRegisterForm) agentRegisterForm.addEventListener("submit", registerAgentWithWallet);
 $("#queueTabs").addEventListener("click", (event) => {
@@ -892,6 +999,8 @@ $("#queueTabs").addEventListener("click", (event) => {
   activeQueueFilter = button.dataset.queueFilter;
   render();
 });
+setAppMode("loading", { durable: null });
+renderArchiveEvidence();
 render();
 hydrateFromApi();
 const issuerWorkbench = initIssuerWorkbench({ apiUrl: API_URL, onNavigate: navigate });
@@ -924,6 +1033,8 @@ window.addEventListener("popstate", renderRoute);
 renderRoute();
 
 async function hydrateLeaderboard() {
+  if (appMode === "replay") return;
+  const requestVersion = hydrationVersion;
   try {
     const controller = new AbortController();
     const timeout = window.setTimeout(() => controller.abort(), 3000);
@@ -931,27 +1042,17 @@ async function hydrateLeaderboard() {
     window.clearTimeout(timeout);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
+    if (requestVersion !== hydrationVersion || appMode === "replay") return;
     renderLeaderboard(data.leaderboard || []);
   } catch {
-    renderLocalLeaderboard();
+    if (requestVersion !== hydrationVersion || appMode === "replay") return;
+    renderLeaderboardUnavailable();
   }
 }
 
-function renderLocalLeaderboard() {
-  const sorted = [...agents].sort((a, b) => b.earned - a.earned || b.score - a.score);
-  renderLeaderboard(sorted.map((agent, i) => ({
-    rank: i + 1,
-    agentId: agent.agentId,
-    name: agent.name,
-    score: agent.score,
-    approvedProofs: "-",
-    paidProofs: "-",
-    settledVolume: `${agent.earned.toFixed(3)} USDC`,
-    duplicateRate: 0,
-    riskFlag: "clean",
-    accessLevel: "starter",
-    status: agent.status,
-  })));
+function renderLeaderboardUnavailable() {
+  const tbody = document.getElementById("leaderboardBody");
+  if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="leaderboard-empty">Leaderboard unavailable</td></tr>';
 }
 
 function renderLeaderboard(rows) {
@@ -963,21 +1064,30 @@ function renderLeaderboard(rows) {
   }
   tbody.innerHTML = rows.map((row) => {
     const riskClass = row.riskFlag === "clean" ? "risk-clean" : row.riskFlag === "flagged" ? "risk-flagged" : "risk-blocked";
-    const rankIcon = row.rank === 1 ? "🥇" : row.rank === 2 ? "🥈" : row.rank === 3 ? "🥉" : `#${row.rank}`;
+    const rankIcon = row.rank === 1 ? "🥇" : row.rank === 2 ? "🥈" : row.rank === 3 ? "🥉" : `#${escapeHtml(row.rank)}`;
     return `<tr>
       <td class="leaderboard-rank">${rankIcon}</td>
       <td><strong>${escapeHtml(row.name)}</strong><br><small>${escapeHtml(row.agentId)}</small></td>
-      <td class="leaderboard-score">${row.score ?? "-"}</td>
-      <td>${row.approvedProofs ?? "-"}</td>
-      <td>${row.paidProofs ?? "-"}</td>
-      <td class="leaderboard-earned">${row.settledVolume || "0.000 USDC"}</td>
-      <td><span class="risk-badge ${riskClass}">${row.riskFlag || "clean"}</span></td>
+      <td class="leaderboard-score">${escapeHtml(row.score ?? "-")}</td>
+      <td>${escapeHtml(row.approvedProofs ?? "-")}</td>
+      <td>${escapeHtml(row.paidProofs ?? "-")}</td>
+      <td class="leaderboard-earned">${escapeHtml(row.settledVolume || "0.000 USDC")}</td>
+      <td><span class="risk-badge ${riskClass}">${escapeHtml(row.riskFlag || "clean")}</span></td>
     </tr>`;
   }).join("");
 }
 
 async function registerAgentWithWallet(event) {
   event.preventDefault();
+  if (appMode === "replay") {
+    const result = document.getElementById("agentRegisterResult");
+    if (result) {
+      result.hidden = false;
+      result.dataset.state = "error";
+      result.textContent = "Agent registration is disabled in replay mode because it writes to the live API.";
+    }
+    return;
+  }
   const form = event.currentTarget;
   const result = document.getElementById("agentRegisterResult");
   const button = form.querySelector("button[type=submit]");

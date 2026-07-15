@@ -20,7 +20,7 @@ Registration returns a key once. Keys are stored as hashes in SQLite.
 
 ## Dashboard Hydration
 
-The dashboard workforce list is hydrated from `/dashboard` when the API is connected. The default database seeds demo agents, so the first connected view may look similar to fallback data until new agents register. Connected mode shows `Source: API / registered agents`; disconnected mode shows `Source: demo fallback data`. Seeded demo agents are labeled separately from registered live agents in the Agent Workforce panel.
+The dashboard workforce list is hydrated only from `/dashboard` in live mode. Connected empty responses render zero/empty live state, and unavailable responses remain explicitly unavailable. The frontend does not substitute local fixture agents, jobs, proofs, leaderboard rows, treasury values, or settlement batches. Browser-only synthetic activity requires explicit replay mode and stays labeled as a simulation.
 
 ## Health
 

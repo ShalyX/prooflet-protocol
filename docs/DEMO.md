@@ -25,9 +25,9 @@ npm run api
 npm run dev
 ```
 
-Open the landing page, then keep `/dashboard` ready in the browser. Confirm the system strip says the API is connected. The seeded historical settlement remains available even if a live execute is not performed.
+Open the landing page, then keep `/dashboard` ready in the browser. Confirm the truth-state banner identifies live, unavailable, or replay mode. The historical settlement remains available only in the landing page's **Archived Lepton submission evidence** section and is never merged into current live totals.
 
-The dashboard workforce list is hydrated from `/dashboard` when the API is connected. The default database seeds demo agents, so the first connected view may look similar to fallback data until new agents register. The Agent Workforce panel shows `Source: API / registered agents` in connected mode, `Source: demo fallback data` in fallback mode, labels seeded agents separately from registered live agents, and labels agent payout source as `Circle wallet` or `Manual payout`.
+The dashboard workforce list is hydrated only from `/dashboard` in live mode. A connected empty API renders an empty workforce; an unavailable API renders an unavailable state. Browser-only agents and synthetic worker actions are available only after explicitly entering replay mode, which remains labeled `Replay · browser-only queue simulation`. Dashboard queue/worker controls stay browser-local; agent registration is disabled in replay. Issuer workbench writes remain live-API surfaces. Archived submission agents, proofs, batches, and receipts never populate current live metrics.
 
 Agent registration for the main demo should use `/agents/register-with-wallet`: it provisions a Circle wallet when Circle W3S is configured and uses the Circle wallet address as the agent payout address. `/agents/register` is the manual fallback path and does not create a Circle wallet.
 
