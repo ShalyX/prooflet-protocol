@@ -8,7 +8,7 @@ import { authenticateAdjudicator } from "./auth.mjs";
 import { createAgentWallet, createIssuerWallet, getCircleStatus, isCircleConfigured, getWalletBalance, sendUsdc, getWalletDetails } from "./circle-wallet.mjs";
 import { databaseStorageStatus, expireLeases, json, openDatabase, parseJson, withTransaction } from "./db.mjs";
 import { createSqliteStoreFromDatabase, createStore, resolveDialect } from "./storage/index.mjs";
-import { storageStatusForStore } from "./storage/db-proxy.mjs";
+import { createDbProxy, storageStatusForStore, withExecutorTransaction } from "./storage/db-proxy.mjs";
 import { seedDatabase } from "./seed.mjs";
 import { createSettlementBatch, recordSettledBatch, settlementSummary } from "./settlement.mjs";
 import { canonicalJson, proofFingerprint, verifyProof } from "./verifiers.mjs";
@@ -24,15 +24,20 @@ import {
 } from "./circle-nanopayment.mjs";
 
 export function createApp({
-  db = openDatabase(),
+  db: injectedDb,
   store,
   walletService = { createAgentWallet, createIssuerWallet, getCircleStatus, isCircleConfigured, getWalletBalance, sendUsdc, getWalletDetails },
   gatewayMiddleware = createGatewayMiddleware(gatewayConfig()),
   seedDemoData = shouldSeedDemoData(),
 } = {}) {
-  const appStore = store || createSqliteStoreFromDatabase(db, { ownsConnection: false });
+  const appStore = store || createSqliteStoreFromDatabase(injectedDb || openDatabase(), { ownsConnection: false });
+  const executorContext = { executor: appStore };
+  // SQLite keeps native sync statements for local tests; Postgres uses async db proxy.
+  const db = appStore.dialect === "sqlite" ? (injectedDb || appStore.native) : createDbProxy(executorContext);
+  const runTx = (operation) => withExecutorTransaction(executorContext, appStore, operation);
   const circle = walletService;
   if (seedDemoData) {
+    if (appStore.dialect !== "sqlite") throw new Error("Demo seeding is only supported for SQLite.");
     seedDatabase(db);
     backfillReputation(db);
   }
@@ -66,17 +71,31 @@ export function createApp({
     next();
   });
 
-  app.get("/health", (request, response) => {
+  app.get("/health", async (request, response) => {
     response.set("Cache-Control", "no-store");
-    const migrationVersion = db.prepare("SELECT COALESCE(MAX(version), 0) AS version FROM schema_migrations").get().version;
-    const foreignKeys = db.prepare("PRAGMA foreign_keys").get().foreign_keys === 1;
+    let connected = true;
+    let migrationVersion = null;
+    let foreignKeys = true;
+    try {
+      if (appStore.dialect === "sqlite") {
+        migrationVersion = (await db.prepare("SELECT COALESCE(MAX(version), 0) AS version FROM schema_migrations").get()).version;
+        foreignKeys = (await db.prepare("PRAGMA foreign_keys").get()).foreign_keys === 1;
+      } else {
+        const health = await appStore.health();
+        connected = health.connected;
+        migrationVersion = health.migrationVersion;
+        foreignKeys = health.foreignKeys;
+      }
+    } catch {
+      connected = false;
+    }
     response.json({
-      ok: true,
+      ok: connected,
       protocol: "Prooflet",
       version: "v0",
       requestId: request.requestId,
-      database: { connected: true, migrationVersion, foreignKeys },
-      storage: databaseStorageStatus(),
+      database: { connected, migrationVersion, foreignKeys },
+      storage: storageStatusForStore(appStore),
     });
   });
 
@@ -145,14 +164,14 @@ export function createApp({
 
   app.get("/issuers/:issuerId/wallet", async (request, response) => {
     const { issuerId } = request.params;
-    if (!authenticate(db, request, "issuer", issuerId)) throw httpError(401, "Valid issuer API key required.");
-    const issuer = db.prepare("SELECT * FROM issuers WHERE issuer_id = ?").get(issuerId);
+    if (!await authenticate(db, request, "issuer", issuerId)) throw httpError(401, "Valid issuer API key required.");
+    const issuer = await db.prepare("SELECT * FROM issuers WHERE issuer_id = ?").get(issuerId);
     if (!issuer) throw httpError(404, "Issuer not found");
     
     if (!issuer.circle_wallet_id) {
        try {
          const wallet = await circle.createIssuerWallet(issuerId);
-         db.prepare("UPDATE issuers SET circle_wallet_id = ? WHERE issuer_id = ?").run(wallet.walletId, issuerId);
+         await db.prepare("UPDATE issuers SET circle_wallet_id = ? WHERE issuer_id = ?").run(wallet.walletId, issuerId);
          issuer.circle_wallet_id = wallet.walletId;
          return response.json({ wallet: { walletId: wallet.walletId, address: wallet.address, balance: "0" }, walletProvisioning: { status: "success" } });
        } catch (e) {
@@ -167,14 +186,14 @@ export function createApp({
 
   app.post("/issuers/:issuerId/wallet", async (request, response) => {
     const { issuerId } = request.params;
-    if (!authenticate(db, request, "issuer", issuerId)) throw httpError(401, "Valid issuer API key required.");
-    const issuer = db.prepare("SELECT * FROM issuers WHERE issuer_id = ?").get(issuerId);
+    if (!await authenticate(db, request, "issuer", issuerId)) throw httpError(401, "Valid issuer API key required.");
+    const issuer = await db.prepare("SELECT * FROM issuers WHERE issuer_id = ?").get(issuerId);
     if (!issuer) throw httpError(404, "Issuer not found");
     if (issuer.circle_wallet_id) throw httpError(400, "Wallet already exists");
     
     try {
       const wallet = await circle.createIssuerWallet(issuerId);
-      db.prepare("UPDATE issuers SET circle_wallet_id = ? WHERE issuer_id = ?").run(wallet.walletId, issuerId);
+      await db.prepare("UPDATE issuers SET circle_wallet_id = ? WHERE issuer_id = ?").run(wallet.walletId, issuerId);
       response.json({ wallet: { walletId: wallet.walletId, address: wallet.address, balance: "0" }, walletProvisioning: { status: "success" } });
     } catch (e) {
       response.json({ wallet: null, walletProvisioning: { status: "failed", code: e.code || "CIRCLE_WALLET_CREATE_FAILED", message: "Circle issuer wallet could not be created. Check server Circle configuration." } });
@@ -187,7 +206,7 @@ export function createApp({
     requireId(issuerId, "issuerId");
     verifyApiKey(request, db, "issuer", issuerId);
 
-    const job = db.prepare("SELECT * FROM jobs WHERE job_id = ? AND issuer_id = ?").get(jobId, issuerId);
+    const job = await db.prepare("SELECT * FROM jobs WHERE job_id = ? AND issuer_id = ?").get(jobId, issuerId);
     if (!job) throw httpError(404, "Job not found");
     if (job.funding_status !== "awaiting_wallet_funding") throw httpError(400, "Job is not awaiting wallet funding");
 
@@ -196,7 +215,7 @@ export function createApp({
 
   app.post("/agents/register", async (request, response) => {
     const { agentId: requestedAgentId, handle = null, name, capabilities, payoutAddress, status = "idle", reputationScore = 50 } = request.body || {};
-    const agentId = requestedAgentId || generateCanonicalId("agent", db, "agents", "agent_id");
+    const agentId = requestedAgentId || await generateCanonicalId("agent", db, "agents", "agent_id");
     requireId(agentId, "agentId");
     const normalizedHandle = normalizeOptionalHandle(handle, "handle");
     requireString(name, "name");
@@ -227,7 +246,7 @@ export function createApp({
           apiKey,
           createdAt: now,
         });
-        appendReputationEvent(db, { eventId: `registered:${agentId}`, agentId, eventType: "agent_registered", createdAt: now });
+        await appendReputationEvent(db, { eventId: `registered:${agentId}`, agentId, eventType: "agent_registered", createdAt: now });
       });
     } catch (error) {
       if (error?.code === "UNIQUE_VIOLATION" || String(error.message).includes("UNIQUE")) {
@@ -240,7 +259,7 @@ export function createApp({
 
   app.post("/agents/register-with-wallet", async (request, response) => {
     const { agentId: requestedAgentId, handle = null, name, capabilities, payoutAddress, status = "idle", reputationScore = 50 } = request.body || {};
-    const agentId = requestedAgentId || generateCanonicalId("agent", db, "agents", "agent_id");
+    const agentId = requestedAgentId || await generateCanonicalId("agent", db, "agents", "agent_id");
     requireId(agentId, "agentId");
     const normalizedHandle = normalizeOptionalHandle(handle, "handle");
     requireString(name, "name");
@@ -299,7 +318,7 @@ export function createApp({
           apiKey,
           createdAt: now,
         });
-        appendReputationEvent(db, { eventId: `registered:${agentId}`, agentId, eventType: "agent_registered", createdAt: now });
+        await appendReputationEvent(db, { eventId: `registered:${agentId}`, agentId, eventType: "agent_registered", createdAt: now });
       });
     } catch (error) {
       if (error?.code === "UNIQUE_VIOLATION" || String(error.message).includes("UNIQUE")) {
@@ -321,12 +340,12 @@ export function createApp({
       network = "Arc Testnet", fundingStatus = "reserved", status = "open", proofRequirements, verificationMode = "deterministic",
       fundingRail = "direct_treasury"
     } = request.body || {};
-    const jobId = requestedJobId || generateCanonicalId("job", db, "jobs", "job_id");
+    const jobId = requestedJobId || await generateCanonicalId("job", db, "jobs", "job_id");
     requireId(jobId, "jobId");
     const normalizedIssuerReferenceId = normalizeOptionalReference(issuerReferenceId, "issuerReferenceId");
     requireId(issuerId, "issuerId");
     requireString(jobType, "jobType");
-    if (!authenticate(db, request, "issuer", issuerId)) throw httpError(401, "Valid issuer API key required.");
+    if (!await authenticate(db, request, "issuer", issuerId)) throw httpError(401, "Valid issuer API key required.");
     if (!input || typeof input !== "object" || Array.isArray(input)) throw httpError(400, "input must be an object.");
     validateReward(rewardAmount);
     if (rewardAsset !== "USDC") throw httpError(400, "rewardAsset must be USDC.");
@@ -357,7 +376,7 @@ export function createApp({
           updatedAt: now,
         });
         if (fundingRail && fundingRail !== "direct_treasury") {
-          db.prepare("UPDATE jobs SET funding_rail = ? WHERE job_id = ?").run(fundingRail, jobId);
+          await db.prepare("UPDATE jobs SET funding_rail = ? WHERE job_id = ?").run(fundingRail, jobId);
         }
       });
     } catch (error) {
@@ -366,30 +385,30 @@ export function createApp({
       }
       throw error;
     }
-    response.status(201).json({ job: serializeJob(db.prepare("SELECT * FROM jobs WHERE job_id = ?").get(jobId)) });
+    response.status(201).json({ job: serializeJob(await db.prepare("SELECT * FROM jobs WHERE job_id = ?").get(jobId)) });
   });
 
-  app.post("/jobs/compound", (request, response) => {
+  app.post("/jobs/compound", async (request, response) => {
     const {
       jobId, issuerId, subTasks, combinedReward,
       verificationMode = "deterministic",
     } = request.body || {};
     requireId(jobId, "jobId");
     requireId(issuerId, "issuerId");
-    if (!authenticate(db, request, "issuer", issuerId)) throw httpError(401, "Valid issuer API key required.");
+    if (!await authenticate(db, request, "issuer", issuerId)) throw httpError(401, "Valid issuer API key required.");
     if (!Array.isArray(subTasks) || subTasks.length < 2) throw httpError(400, "compound_job: subTasks must be an array with at least 2 items.");
     const result = createCompoundJob(db, { jobId, issuerId, subTasks, combinedReward: String(combinedReward), verificationMode });
     response.status(201).json({ compoundJob: result });
   });
 
-  app.get("/jobs/compound", (_request, response) => {
+  app.get("/jobs/compound", async (_request, response) => {
     response.json({ compoundJobs: listCompoundJobs(db) });
   });
 
   app.post("/agents/:agentId/claim-job", async (request, response) => {
     const { agentId } = request.params;
-    if (!authenticate(db, request, "agent", agentId)) throw httpError(401, "Valid agent API key required.");
-    const agent = db.prepare("SELECT * FROM agents WHERE agent_id = ?").get(agentId);
+    if (!await authenticate(db, request, "agent", agentId)) throw httpError(401, "Valid agent API key required.");
+    const agent = await db.prepare("SELECT * FROM agents WHERE agent_id = ?").get(agentId);
     if (!agent) throw httpError(404, `Agent ${agentId} does not exist.`);
     const capabilities = parseJson(agent.capabilities_json, []);
     const requestedJobId = request.body?.jobId;
@@ -397,31 +416,39 @@ export function createApp({
     if (!Number.isFinite(leaseSeconds)) throw httpError(400, "leaseSeconds must be numeric.");
 
     const claimed = await appStore.transaction(async (tx) => {
-      expireLeasesWithEvents(db);
-      const summary = getReputationSummary(db, agentId);
-      const activeLeases = db.prepare("SELECT COUNT(*) AS count FROM job_claims WHERE agent_id=? AND status='active'").get(agentId).count;
+      await expireLeasesWithEvents(db);
+      const summary = await getReputationSummary(db, agentId);
+      const activeLeases = (await db.prepare("SELECT COUNT(*) AS count FROM job_claims WHERE agent_id=? AND status='active'").get(agentId)).count;
       let job;
       if (requestedJobId) {
-        job = db.prepare("SELECT * FROM jobs WHERE job_id = ?").get(requestedJobId);
+        job = await db.prepare("SELECT * FROM jobs WHERE job_id = ?").get(requestedJobId);
         if (!job) throw httpError(404, `Job ${requestedJobId} does not exist.`);
         if (job.status !== "open") throw httpError(409, `Job ${requestedJobId} is not open.`);
         if (!["reserved", "funded"].includes(job.funding_status)) throw httpError(409, `Job ${requestedJobId} requires funding before it can be claimed.`);
         const eligibility = evaluateJobAccess({ capabilities, job, summary, activeLeases });
         if (!eligibility.eligible) throw eligibilityError(409, eligibility.reason, `Agent ${agentId} is not eligible for ${requestedJobId}.`, eligibility);
-        requirePaidJobAccess(db, job, agentId);
+        await requirePaidJobAccess(db, job, agentId);
       } else {
         if (capabilities.length === 0) throw httpError(409, `Agent ${agentId} has no capabilities.`);
         const placeholders = capabilities.map(() => "?").join(",");
-        const candidates = db.prepare(`
+        const candidates = await db.prepare(`
           SELECT * FROM jobs WHERE status = 'open' AND funding_status IN ('reserved', 'funded') AND job_type IN (${placeholders})
           ORDER BY created_at DESC, job_id DESC
         `).all(...capabilities);
-        job = candidates.find((candidate) => evaluateJobAccess({ capabilities, job: candidate, summary, activeLeases }).eligible && hasPaidAccess(db, candidate.job_id, agentId));
+        job = null;
+        for (const candidate of candidates) {
+          const eligibility = evaluateJobAccess({ capabilities, job: candidate, summary, activeLeases });
+          if (!eligibility.eligible) continue;
+          if (await hasPaidAccess(db, candidate.job_id, agentId)) {
+            job = candidate;
+            break;
+          }
+        }
         if (!job) throw accessRequiredError("No eligible open job with paid access is available.");
       }
       const claimedAt = new Date();
       const leaseExpiresAt = new Date(claimedAt.getTime() + leaseSeconds * 1000).toISOString();
-      const accessPayment = getAccessPayment(db, job.job_id, agentId);
+      const accessPayment = await getAccessPayment(db, job.job_id, agentId);
       try {
         await tx.jobs.claimJob({
           jobId: job.job_id,
@@ -441,8 +468,8 @@ export function createApp({
         }
         throw error;
       }
-      appendReputationEvent(db, { agentId, eventType: "job_claimed", jobId: job.job_id, issuerId: job.issuer_id, createdAt: claimedAt.toISOString() });
-      return db.prepare("SELECT * FROM jobs WHERE job_id = ?").get(job.job_id);
+      await appendReputationEvent(db, { agentId, eventType: "job_claimed", jobId: job.job_id, issuerId: job.issuer_id, createdAt: claimedAt.toISOString() });
+      return await db.prepare("SELECT * FROM jobs WHERE job_id = ?").get(job.job_id);
     });
 
     response.json({ job: serializeJob(claimed) });
@@ -455,15 +482,15 @@ export function createApp({
       if (proof[field] == null) throw httpError(400, `${field} is required.`);
     }
     if (proof.jobId !== jobId) throw httpError(400, "Proof jobId must match the route jobId.");
-    if (!authenticate(db, request, "agent", proof.agentId)) throw httpError(401, "Valid agent API key required.");
+    if (!await authenticate(db, request, "agent", proof.agentId)) throw httpError(401, "Valid agent API key required.");
     if (Number.isNaN(Date.parse(proof.proofTimestamp))) throw httpError(400, "proofTimestamp must be a valid timestamp.");
 
     const result = await appStore.transaction(async (tx) => {
-      expireLeasesWithEvents(db);
-      const job = db.prepare("SELECT * FROM jobs WHERE job_id = ?").get(jobId);
+      await expireLeasesWithEvents(db);
+      const job = await db.prepare("SELECT * FROM jobs WHERE job_id = ?").get(jobId);
       if (!job) throw httpError(404, `Job ${jobId} does not exist.`);
       if (job.status !== "claimed" || job.claimed_by !== proof.agentId) throw httpError(409, "Job is not actively claimed by this agent.");
-      const claim = db.prepare(`
+      const claim = await db.prepare(`
         SELECT * FROM job_claims WHERE job_id = ? AND agent_id = ? AND status = 'active'
         ORDER BY claim_id DESC LIMIT 1
       `).get(jobId, proof.agentId);
@@ -516,7 +543,7 @@ export function createApp({
         fundingStatus,
         updatedAt: now,
       });
-      if (!verification.pending) appendReputationEvent(db, { agentId: proof.agentId, eventType: duplicate ? "duplicate_proof_rejected" : verification.approved ? "proof_approved" : "proof_rejected", jobId, proofId: proof.proofId, issuerId: job.issuer_id, createdAt: now });
+      if (!verification.pending) await appendReputationEvent(db, { agentId: proof.agentId, eventType: duplicate ? "duplicate_proof_rejected" : verification.approved ? "proof_approved" : "proof_rejected", jobId, proofId: proof.proofId, issuerId: job.issuer_id, createdAt: now });
       if (verification.pending) pendingManualRequest(proof.proofId, now);
 
       // Check compound job completion or failure
@@ -527,7 +554,7 @@ export function createApp({
           checkCompoundJobFailure(db, proof);
         }
       }
-      return db.prepare("SELECT * FROM proofs WHERE proof_id = ?").get(proof.proofId);
+      return await db.prepare("SELECT * FROM proofs WHERE proof_id = ?").get(proof.proofId);
     });
     let adjudication = null;
     if (result.outcome === "pending_adjudication") {
@@ -537,63 +564,63 @@ export function createApp({
         adjudication = { route: "genlayer", status: "failed", error: { code: error.code || "genlayer_request_failed", message: error.message } };
       }
     }
-    const current = db.prepare("SELECT * FROM proofs WHERE proof_id=?").get(result.proof_id);
+    const current = await db.prepare("SELECT * FROM proofs WHERE proof_id=?").get(result.proof_id);
     response.status(current.outcome === "accepted" || current.outcome === "pending_adjudication" ? 201 : 422).json({ proof: serializeProof(current), ...(adjudication ? { adjudication } : {}) });
   });
 
-  app.get("/agents/:agentId/reputation", (request, response) => {
+  app.get("/agents/:agentId/reputation", async (request, response) => {
     const { agentId } = request.params;
-    if (!authenticate(db, request, "agent", agentId)) throw httpError(401, "Valid agent API key required.");
-    if (!db.prepare("SELECT 1 FROM agents WHERE agent_id=?").get(agentId)) throw httpError(404, `Agent ${agentId} does not exist.`);
-    response.json({ reputation: getReputationSummary(db, agentId) });
+    if (!await authenticate(db, request, "agent", agentId)) throw httpError(401, "Valid agent API key required.");
+    if (!await db.prepare("SELECT 1 FROM agents WHERE agent_id=?").get(agentId)) throw httpError(404, `Agent ${agentId} does not exist.`);
+    response.json({ reputation: await getReputationSummary(db, agentId) });
   });
 
-  app.get("/adjudication/pending", (request, response) => {
-    requireAdjudicator(db, request, "manual_adjudication:read");
+  app.get("/adjudication/pending", async (request, response) => {
+    await requireAdjudicator(db, request, "manual_adjudication:read");
     response.json({ proofs: listPendingAdjudications(db) });
   });
-  app.get("/adjudication/proofs/:proofId", (request, response) => {
-    requireAdjudicator(db, request, "manual_adjudication:read");
+  app.get("/adjudication/proofs/:proofId", async (request, response) => {
+    await requireAdjudicator(db, request, "manual_adjudication:read");
     const proof = getAdjudicationProof(db, request.params.proofId);
     if (!proof) throw httpError(404, `Proof ${request.params.proofId} does not exist.`);
     response.json({ proof });
   });
-  app.post("/adjudication/proofs/:proofId/decision", (request, response) => {
-    const adjudicator = requireAdjudicator(db, request, "manual_adjudication:write");
+  app.post("/adjudication/proofs/:proofId/decision", async (request, response) => {
+    const adjudicator = await requireAdjudicator(db, request, "manual_adjudication:write");
     response.status(201).json({ decision: decideProof(db, request.params.proofId, adjudicator.adjudicatorId, request.body) });
   });
 
   app.post("/adjudication/genlayer/proofs/:proofId/submit", async (request, response) => {
-    requireAdjudicator(db, request, "genlayer:write");
+    await requireAdjudicator(db, request, "genlayer:write");
     response.status(201).json({ request: await submitGenLayerProof(db, request.params.proofId) });
   });
   app.post("/adjudication/genlayer/requests/:requestId/sync", async (request, response) => {
-    requireAdjudicator(db, request, "genlayer:write");
+    await requireAdjudicator(db, request, "genlayer:write");
     response.json({ request: await syncGenLayerRequest(db, request.params.requestId) });
   });
-  app.get("/adjudication/genlayer/requests/:requestId", (request, response) => {
-    requireAdjudicator(db, request, "genlayer:read");
+  app.get("/adjudication/genlayer/requests/:requestId", async (request, response) => {
+    await requireAdjudicator(db, request, "genlayer:read");
     response.json({ request: getGenLayerRequest(db, request.params.requestId) });
   });
-  app.get("/adjudication/genlayer/proofs/:proofId", (request, response) => {
-    requireAdjudicator(db, request, "genlayer:read");
+  app.get("/adjudication/genlayer/proofs/:proofId", async (request, response) => {
+    await requireAdjudicator(db, request, "genlayer:read");
     response.json({ adjudication: getProofGenLayerStatus(db, request.params.proofId) });
   });
-  app.get("/proofs/:proofId/adjudication", (request, response) => {
-    const proof = db.prepare("SELECT p.agent_id,j.issuer_id FROM proofs p JOIN jobs j USING(job_id) WHERE p.proof_id=?").get(request.params.proofId);
+  app.get("/proofs/:proofId/adjudication", async (request, response) => {
+    const proof = await db.prepare("SELECT p.agent_id,j.issuer_id FROM proofs p JOIN jobs j USING(job_id) WHERE p.proof_id=?").get(request.params.proofId);
     if (!proof) throw httpError(404, `Proof ${request.params.proofId} does not exist.`);
-    if (!authenticate(db, request, "agent", proof.agent_id) && !authenticate(db, request, "issuer", proof.issuer_id)) throw httpError(403, "Proof owner API key required.");
+    if (!await authenticate(db, request, "agent", proof.agent_id) && !await authenticate(db, request, "issuer", proof.issuer_id)) throw httpError(403, "Proof owner API key required.");
     response.json({ adjudication: getProofGenLayerStatus(db, request.params.proofId) });
   });
 
-  app.post("/issuers/:issuerId/uploads/validate", (request, response) => {
+  app.post("/issuers/:issuerId/uploads/validate", async (request, response) => {
     const { issuerId } = request.params;
-    requireIssuer(db, request, issuerId);
+    await requireIssuer(db, request, issuerId);
     response.status(201).json({ upload: validateUpload(db, issuerId, request.body) });
   });
-  app.post("/issuers/:issuerId/uploads/:uploadId/confirm", (request, response) => {
+  app.post("/issuers/:issuerId/uploads/:uploadId/confirm", async (request, response) => {
     const { issuerId, uploadId } = request.params;
-    requireIssuer(db, request, issuerId);
+    await requireIssuer(db, request, issuerId);
     response.status(201).json({ upload: confirmUpload(db, issuerId, uploadId, request.body) });
   });
   app.get("/issuers/:issuerId/overview", (request, response) => issuerView(db, request, response, "overview"));
@@ -601,34 +628,34 @@ export function createApp({
   app.get("/issuers/:issuerId/proofs", (request, response) => issuerView(db, request, response, "proofs"));
   app.get("/issuers/:issuerId/settlements", (request, response) => issuerView(db, request, response, "settlements"));
 
-  app.post("/settlement-batches/export", (request, response) => {
+  app.post("/settlement-batches/export", async (request, response) => {
     const issuerId = request.body?.issuerId || "useful_waiting_protocol";
-    if (!authenticate(db, request, "issuer", issuerId)) throw httpError(401, "Valid issuer API key required.");
+    if (!await authenticate(db, request, "issuer", issuerId)) throw httpError(401, "Valid issuer API key required.");
     const proofIds = request.body?.proofIds;
     if (proofIds != null && (!Array.isArray(proofIds) || proofIds.some((proofId) => typeof proofId !== "string"))) throw httpError(400, "proofIds must be an array of proof IDs.");
-    const batch = createSettlementBatch(db, { issuerId, batchId: request.body?.batchId, proofIds });
+    const batch = await createSettlementBatch(db, { issuerId, batchId: request.body?.batchId, proofIds });
     response.status(201).json({ batch });
   });
 
-  app.post("/settlement-batches/:batchId/receipt", (request, response) => {
+  app.post("/settlement-batches/:batchId/receipt", async (request, response) => {
     const { batchId } = request.params;
     const issuerId = request.body?.issuerId || "useful_waiting_protocol";
-    if (!authenticate(db, request, "issuer", issuerId)) throw httpError(401, "Valid issuer API key required.");
-    const batchRow = db.prepare("SELECT * FROM settlement_batches WHERE batch_id = ? AND issuer_id = ?").get(batchId, issuerId);
+    if (!await authenticate(db, request, "issuer", issuerId)) throw httpError(401, "Valid issuer API key required.");
+    const batchRow = await db.prepare("SELECT * FROM settlement_batches WHERE batch_id = ? AND issuer_id = ?").get(batchId, issuerId);
     if (!batchRow) throw httpError(404, `Settlement batch ${batchId} does not exist for issuer ${issuerId}.`);
     if (batchRow.status === "settled") throw httpError(409, `Settlement batch ${batchId} is already settled.`);
     if (!["prepared", "executing"].includes(batchRow.status)) throw httpError(409, `Settlement batch ${batchId} is ${batchRow.status}, not prepared for receipt recording.`);
     const transactions = validateSettlementReceipt(request.body?.transactions);
-    const batch = createSettlementBatch(db, { issuerId, batchId });
+    const batch = await createSettlementBatch(db, { issuerId, batchId });
     validateReceiptMatchesBatch(batch, transactions);
-    recordSettledBatch(db, batch, transactions);
+    await recordSettledBatch(db, batch, transactions);
     response.status(201).json({ batchId, status: "settled", transactions, proofs: batch.proofs.map((proof) => ({ ...proof, fundingStatus: "paid", settlementStatus: "Settled on Arc Testnet" })) });
   });
 
-  app.get("/agents/:agentId", (request, response) => {
+  app.get("/agents/:agentId", async (request, response) => {
     const { agentId } = request.params;
-    if (!authenticate(db, request, "agent", agentId)) throw httpError(401, "Valid agent API key required.");
-    const agent = db.prepare("SELECT * FROM agents WHERE agent_id = ?").get(agentId);
+    if (!await authenticate(db, request, "agent", agentId)) throw httpError(401, "Valid agent API key required.");
+    const agent = await db.prepare("SELECT * FROM agents WHERE agent_id = ?").get(agentId);
     if (!agent) throw httpError(404, `Agent ${agentId} does not exist.`);
     response.json({ agent: serializeAgent(agent) });
   });
@@ -637,14 +664,14 @@ export function createApp({
   });
   app.get("/circle/agents/:agentId/wallet", async (request, response) => {
     const { agentId } = request.params;
-    if (!authenticate(db, request, "agent", agentId) && !authenticate(db, request, "issuer", "useful_waiting_protocol")) throw httpError(403, "Agent or issuer API key required.");
-    const agent = db.prepare("SELECT circle_wallet_id FROM agents WHERE agent_id=?").get(agentId);
+    if (!await authenticate(db, request, "agent", agentId) && !await authenticate(db, request, "issuer", "useful_waiting_protocol")) throw httpError(403, "Agent or issuer API key required.");
+    const agent = await db.prepare("SELECT circle_wallet_id FROM agents WHERE agent_id=?").get(agentId);
     if (!agent) throw httpError(404, `Agent ${agentId} does not exist.`);
     response.json({ walletId: agent.circle_wallet_id || null });
   });
 
-  app.get("/leaderboard", (_request, response) => {
-    const rows = db.prepare(`
+  app.get("/leaderboard", async (_request, response) => {
+    const rows = await db.prepare(`
       SELECT
         a.agent_id, a.name, a.reputation_score, a.status,
         COALESCE(rs.approved_proofs, 0) AS approved_proofs,
@@ -673,45 +700,45 @@ export function createApp({
     response.json({ leaderboard: ranked });
   });
 
-  app.get("/agents", (_request, response) => response.json({ agents: db.prepare("SELECT * FROM agents ORDER BY agent_id").all().map(serializeAgent) }));
-  app.get("/jobs", (_request, response) => {
-    expireLeases(db);
-    response.json({ jobs: db.prepare("SELECT * FROM jobs ORDER BY created_at DESC, job_id DESC").all().map(serializeJob) });
+  app.get("/agents", async (_request, response) => response.json({ agents: (await db.prepare("SELECT * FROM agents ORDER BY agent_id").all()).map(serializeAgent) }));
+  app.get("/jobs", async (_request, response) => {
+    await expireLeases(db);
+    response.json({ jobs: (await db.prepare("SELECT * FROM jobs ORDER BY created_at DESC, job_id DESC").all()).map(serializeJob) });
   });
-  app.get("/proofs", (_request, response) => response.json({ proofs: db.prepare("SELECT * FROM proofs ORDER BY created_at DESC").all().map(serializeProof) }));
-  app.get("/settlements", (_request, response) => response.json(settlementSummary(db)));
-  app.get("/dashboard", (_request, response) => response.json(buildDashboard(db, circle)));
+  app.get("/proofs", async (_request, response) => response.json({ proofs: (await db.prepare("SELECT * FROM proofs ORDER BY created_at DESC").all()).map(serializeProof) }));
+  app.get("/settlements", async (_request, response) => response.json(await settlementSummary(db)));
+  app.get("/dashboard", async (_request, response) => response.json(await buildDashboard(db, circle)));
 
   // ---- Escrow Endpoints ----
   // Legacy/pre-assigned V1 escrow path only. Open marketplace external funding
   // requires ProofletEscrowV2 and must not use deposit-on-claim.
-  app.post("/escrow/deposit", (request, response) => {
-    if (!authenticate(db, request, "issuer", "useful_waiting_protocol")) throw httpError(403, "Demo issuer API key required for legacy Escrow V1 record path.");
+  app.post("/escrow/deposit", async (request, response) => {
+    if (!await authenticate(db, request, "issuer", "useful_waiting_protocol")) throw httpError(403, "Demo issuer API key required for legacy Escrow V1 record path.");
     const { jobId, agentAddress, amount, txHash } = request.body || {};
     requireId(jobId, "jobId");
     requireString(agentAddress, "agentAddress");
     requireString(amount, "amount");
     requireString(txHash, "txHash");
-    db.prepare("UPDATE jobs SET funding_rail = ?, escrow_status = ?, escrow_tx_hash = ? WHERE job_id = ?")
+    await db.prepare("UPDATE jobs SET funding_rail = ?, escrow_status = ?, escrow_tx_hash = ? WHERE job_id = ?")
       .run("arc_usdc_escrow", "funded", txHash, jobId);
     response.json({ ok: true, fundingRail: "arc_usdc_escrow", escrowStatus: "funded", escrowTxHash: txHash });
   });
 
-  app.post("/escrow/release", (request, response) => {
-    if (!authenticate(db, request, "issuer", "useful_waiting_protocol")) throw httpError(403, "Issuer API key required.");
+  app.post("/escrow/release", async (request, response) => {
+    if (!await authenticate(db, request, "issuer", "useful_waiting_protocol")) throw httpError(403, "Issuer API key required.");
     const { jobId, txHash } = request.body || {};
     requireId(jobId, "jobId");
     requireString(txHash, "txHash");
-    db.prepare("UPDATE jobs SET escrow_status = 'released', escrow_tx_hash = ? WHERE job_id = ?").run(txHash, jobId);
+    await db.prepare("UPDATE jobs SET escrow_status = 'released', escrow_tx_hash = ? WHERE job_id = ?").run(txHash, jobId);
     response.json({ ok: true, escrowStatus: "released", escrowTxHash: txHash });
   });
 
-  app.post("/escrow/refund", (request, response) => {
-    if (!authenticate(db, request, "issuer", "useful_waiting_protocol")) throw httpError(403, "Issuer API key required.");
+  app.post("/escrow/refund", async (request, response) => {
+    if (!await authenticate(db, request, "issuer", "useful_waiting_protocol")) throw httpError(403, "Issuer API key required.");
     const { jobId, txHash } = request.body || {};
     requireId(jobId, "jobId");
     requireString(txHash, "txHash");
-    db.prepare("UPDATE jobs SET escrow_status = 'refunded', escrow_tx_hash = ? WHERE job_id = ?").run(txHash, jobId);
+    await db.prepare("UPDATE jobs SET escrow_status = 'refunded', escrow_tx_hash = ? WHERE job_id = ?").run(txHash, jobId);
     response.json({ ok: true, escrowStatus: "refunded", escrowTxHash: txHash });
   });
 
@@ -720,27 +747,27 @@ export function createApp({
     response.json(nanopaymentConfig());
   });
 
-  app.get("/jobs/:jobId/access-fee", (request, response) => {
+  app.get("/jobs/:jobId/access-fee", async (request, response) => {
     const { agentAddress } = request.query;
     response.json(createPaymentRequest(request.params.jobId, agentAddress || "unknown"));
   });
 
-  app.get("/jobs/:jobId/access-fee/status", (request, response) => {
+  app.get("/jobs/:jobId/access-fee/status", async (request, response) => {
     const agentId = String(request.query.agentId || request.get("x-agent-id") || "");
     requireId(agentId, "agentId");
-    if (!authenticate(db, request, "agent", agentId) && !authenticate(db, request, "issuer", "useful_waiting_protocol")) throw httpError(403, "Agent or demo issuer API key required.");
-    const job = db.prepare("SELECT 1 FROM jobs WHERE job_id=?").get(request.params.jobId);
+    if (!await authenticate(db, request, "agent", agentId) && !await authenticate(db, request, "issuer", "useful_waiting_protocol")) throw httpError(403, "Agent or demo issuer API key required.");
+    const job = await db.prepare("SELECT 1 FROM jobs WHERE job_id=?").get(request.params.jobId);
     if (!job) throw httpError(404, `Job ${request.params.jobId} does not exist.`);
-    const payment = getAccessPayment(db, request.params.jobId, agentId);
+    const payment = await getAccessPayment(db, request.params.jobId, agentId);
     response.json({ paid: payment?.status === "paid", payment: serializeAccessPayment(payment), config: nanopaymentConfig() });
   });
 
   app.get("/jobs/:jobId/gateway-access", validateGatewayAccessTarget(db), gateway.require(gatewayPrice()), async (request, response) => {
     const agentId = String(request.query.agentId || request.get("x-agent-id") || "");
     requireId(agentId, "agentId");
-    const job = db.prepare("SELECT * FROM jobs WHERE job_id=?").get(request.params.jobId);
+    const job = await db.prepare("SELECT * FROM jobs WHERE job_id=?").get(request.params.jobId);
     if (!job) throw httpError(404, `Job ${request.params.jobId} does not exist.`);
-    const agent = db.prepare("SELECT payout_address FROM agents WHERE agent_id=?").get(agentId);
+    const agent = await db.prepare("SELECT payout_address FROM agents WHERE agent_id=?").get(agentId);
     if (!agent) throw httpError(404, `Agent ${agentId} does not exist.`);
     const payerAddress = request.payment?.payer || null;
     if (!payerAddress || !isAddress(payerAddress)) throw httpError(403, "Gateway payment payer address is required.");
@@ -774,9 +801,9 @@ export function createApp({
     const { agentId, agentAddress } = request.body || {};
     requireId(agentId, "agentId");
     requireString(agentAddress, "agentAddress");
-    const agent = db.prepare("SELECT payout_address FROM agents WHERE agent_id=?").get(agentId);
+    const agent = await db.prepare("SELECT payout_address FROM agents WHERE agent_id=?").get(agentId);
     if (!agent) throw httpError(404, `Agent ${agentId} does not exist.`);
-    if (!authenticate(db, request, "agent", agentId)) throw httpError(403, "Agent API key required to verify fallback access payment.");
+    if (!await authenticate(db, request, "agent", agentId)) throw httpError(403, "Agent API key required to verify fallback access payment.");
     if (!isAddress(agentAddress)) throw httpError(400, "agentAddress must be a valid EVM address.");
     if (!agent.payout_address || agent.payout_address.toLowerCase() !== agentAddress.toLowerCase()) throw httpError(403, "agentAddress must match the registered agent payout address.");
     const result = await verifyNanopayment(agentAddress, request.params.jobId);
@@ -829,23 +856,29 @@ function shouldSeedDemoData(env = process.env) {
   return env["NODE_ENV"] !== "production";
 }
 
-function buildDashboard(db, circle) {
-  expireLeasesWithEvents(db);
-  const issuer = db.prepare("SELECT * FROM issuers WHERE issuer_id = 'useful_waiting_protocol'").get();
-  const agents = db.prepare("SELECT * FROM agents ORDER BY agent_id").all().map((agent) => ({ ...serializeAgent(agent), reputation: getReputationSummary(db, agent.agent_id) }));
-  const jobs = db.prepare("SELECT * FROM jobs ORDER BY created_at DESC, job_id DESC").all().map(serializeJob);
-  const proofs = db.prepare("SELECT * FROM proofs ORDER BY created_at DESC").all().map((proof) => withAdjudication(db, serializeProof(proof)));
-  const settlements = settlementSummary(db);
-  const sum = (status) => db.prepare(`
+async function buildDashboard(db, circle) {
+  await expireLeasesWithEvents(db);
+  const issuer = await db.prepare("SELECT * FROM issuers WHERE issuer_id = 'useful_waiting_protocol'").get();
+  const agentRows = await db.prepare("SELECT * FROM agents ORDER BY agent_id").all();
+  const agents = [];
+  for (const agent of agentRows) {
+    agents.push({ ...serializeAgent(agent), reputation: await getReputationSummary(db, agent.agent_id) });
+  }
+  const jobs = (await db.prepare("SELECT * FROM jobs ORDER BY created_at DESC, job_id DESC").all()).map(serializeJob);
+  const proofRows = await db.prepare("SELECT * FROM proofs ORDER BY created_at DESC").all();
+  const proofs = [];
+  for (const proof of proofRows) proofs.push(await withAdjudication(db, serializeProof(proof)));
+  const settlements = await settlementSummary(db);
+  const sum = async (status) => (await db.prepare(`
     SELECT COALESCE(SUM(CAST(j.reward_amount AS REAL)), 0) AS total
     FROM proofs p JOIN jobs j ON j.job_id = p.job_id WHERE p.funding_status = ?
-  `).get(status).total;
-  const reserved = db.prepare("SELECT COALESCE(SUM(CAST(reward_amount AS REAL)), 0) AS total FROM jobs WHERE funding_status = 'reserved'").get().total;
+  `).get(status)).total;
+  const reserved = (await db.prepare("SELECT COALESCE(SUM(CAST(reward_amount AS REAL)), 0) AS total FROM jobs WHERE funding_status = 'reserved'").get()).total;
   return {
     protocol: "Prooflet",
     version: "v0",
     issuer: issuer ? { issuerId: issuer.issuer_id, name: issuer.name, treasuryAddress: issuer.treasury_address } : null,
-    treasury: { network: "Arc Testnet", asset: "USDC", reservedRewards: reserved, pendingPayout: sum("payable"), paidOut: sum("paid") },
+    treasury: { network: "Arc Testnet", asset: "USDC", reservedRewards: reserved, pendingPayout: await sum("payable"), paidOut: await sum("paid") },
     agents,
     jobs,
     proofs,
@@ -913,10 +946,10 @@ function serializeAccessPaymentRow(payment) {
   return serializeAccessPayment(payment);
 }
 
-function withAdjudication(db, proof) {
-  const request = db.prepare("SELECT request_id,status,mode,network,genlayer_tx_hash,error_message FROM genlayer_adjudication_requests WHERE proof_id=?").get(proof.proofId);
+async function withAdjudication(db, proof) {
+  const request = await db.prepare("SELECT request_id,status,mode,network,genlayer_tx_hash,error_message FROM genlayer_adjudication_requests WHERE proof_id=?").get(proof.proofId);
   if (!request) return { ...proof, adjudicationRoute: proof.adjudicationStatus === "not_required" ? "deterministic" : "manual_adapter", genlayer: null };
-  const decision = db.prepare("SELECT decision,reason,confidence,finalized_at FROM genlayer_adjudication_decisions WHERE request_id=?").get(request.request_id);
+  const decision = await db.prepare("SELECT decision,reason,confidence,finalized_at FROM genlayer_adjudication_decisions WHERE request_id=?").get(request.request_id);
   return { ...proof, adjudicationRoute: "genlayer", genlayer: { requestId: request.request_id, status: request.status, mode: request.mode,
     network: request.network, txHash: request.genlayer_tx_hash, errorMessage: request.error_message, decision: decision || null } };
 }
@@ -939,10 +972,10 @@ function normalizeOptionalReference(value, name) {
   return normalized;
 }
 
-function generateCanonicalId(prefix, db, table, column) {
+async function generateCanonicalId(prefix, db, table, column) {
   for (let attempt = 0; attempt < 6; attempt += 1) {
     const id = `${prefix}_${randomUUID().replaceAll("-", "").slice(0, 10)}`;
-    if (!db.prepare(`SELECT 1 FROM ${table} WHERE ${column} = ?`).get(id)) return id;
+    if (!await db.prepare(`SELECT 1 FROM ${table} WHERE ${column} = ?`).get(id)) return id;
   }
   throw httpError(503, `Could not allocate ${prefix} ID. Try again.`);
 }
@@ -1006,23 +1039,25 @@ function httpError(status, message, details = null) {
 
 function eligibilityError(status, code, message, eligibility) { const error = httpError(status, message); error.code = code; error.eligibility = eligibility; return error; }
 function accessRequiredError(message, jobId = null) { const error = httpError(402, message); error.code = "claim_access_payment_required"; error.payment = { ...nanopaymentConfig(), ...(jobId ? { jobId } : {}) }; return error; }
-function validateGatewayAccessTarget(db) { return (request, _response, next) => { try { const agentId = String(request.query.agentId || request.get("x-agent-id") || ""); requireId(agentId, "agentId"); if (!db.prepare("SELECT 1 FROM jobs WHERE job_id=?").get(request.params.jobId)) throw httpError(404, `Job ${request.params.jobId} does not exist.`); if (!db.prepare("SELECT 1 FROM agents WHERE agent_id=?").get(agentId)) throw httpError(404, `Agent ${agentId} does not exist.`); next(); } catch (error) { next(error); } }; }
-function requirePaidJobAccess(db, job, agentId) { if (!hasPaidAccess(db, job.job_id, agentId)) throw accessRequiredError(`Circle Gateway x402 access payment required before claiming ${job.job_id}.`, job.job_id); }
-function requireIssuer(db, request, issuerId) { if (!authenticate(db, request, "issuer", issuerId)) throw httpError(401, "Valid issuer API key required."); }
-function requireAdjudicator(db, request, scope) { const result = authenticateAdjudicator(db, request, scope); if (!result) { const error = httpError(403, `Adjudicator scope ${scope} required.`); error.code = "missing_adjudicator_scope"; throw error; } return result; }
-function expireLeasesWithEvents(db) {
+function validateGatewayAccessTarget(db) { return async (request, _response, next) => { try { const agentId = String(request.query.agentId || request.get("x-agent-id") || ""); requireId(agentId, "agentId"); if (!await db.prepare("SELECT 1 FROM jobs WHERE job_id=?").get(request.params.jobId)) throw httpError(404, `Job ${request.params.jobId} does not exist.`); if (!await db.prepare("SELECT 1 FROM agents WHERE agent_id=?").get(agentId)) throw httpError(404, `Agent ${agentId} does not exist.`); next(); } catch (error) { next(error); } }; }
+async function requirePaidJobAccess(db, job, agentId) { if (!(await Promise.resolve(await hasPaidAccess(db, job.job_id, agentId)))) throw accessRequiredError(`Circle Gateway x402 access payment required before claiming ${job.job_id}.`, job.job_id); }
+async function requireIssuer(db, request, issuerId) { if (!await authenticate(db, request, "issuer", issuerId)) throw httpError(401, "Valid issuer API key required."); }
+async function requireAdjudicator(db, request, scope) { const result = await authenticateAdjudicator(db, request, scope); if (!result) { const error = httpError(403, `Adjudicator scope ${scope} required.`); error.code = "missing_adjudicator_scope"; throw error; } return result; }
+async function expireLeasesWithEvents(db) {
   const now = new Date().toISOString();
-  const rows = db.prepare(`SELECT c.claim_id,c.job_id,c.agent_id,j.issuer_id FROM job_claims c JOIN jobs j USING(job_id) WHERE c.status='active' AND c.lease_expires_at<=?`).all(now);
-  const count = expireLeases(db, now);
-  for (const row of rows) appendReputationEvent(db, { eventId: `lease-expired:${row.claim_id}`, agentId: row.agent_id, eventType: "job_lease_expired", jobId: row.job_id, issuerId: row.issuer_id, createdAt: now });
+  const rows = await db.prepare(`SELECT c.claim_id,c.job_id,c.agent_id,j.issuer_id FROM job_claims c JOIN jobs j USING(job_id) WHERE c.status='active' AND c.lease_expires_at<=?`).all(now);
+  const count = await expireLeases(db, now);
+  for (const row of rows) await appendReputationEvent(db, { eventId: `lease-expired:${row.claim_id}`, agentId: row.agent_id, eventType: "job_lease_expired", jobId: row.job_id, issuerId: row.issuer_id, createdAt: now });
   return count;
 }
-function issuerView(db, request, response, view) {
-  const issuerId = request.params.issuerId; requireIssuer(db, request, issuerId);
-  if (!db.prepare("SELECT 1 FROM issuers WHERE issuer_id=?").get(issuerId)) throw httpError(404, `Issuer ${issuerId} does not exist.`);
-  const jobs = db.prepare("SELECT * FROM jobs WHERE issuer_id=? ORDER BY created_at DESC").all(issuerId).map(serializeJob);
-  const proofs = db.prepare("SELECT p.* FROM proofs p JOIN jobs j USING(job_id) WHERE j.issuer_id=? ORDER BY p.created_at DESC").all(issuerId).map((proof) => withAdjudication(db, serializeProof(proof)));
-  const settlements = { batches: db.prepare("SELECT * FROM settlement_batches WHERE issuer_id=? ORDER BY created_at DESC").all(issuerId), transactions: db.prepare("SELECT t.* FROM settlement_transactions t JOIN settlement_batches b USING(batch_id) WHERE b.issuer_id=? ORDER BY t.created_at DESC").all(issuerId) };
+async function issuerView(db, request, response, view) {
+  const issuerId = request.params.issuerId; await requireIssuer(db, request, issuerId);
+  if (!await db.prepare("SELECT 1 FROM issuers WHERE issuer_id=?").get(issuerId)) throw httpError(404, `Issuer ${issuerId} does not exist.`);
+  const jobs = (await db.prepare("SELECT * FROM jobs WHERE issuer_id=? ORDER BY created_at DESC").all(issuerId)).map(serializeJob);
+  const proofRowsIssuer = await db.prepare("SELECT p.* FROM proofs p JOIN jobs j USING(job_id) WHERE j.issuer_id=? ORDER BY p.created_at DESC").all(issuerId);
+  const proofs = [];
+  for (const proof of proofRowsIssuer) proofs.push(await withAdjudication(db, serializeProof(proof)));
+  const settlements = { batches: await db.prepare("SELECT * FROM settlement_batches WHERE issuer_id=? ORDER BY created_at DESC").all(issuerId), transactions: await db.prepare("SELECT t.* FROM settlement_transactions t JOIN settlement_batches b USING(batch_id) WHERE b.issuer_id=? ORDER BY t.created_at DESC").all(issuerId) };
   if (view === "jobs") return response.json({ jobs });
   if (view === "proofs") return response.json({ proofs });
   if (view === "settlements") return response.json(settlements);
@@ -1038,13 +1073,8 @@ function verifySubjectivePreflight(job, proof, requirements) {
 export async function createAppFromEnv(env = process.env) {
   const dialect = resolveDialect(env);
   if (dialect === "postgres") {
-    // Fail closed: domain repositories are ready, but remaining Express surfaces still
-    // depend on synchronous SQLite statement APIs. Do not half-cut over hosted traffic.
-    throw new Error(
-      "DATABASE_URL selects Postgres, but the hosted Express/Postgres adapter is not complete yet. " +
-        "Unset DATABASE_URL (keep free SQLite) until PROOFLET_POSTGRES_API_READY code lands, " +
-        "or continue local repository work against TEST_DATABASE_URL.",
-    );
+    const store = await createStore({ env, sharePool: true });
+    return createApp({ store });
   }
   const store = await createStore({ env, sqlite: {} });
   return createApp({ db: store.native, store });

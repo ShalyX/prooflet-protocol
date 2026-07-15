@@ -142,7 +142,7 @@ if (!execute) {
     paidProofs,
   };
   await writeSettlementState(stateFile, state);
-  recordSettledBatch(db, batch, result.transactions);
+  await recordSettledBatch(db, batch, result.transactions);
   result.paidProofs = paidProofs;
   console.log(JSON.stringify(result, null, 2));
 }
