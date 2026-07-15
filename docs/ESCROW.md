@@ -74,6 +74,9 @@ V2 lets an issuer fund a marketplace job **before any agent is known**, then rel
 
 Solidity: `contracts/EscrowV2.sol`
 Artifacts: `contracts/out/EscrowV2.{abi,bin}`
+Deployed Arc Testnet contract: [`0x55bde7d3546f3e6e534a508a9b96d4e8d839eee9`](https://testnet.arcscan.app/address/0x55bde7d3546f3e6e534a508a9b96d4e8d839eee9)
+Deploy tx: [`0x1b30b1b110d5f4b4a4c93fe02f7c196845334b8a4a9b7b4fbe37bf72b84c5c29`](https://testnet.arcscan.app/tx/0x1b30b1b110d5f4b4a4c93fe02f7c196845334b8a4a9b7b4fbe37bf72b84c5c29)
+Operator: `0x709F18F797347FbB8D53Fb60567892751dd14B11`
 Deploy (optional, needs deployer key): `npm run escrow:v2:deploy`
 
 ### Protocol API (hosted)
