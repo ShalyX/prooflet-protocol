@@ -34,6 +34,32 @@ npm run smoke:hosted
 
 This check must continue to report `storage.durable: false` on the free profile. If a durable profile is approved later, configuration alone is still insufficient: a unique record must survive an actual restart/redeploy before durability is claimed.
 
+## Free Neon Postgres cutover (approved path)
+
+Stay on free Render compute. Durability comes from free Neon Postgres, not a paid Render disk.
+
+### Status
+- Storage foundation + domain repositories exist (identity, jobs, access payments, proofs, settlement).
+- Express still has remaining synchronous SQLite call sites. Hosted process **fail-closes** if `DATABASE_URL` is set while `PROOFLET_POSTGRES_API_READY` is not `true`.
+- Do not set `PROOFLET_DURABILITY_PROVEN=true` until a unique record survives a real Render restart/redeploy.
+
+### Secrets (never paste into git/chat)
+Set only in Neon + Render dashboards (or via CLI with keys stored only in local secure env):
+
+1. Create free Neon project `prooflet` (region close to Render).
+2. Copy the **pooled** connection string (`-pooler` host, `sslmode=require`).
+3. In Render service `prooflet-api` → Environment:
+   - `DATABASE_URL` = pooled Neon URL
+   - `PROOFLET_POSTGRES_API_READY` = `true` only after the async Express adapter lands
+   - `PROOFLET_DURABILITY_PROVEN` = `false` initially
+4. Redeploy free service (no paid disk).
+5. Create a unique test issuer/job, force restart/redeploy, confirm survival.
+6. Only then set `PROOFLET_DURABILITY_PROVEN=true`.
+
+Agent cutover automation needs either:
+- `NEON_API_KEY` + `RENDER_API_KEY` in the agent secure env, or
+- you create Neon + set Render secrets in the dashboards (preferred if keys are unavailable).
+
 For a future persistent-disk deployment, the disk remains a single failure domain. Online backups would also need to be copied off-service.
 
 ## Deferred paid-disk cutover reference

@@ -19,3 +19,13 @@ services:
         value: /tmp/prooflet.sqlite
       - key: TREASURY_ADDRESS
         value: 0x709F18F797347FbB8D53Fb60567892751dd14B11
+      # Free Neon cutover (set in Render dashboard only — never commit secrets):
+      # - DATABASE_URL = Neon pooled connection string (sslmode=require)
+      # - Leave unset until PROOFLET_POSTGRES_API_READY code path is complete
+      # - PROOFLET_DURABILITY_PROVEN=true only after restart-survival evidence
+      - key: DATABASE_URL
+        sync: false
+      - key: PROOFLET_POSTGRES_API_READY
+        value: "false"
+      - key: PROOFLET_DURABILITY_PROVEN
+        value: "false"
