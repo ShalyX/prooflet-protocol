@@ -55,7 +55,7 @@
     "job:create-link": "node --no-warnings --env-file-if-exists=.env scripts/create-link-job.mjs",
     "job:create-link:check": "node --no-warnings scripts/create-link-job-acceptance.mjs",
     "submission:check": "npm run sdk:test && npm run reputation:check && npm run adjudication:check && npm run genlayer:mock-check && npm run uploads:check && npm run settlement:check && npm run api:check && npm run agent-wallet:check && npm run job:create-link:check && npm run build",
-    "post-submission:check": "npm run production-core:check && npm run storage:check && npm run postgres:migrations:check && npm run identity:check && npm run jobs:check && npm run access-proofs:check && npm run settlement-repo:check && npm run escrow-v2:check && npm run escrow-v2:claim-proof:check && npm run escrow-v2:auto-release:check && npm run frontend:truth:check && npm run submission:check && npm run issuer-circle-fund:check",
+    "post-submission:check": "npm run production-core:check && npm run storage:check && npm run postgres:migrations:check && npm run identity:check && npm run jobs:check && npm run access-proofs:check && npm run settlement-repo:check && npm run escrow-v2:check && npm run escrow-v2:claim-proof:check && npm run escrow-v2:auto-release:check && npm run frontend:truth:check && npm run submission:check && npm run issuer-circle-fund:check && npm run issuer-faucet:check",
     "settlement:daemon": "node --no-warnings --env-file-if-exists=.env workers/settlement-daemon.mjs",
     "settlement:daemon:dry-run": "node --no-warnings --env-file-if-exists=.env workers/settlement-daemon.mjs --mode=dry-run",
     "settlement:daemon:execute": "node --no-warnings --env-file-if-exists=.env workers/settlement-daemon.mjs --mode=execute",
@@ -82,7 +82,9 @@
     "escrow:v2:x402-e2e": "node --no-warnings --env-file-if-exists=.env scripts/escrow-v2-x402-e2e.mjs",
     "escrow:v2:auto-release": "node --env-file-if-exists=.env workers/escrow-v2-auto-release.mjs",
     "escrow-v2:auto-release:check": "node --no-warnings scripts/escrow-v2-auto-release-acceptance.mjs",
-    "issuer-circle-fund:check": "node --no-warnings scripts/issuer-circle-fund-acceptance.mjs"
+    "issuer-circle-fund:check": "node --no-warnings scripts/issuer-circle-fund-acceptance.mjs",
+    "issuer-faucet:check": "node --no-warnings scripts/issuer-faucet-acceptance.mjs",
+    "issuer:faucet-fund-demo": "node --no-warnings --env-file-if-exists=.env scripts/issuer-faucet-fund-demo.mjs"
   },
   "dependencies": {
     "@circle-fin/developer-controlled-wallets": "^10.7.1",

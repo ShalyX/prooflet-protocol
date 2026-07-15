@@ -153,6 +153,15 @@ export function initIssuerWorkbench({ apiUrl, onNavigate }) {
   document.querySelector("#uploadForm").addEventListener("submit",validateFile);
   document.querySelector("#retryIssuerWalletBtn").addEventListener("click", retryWallet);
   document.querySelector("#refreshWalletBtn").addEventListener("click", fetchWallet);
+  document.querySelector("#claimFaucetBtn")?.addEventListener("click", claimFaucet);
+  document.querySelector("#openFaucetBtn")?.addEventListener("click", () => {
+    const addr = document.querySelector("#fundingWalletAddress")?.textContent || "";
+    window.open("https://faucet.circle.com/", "_blank", "noopener,noreferrer");
+    if (addr && addr.startsWith("0x")) {
+      navigator.clipboard?.writeText(addr).catch(() => {});
+      setStatus(`Copied ${addr} — paste into Circle faucet (Arc Testnet / USDC).`, true);
+    }
+  });
   
   document.querySelector("#connectDemoIssuer").addEventListener("click", () => {
     issuerInput.value = "useful_waiting_protocol";
@@ -226,6 +235,8 @@ export function initIssuerWorkbench({ apiUrl, onNavigate }) {
       document.querySelector("#fundingWalletDetails").hidden = true;
       document.querySelector("#retryIssuerWalletBtn").hidden = false;
       document.querySelector("#refreshWalletBtn").hidden = true;
+      document.querySelector("#claimFaucetBtn").hidden = true;
+      document.querySelector("#openFaucetBtn").hidden = true;
       
       if (errorMsg) {
         document.querySelector("#fundingWalletStatus").textContent = "Failed";
@@ -259,19 +270,64 @@ export function initIssuerWorkbench({ apiUrl, onNavigate }) {
       
       document.querySelector("#retryIssuerWalletBtn").hidden = true;
       document.querySelector("#refreshWalletBtn").hidden = false;
+      document.querySelector("#claimFaucetBtn").hidden = false;
+      document.querySelector("#openFaucetBtn").hidden = false;
+      const hint = document.querySelector("#faucetManualHint");
+      if (hint) {
+        hint.innerHTML = wallet.address
+          ? `Faucet address: <code>${escape(wallet.address)}</code> · <a href="https://faucet.circle.com/" target="_blank" rel="noreferrer">faucet.circle.com</a>`
+          : `Open <a href="https://faucet.circle.com/" target="_blank" rel="noreferrer">faucet.circle.com</a> after wallet address loads.`;
+      }
+    }
+  }
+
+  async function claimFaucet() {
+    try {
+      setStatus("Requesting Arc Testnet USDC faucet for issuer wallet…", true);
+      const res = await fetch(`${apiUrl}/issuers/${encodeURIComponent(client.issuerId)}/faucet`, {
+        method: "POST",
+        headers: { "X-API-Key": client.apiKey, "Content-Type": "application/json" },
+        body: JSON.stringify({ waitForBalance: false }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 401) throw new Error(data.error || "Issuer auth required");
+      if (data.ok) {
+        setStatus(`Faucet API accepted. Balance after: ${data.wallet?.balanceAfter || "?"} USDC. Refresh if still settling.`, true);
+      } else {
+        const addr = data.wallet?.address || data.faucet?.address || "";
+        const url = data.faucet?.manual?.url || "https://faucet.circle.com/";
+        setStatus(
+          `${data.faucet?.message || data.next || "Use web faucet."} Address: ${addr}`,
+          false,
+        );
+        if (url) window.open(url, "_blank", "noopener,noreferrer");
+      }
+      await fetchWallet();
+    } catch (error) {
+      setStatus(error.message, false);
     }
   }
 
   async function fundJob(jobId) {
     try {
       setStatus(`Funding Escrow V2 for ${jobId}…`, true);
-      // Prefer issuer Circle wallet path when available (no browser private key).
-      const circleRes = await fetch(`${apiUrl}/jobs/${encodeURIComponent(jobId)}/fund-from-circle-wallet`, {
+      // Prefer issuer Circle wallet path when available (no browser private key / no treasury).
+      let circleRes = await fetch(`${apiUrl}/jobs/${encodeURIComponent(jobId)}/fund-from-circle-wallet`, {
         method: "POST",
         headers: { "X-API-Key": client.apiKey, "Content-Type": "application/json" },
-        body: JSON.stringify({ issuerId: client.issuerId, requestFaucet: false }),
+        body: JSON.stringify({ issuerId: client.issuerId, requestFaucet: true }),
       });
-      const circleData = await circleRes.json().catch(() => ({}));
+      let circleData = await circleRes.json().catch(() => ({}));
+      if (!circleRes.ok && /insufficient|USDC|balance/i.test(String(circleData.error || ""))) {
+        setStatus("Wallet unfunded — claiming faucet…", true);
+        await claimFaucet();
+        circleRes = await fetch(`${apiUrl}/jobs/${encodeURIComponent(jobId)}/fund-from-circle-wallet`, {
+          method: "POST",
+          headers: { "X-API-Key": client.apiKey, "Content-Type": "application/json" },
+          body: JSON.stringify({ issuerId: client.issuerId, requestFaucet: false }),
+        });
+        circleData = await circleRes.json().catch(() => ({}));
+      }
       if (circleRes.ok) {
         const hash = circleData.fund?.hash || "";
         setStatus(`Escrow V2 funded from Circle wallet for ${jobId}${hash ? ` · ${hash.slice(0, 12)}…` : ""}. Job is open for agents.`, true);
@@ -280,10 +336,10 @@ export function initIssuerWorkbench({ apiUrl, onNavigate }) {
         return;
       }
 
-      // If wallet missing/unfunded, fall back to recording an external fundJob tx hash.
+      // If wallet missing/unfunded, fall back to recording an external fundJob tx hash (still not treasury auto-fund).
       const reason = circleData.error || circleData.message || `Circle fund failed (${circleRes.status})`;
       const txHash = window.prompt(
-        `${reason}\n\nOption A: top up issuer Circle wallet with Arc Testnet USDC, then retry.\nOption B: paste a fundJob tx hash from:\nnpm run escrow:v2:operator -- --fund=${jobId} --amount=REWARD\n\nTx hash (0x…):`,
+        `${reason}\n\nPreferred: Claim faucet USDC for this issuer wallet, then retry.\nFallback: paste a fundJob tx hash from your own key (not treasury auto):\nnpm run escrow:v2:operator -- --fund=${jobId} --amount=REWARD\n\nTx hash (0x…):`,
         "",
       );
       if (!txHash) {

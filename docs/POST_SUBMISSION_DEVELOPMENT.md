@@ -35,6 +35,18 @@ Live (after UI fund):
 JOB_ID=job_xxx AGENT_ID=agent_xxx PRIVATE_KEY=0x... npm run escrow:v2:live-claim
 ```
 
+### Issuer faucet (no treasury)
+
+```bash
+POST /issuers/:issuerId/faucet
+# tries Circle requestTestnetTokens; free-tier keys often Forbidden → 202 + faucet.circle.com instructions
+
+npm run issuer:faucet-fund-demo
+# registers issuer, claims faucet (or waits for web faucet), funds Escrow V2 from issuer wallet only
+```
+
+UI: Issuer Workbench → **Claim faucet USDC** / **Open Circle faucet**.
+
 ### Issuer Circle wallet → Escrow V2 fund
 
 Real issuer demos can fund open-market jobs **without a browser wallet**:
