@@ -185,3 +185,96 @@ export async function verifyFundJobTransaction({
     explorer: `https://testnet.arcscan.app/tx/${txHash}`,
   };
 }
+
+/**
+ * Verify an on-chain V2 release and return evidence for protocol ledger updates.
+ */
+export async function verifyReleaseTransaction({
+  txHash,
+  jobId,
+  expectedAgent = null,
+  env = process.env,
+  publicClient = null,
+}) {
+  const cfg = loadEscrowV2Deployment(env);
+  if (!cfg.configured) {
+    const error = new Error("Escrow V2 contract is not configured.");
+    error.code = "ESCROW_V2_NOT_CONFIGURED";
+    throw error;
+  }
+  if (!isTxHash(txHash)) {
+    const error = new Error("txHash must be a 0x-prefixed 32-byte hex transaction hash.");
+    error.code = "INVALID_TX_HASH";
+    throw error;
+  }
+
+  const client = publicClient || createArcPublicClient(env);
+  const abi = loadEscrowV2Abi();
+  const jobIdBytes32 = jobIdToBytes32(jobId);
+  const receipt = await client.getTransactionReceipt({ hash: txHash });
+  if (!receipt || receipt.status !== "success") {
+    const error = new Error("Release transaction is missing or failed on Arc Testnet.");
+    error.code = "RELEASE_TX_FAILED";
+    throw error;
+  }
+  if (String(receipt.to || "").toLowerCase() !== cfg.address.toLowerCase()) {
+    const error = new Error(`Release transaction target is not ProofletEscrowV2 ${cfg.address}.`);
+    error.code = "RELEASE_TX_WRONG_CONTRACT";
+    throw error;
+  }
+
+  let releasedEvent = null;
+  for (const log of receipt.logs || []) {
+    if (String(log.address || "").toLowerCase() !== cfg.address.toLowerCase()) continue;
+    try {
+      const decoded = decodeEventLog({ abi, data: log.data, topics: log.topics });
+      if (decoded.eventName === "Released") {
+        releasedEvent = decoded.args;
+        break;
+      }
+    } catch {
+      // not our event
+    }
+  }
+  if (!releasedEvent) {
+    const error = new Error("Release transaction did not emit Released from ProofletEscrowV2.");
+    error.code = "RELEASE_EVENT_MISSING";
+    throw error;
+  }
+  if (String(releasedEvent.jobId).toLowerCase() !== jobIdBytes32.toLowerCase()) {
+    const error = new Error("Release event jobId does not match this protocol job.");
+    error.code = "RELEASE_JOB_MISMATCH";
+    throw error;
+  }
+  if (expectedAgent && String(releasedEvent.agent).toLowerCase() !== String(expectedAgent).toLowerCase()) {
+    const error = new Error("Release event agent does not match expected agent address.");
+    error.code = "RELEASE_AGENT_MISMATCH";
+    throw error;
+  }
+
+  const onchain = await client.readContract({
+    address: cfg.address,
+    abi,
+    functionName: "getEscrow",
+    args: [jobIdBytes32],
+  });
+  const status = Number(onchain.status ?? onchain[5]);
+  if (status !== 2) {
+    const error = new Error(`On-chain escrow status is ${status}, expected Released(2).`);
+    error.code = "RELEASE_STATUS_NOT_RELEASED";
+    throw error;
+  }
+
+  return {
+    ok: true,
+    contract: cfg.address,
+    txHash,
+    jobId,
+    jobIdBytes32,
+    agent: releasedEvent.agent,
+    proofId: releasedEvent.proofId,
+    amount: formatUnits(BigInt(releasedEvent.amount), 6),
+    blockNumber: Number(receipt.blockNumber),
+    explorer: `https://testnet.arcscan.app/tx/${txHash}`,
+  };
+}

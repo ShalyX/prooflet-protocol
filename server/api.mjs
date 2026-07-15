@@ -22,7 +22,7 @@ import {
   createPaymentRequest, gatewayConfig, gatewayPrice, getAccessPayment, hasPaidAccess,
   nanopaymentConfig, recordAccessPayment, serializeAccessPayment, verifyNanopayment,
 } from "./circle-nanopayment.mjs";
-import { escrowV2Config, isTxHash, jobIdToBytes32, verifyFundJobTransaction } from "./escrow-v2.mjs";
+import { escrowV2Config, isTxHash, jobIdToBytes32, verifyFundJobTransaction, verifyReleaseTransaction } from "./escrow-v2.mjs";
 
 export function createApp({
   db: injectedDb,
@@ -285,7 +285,51 @@ export function createApp({
       configured: v2.configured,
       fundingRail: v2.fundingRail,
       acceptReportedFunding: v2.acceptReportedFunding,
+      requireOnchainVerification: v2.requireOnchainVerification,
       mainnet: false,
+    });
+  });
+
+  // Record an on-chain V2 release against a protocol job (public if on-chain verifies).
+  app.post("/jobs/:jobId/escrow-release-receipt", async (request, response) => {
+    const { jobId } = request.params;
+    const { txHash, agentAddress = null } = request.body || {};
+    if (!isTxHash(txHash)) throw httpError(400, "txHash must be a 0x-prefixed 32-byte hex transaction hash.");
+
+    const job = await db.prepare("SELECT * FROM jobs WHERE job_id = ?").get(jobId);
+    if (!job) throw httpError(404, "Job not found");
+    if (job.funding_rail !== "arc_usdc_escrow_v2" && job.escrow_status !== "funded" && job.escrow_status !== "released") {
+      // Allow if already funded via V2 rail or status funded
+    }
+    if (job.network !== "Arc Testnet") throw httpError(400, "Escrow V2 release recording is Arc Testnet only.");
+
+    let verification;
+    try {
+      verification = await verifyReleaseTransaction({
+        txHash,
+        jobId,
+        expectedAgent: agentAddress,
+      });
+    } catch (error) {
+      throw httpError(400, error.message || "On-chain release verification failed.");
+    }
+
+    const now = new Date().toISOString();
+    await db.prepare(`
+      UPDATE jobs
+      SET escrow_status = 'released',
+          escrow_tx_hash = ?,
+          updated_at = ?
+      WHERE job_id = ?
+    `).run(txHash, now, jobId);
+
+    const updated = await db.prepare("SELECT * FROM jobs WHERE job_id = ?").get(jobId);
+    response.json({
+      ok: true,
+      escrowVersion: 2,
+      network: "Arc Testnet",
+      job: serializeJob(updated),
+      release: verification,
     });
   });
 
