@@ -550,6 +550,25 @@
           </article>
 
           <article class="protocol-card protocol-wide-block">
+            <header><h3>Escrow V2 release queue</h3></header>
+            <p class="issuer-helper" style="margin: 0 0 10px;">Accepted payable proofs on open-market Escrow V2 awaiting operator release. Hosted API never holds operator keys.</p>
+            <div class="protocol-status-card" style="margin-bottom: 12px;">
+              <div><span>V2 contract</span><strong id="protoEscrowV2" class="mono-data">Loading…</strong></div>
+              <div><span>Queue depth</span><strong id="protoV2QueueCount">—</strong></div>
+              <div><span>x402 seller</span><strong id="protoX402Seller" class="mono-data">—</strong></div>
+            </div>
+            <div class="protocol-table-wrap scroll-x">
+              <table class="protocol-table">
+                <thead><tr><th>Job</th><th>Proof</th><th>Agent</th><th>Reward</th><th>Ready</th></tr></thead>
+                <tbody id="protocolV2Payable">
+                  <tr><td colspan="5">Loading Escrow V2 payable queue…</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="issuer-helper" style="margin-top: 10px;"><code>npm run escrow:v2:auto-release -- --once</code> (dry-run) · <code>--execute --once</code> to sign</p>
+          </article>
+
+          <article class="protocol-card protocol-wide-block">
             <header><h3>Settlement Batches</h3></header>
             <div class="protocol-table-wrap scroll-x">
               <table class="protocol-table">

@@ -868,6 +868,7 @@ function applyDashboard(dashboard) {
   systemStatus.batch = latestSettled?.batch_id || null;
   systemStatus.payout = Number(latestSettled?.total_payout || 0);
   renderProtocolBatches(dashboard.settlements?.batches || []);
+  void hydrateEscrowV2ProtocolPanel();
   events = [];
   events = [{
     id: pendingPayout > 0 ? "evt_live_payout_ready" : "evt_live_empty_batch",
@@ -902,13 +903,60 @@ function renderProtocolBatches(batches) {
   body.innerHTML = batches.map((batch) => `<tr><td class="mono-data">${escapeHtml(batch.batch_id)}</td><td>${escapeHtml(batch.status)}</td><td>${money(Number(batch.total_payout || 0))} USDC</td><td>Current ledger</td><td>${escapeHtml(batch.network)}</td></tr>`).join("");
 }
 
+async function hydrateEscrowV2ProtocolPanel() {
+  const countEl = document.getElementById("protoV2QueueCount");
+  const contractEl = document.getElementById("protoEscrowV2");
+  const sellerEl = document.getElementById("protoX402Seller");
+  const body = document.getElementById("protocolV2Payable");
+  if (!body) return;
+  try {
+    const [cfgRes, payRes] = await Promise.all([
+      fetch(`${API_URL}/escrow/v2/config`),
+      fetch(`${API_URL}/escrow/v2/payable`),
+    ]);
+    const cfg = await cfgRes.json().catch(() => ({}));
+    const payable = await payRes.json().catch(() => ({}));
+    if (contractEl) {
+      contractEl.textContent = cfg.contract || "Not configured";
+      if (cfg.contract) {
+        contractEl.innerHTML = `<a href="${ARCSCAN}/address/${escapeHtml(cfg.contract)}" target="_blank" rel="noreferrer">${escapeHtml(cfg.contract)}</a>`;
+      }
+    }
+    if (countEl) countEl.textContent = String(payable.count ?? (payable.items || []).length ?? "—");
+    if (sellerEl) {
+      try {
+        const nano = await fetch(`${API_URL}/nanopayment/config`).then((r) => r.json());
+        sellerEl.textContent = nano.sellerAddress || "—";
+      } catch {
+        sellerEl.textContent = "—";
+      }
+    }
+    const items = payable.items || [];
+    if (!items.length) {
+      body.innerHTML = '<tr><td colspan="5">No Escrow V2 proofs awaiting release</td></tr>';
+      return;
+    }
+    body.innerHTML = items.map((item) => `<tr>
+      <td class="mono-data">${escapeHtml(item.jobId)}</td>
+      <td class="mono-data">${escapeHtml(item.proofId)}</td>
+      <td class="mono-data">${escapeHtml(item.agentId)}</td>
+      <td>${escapeHtml(item.rewardAmount)} USDC</td>
+      <td>${item.ready ? '<span class="state-badge completed">Ready</span>' : '<span class="state-badge draft">Missing payout</span>'}</td>
+    </tr>`).join("");
+  } catch {
+    if (countEl) countEl.textContent = "Unavailable";
+    if (contractEl) contractEl.textContent = "Unavailable";
+    body.innerHTML = '<tr><td colspan="5">Unable to load Escrow V2 payable queue</td></tr>';
+  }
+}
+
 function setLandingText(selector, value) { const element = document.querySelector(selector); if (element) element.textContent = value; }
 
 function jobStatus(job) {
-  if (job.fundingRail === "arc_usdc_escrow") {
+  if (job.fundingRail === "arc_usdc_escrow" || job.fundingRail === "arc_usdc_escrow_v2") {
     if (job.escrowStatus === "released") return "Released";
     if (job.escrowStatus === "refunded") return "Refunded";
-    if (job.escrowStatus === "funded") return "Escrowed";
+    if (job.escrowStatus === "funded") return job.fundingRail === "arc_usdc_escrow_v2" ? "Escrow V2" : "Escrowed";
   }
   if (job.fundingStatus === "paid") return "Paid";
   if (job.fundingStatus === "rejected" || job.state === "rejected") return "Rejected";
