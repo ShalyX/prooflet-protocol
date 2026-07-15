@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { formatUnits, isAddress, parseUnits } from "viem";
 import { authenticate, generateApiKey, storeApiKey } from "./auth.mjs";
 import { authenticateAdjudicator } from "./auth.mjs";
-import { createAgentWallet, createIssuerWallet, getCircleStatus, isCircleConfigured, getWalletBalance, sendUsdc, getWalletDetails } from "./circle-wallet.mjs";
+import { createAgentWallet, createIssuerWallet, getCircleStatus, isCircleConfigured, getWalletBalance, sendUsdc, getWalletDetails, requestTestnetFunds, manualFaucetInfo } from "./circle-wallet.mjs";
 import { databaseStorageStatus, expireLeases, json, openDatabase, parseJson, withTransaction } from "./db.mjs";
 import { createSqliteStoreFromDatabase, createStore, resolveDialect } from "./storage/index.mjs";
 import { createDbProxy, storageStatusForStore, withExecutorTransaction } from "./storage/db-proxy.mjs";
@@ -28,7 +28,7 @@ import { fundEscrowV2FromCircleWallet } from "./issuer-escrow-fund.mjs";
 export function createApp({
   db: injectedDb,
   store,
-  walletService = { createAgentWallet, createIssuerWallet, getCircleStatus, isCircleConfigured, getWalletBalance, sendUsdc, getWalletDetails },
+  walletService = { createAgentWallet, createIssuerWallet, getCircleStatus, isCircleConfigured, getWalletBalance, sendUsdc, getWalletDetails, requestTestnetFunds, manualFaucetInfo },
   gatewayMiddleware = createGatewayMiddleware(gatewayConfig()),
   seedDemoData = shouldSeedDemoData(),
 } = {}) {
@@ -200,6 +200,71 @@ export function createApp({
     } catch (e) {
       response.json({ wallet: null, walletProvisioning: { status: "failed", code: e.code || "CIRCLE_WALLET_CREATE_FAILED", message: "Circle issuer wallet could not be created. Check server Circle configuration." } });
     }
+  });
+
+  // Claim Arc Testnet USDC for the issuer Circle wallet (API faucet or manual web faucet instructions).
+  app.post("/issuers/:issuerId/faucet", async (request, response) => {
+    const { issuerId } = request.params;
+    const { waitForBalance = false, minAmount = "0.003" } = request.body || {};
+    if (!await authenticate(db, request, "issuer", issuerId)) throw httpError(401, "Valid issuer API key required.");
+    const issuer = await db.prepare("SELECT * FROM issuers WHERE issuer_id = ?").get(issuerId);
+    if (!issuer) throw httpError(404, "Issuer not found");
+
+    let walletId = issuer.circle_wallet_id;
+    if (!walletId) {
+      try {
+        const wallet = await circle.createIssuerWallet(issuerId);
+        await db.prepare("UPDATE issuers SET circle_wallet_id = ? WHERE issuer_id = ?").run(wallet.walletId, issuerId);
+        walletId = wallet.walletId;
+      } catch (e) {
+        throw httpError(400, e.message || "Could not provision issuer Circle wallet for faucet.");
+      }
+    }
+
+    const before = await circle.getWalletBalance(walletId);
+    const result = await circle.requestTestnetFunds(walletId, { usdc: true, native: false });
+    let wait = null;
+    if (waitForBalance && result.ok) {
+      // Only poll when API accepted; manual claims need the issuer to return later.
+      const { waitForUsdcBalance } = await import("./circle-wallet.mjs");
+      wait = await waitForUsdcBalance(walletId, { minAmount: String(minAmount), timeoutMs: 60_000 });
+    }
+    const after = await circle.getWalletBalance(walletId);
+    const details = await circle.getWalletDetails(walletId);
+
+    response.status(result.ok ? 200 : 202).json({
+      ok: result.ok,
+      network: "Arc Testnet",
+      asset: "USDC",
+      wallet: {
+        walletId,
+        address: details?.address || result.address,
+        balanceBefore: before?.amount || "0",
+        balanceAfter: after?.amount || "0",
+      },
+      faucet: result,
+      wait,
+      next: result.ok
+        ? "Refresh wallet balance, create a draft job, then Fund Escrow V2 (Circle wallet)."
+        : "Open the manual faucet URL, claim USDC to the wallet address, refresh balance, then Fund Escrow V2. No treasury funding required.",
+    });
+  });
+
+  app.get("/issuers/:issuerId/faucet", async (request, response) => {
+    const { issuerId } = request.params;
+    if (!await authenticate(db, request, "issuer", issuerId)) throw httpError(401, "Valid issuer API key required.");
+    const issuer = await db.prepare("SELECT * FROM issuers WHERE issuer_id = ?").get(issuerId);
+    if (!issuer) throw httpError(404, "Issuer not found");
+    const details = issuer.circle_wallet_id ? await circle.getWalletDetails(issuer.circle_wallet_id) : null;
+    const balance = issuer.circle_wallet_id ? await circle.getWalletBalance(issuer.circle_wallet_id) : null;
+    response.json({
+      ok: true,
+      network: "Arc Testnet",
+      walletId: issuer.circle_wallet_id || null,
+      address: details?.address || null,
+      balance: balance?.amount || "0",
+      manual: (circle.manualFaucetInfo || manualFaucetInfo)(details?.address || null),
+    });
   });
 
   app.post("/jobs/:jobId/fund-escrow", async (request, response) => {

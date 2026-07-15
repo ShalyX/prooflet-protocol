@@ -254,19 +254,21 @@
                 <p><strong>Wallet address:</strong> <span id="fundingWalletAddress"></span> <button type="button" class="compact ghost" id="copyWalletAddrBtn">Copy</button></p>
                 <p><strong>Balance:</strong> <span id="fundingWalletBalance">0</span> USDC <span id="fundingBalanceStatus" class="state-badge"></span></p>
                 <div class="top-up-instructions" style="margin-top: 12px; padding: 12px; border: 1px solid var(--line-strong); border-radius: 8px;">
-                  <strong style="color: var(--primary); display: block; margin-bottom: 4px;">Top up this wallet</strong>
-                  <p class="issuer-helper" style="margin-bottom: 8px;">Send Arc Testnet USDC to this issuer wallet before funding escrow.</p>
-                  <p><strong>Network:</strong> Arc Testnet (5042002)</p>
-                  <p><strong>Asset:</strong> USDC <code style="font-size: 0.8em;">0x3600000000000000000000000000000000000000</code></p>
+                  <strong style="color: var(--primary); display: block; margin-bottom: 4px;">Claim Arc Testnet USDC (no treasury)</strong>
+                  <p class="issuer-helper" style="margin-bottom: 8px;">Use the Circle faucet for this issuer wallet. Prooflet tries the API first; free-tier keys usually need the web faucet.</p>
+                  <p><strong>Network:</strong> Arc Testnet (5042002) · <strong>Asset:</strong> USDC</p>
+                  <p id="faucetManualHint" class="issuer-helper" style="margin-top:6px;"></p>
                 </div>
                 <div class="external-only" style="margin-top: 12px; padding: 12px; background: rgba(80, 200, 120, 0.08); border: 1px solid var(--primary); border-radius: 8px;">
                   <strong style="color: var(--primary);">Escrow V2 open-market funding is live (Arc Testnet)</strong>
-                  <p style="font-size: 0.85rem; margin-top: 4px;">Create a draft job, run on-chain <code>fundJob</code> (agent unknown), then use <strong>Record Escrow V2 fund tx</strong> in Job Management. Operator release remains explicit after proof approval.</p>
+                  <p style="font-size: 0.85rem; margin-top: 4px;">Create a draft job, claim faucet USDC into the issuer Circle wallet, then <strong>Fund Escrow V2 (Circle wallet)</strong>. Operator release remains explicit after proof approval. Treasury is not used for issuer funds.</p>
                   <p style="font-size: 0.8rem; margin-top: 8px; color: var(--muted);">Contract: <code id="escrowV2AddressHint">0x55bde7d3546f3e6e534a508a9b96d4e8d839eee9</code></p>
                 </div>
               </div>
-              <div class="funding-actions" style="margin-top: 12px;">
+              <div class="funding-actions" style="margin-top: 12px; display:flex; flex-wrap:wrap; gap:8px;">
                 <button class="primary" id="retryIssuerWalletBtn" type="button" hidden>Retry wallet provisioning</button>
+                <button class="primary" id="claimFaucetBtn" type="button" hidden>Claim faucet USDC</button>
+                <button class="secondary" id="openFaucetBtn" type="button" hidden>Open Circle faucet</button>
                 <button class="secondary" id="refreshWalletBtn" type="button" hidden>Refresh balance</button>
               </div>
             </div>

@@ -1,6 +1,6 @@
 /**
  * Circle Wallet Service v2
- * Post-submission: supports contract execution for Escrow V2 fundJob from issuer wallets.
+ * Post-submission: faucet path for Arc Testnet issuer funding (no treasury top-up).
  */
 import { initiateDeveloperControlledWalletsClient } from "@circle-fin/developer-controlled-wallets";
 
@@ -81,9 +81,6 @@ export async function sendUsdc(opts) {
     : null;
 }
 
-/**
- * Execute a contract call from a Circle developer-controlled wallet.
- */
 export async function executeContract({
   walletId,
   contractAddress,
@@ -109,9 +106,8 @@ export async function executeContract({
     contractAddress,
     fee: { type: "level", config: { feeLevel } },
   };
-  if (callData) {
-    payload.callData = callData;
-  } else {
+  if (callData) payload.callData = callData;
+  else {
     payload.abiFunctionSignature = abiFunctionSignature;
     payload.abiParameters = abiParameters;
   }
@@ -143,7 +139,6 @@ export async function executeContract({
       e.transaction = latest;
       throw e;
     }
-    // Optional early exit if only waiting for SENT and we have a hash
     if (waitForState === "SENT" && latest.transactionHash && ["SENT", "CONFIRMED", "COMPLETE"].includes(state)) break;
     await new Promise((r) => setTimeout(r, pollMs));
   }
@@ -183,16 +178,100 @@ export async function getWalletDetails(walletId) {
   }
 }
 
-export async function requestTestnetFunds(walletId) {
+/** Circle public faucet for Arc Testnet USDC (manual claim when API is gated). */
+export function manualFaucetInfo(address) {
+  return {
+    url: "https://faucet.circle.com/",
+    network: "Arc Testnet",
+    asset: "USDC",
+    address: address || null,
+    instructions: [
+      "Open https://faucet.circle.com/",
+      "Select Arc Testnet and USDC",
+      address ? `Paste address ${address}` : "Paste the issuer Circle wallet address",
+      "Complete reCAPTCHA and claim (typically ~10–20 USDC; rate-limited per address)",
+      "Return to Prooflet and refresh wallet balance, then Fund Escrow V2",
+    ],
+    note: "Programmatic /v1/faucet/drips requires a Circle mainnet-upgraded API key. Free-tier keys get Forbidden and must use the web faucet.",
+  };
+}
+
+/**
+ * Request Arc Testnet USDC for a wallet.
+ * Prefers Circle SDK faucet; falls back to manual faucet instructions when Forbidden.
+ */
+export async function requestTestnetFunds(walletId, { usdc = true, native = false } = {}) {
   const c = g();
-  if (!c) return null;
-  try {
-    const r = await c.requestTestnetTokens({ walletId, blockchains: ["ARC-TESTNET"] });
-    return r.data;
-  } catch (e) {
-    console.error(e.message);
-    return null;
+  if (!c) {
+    const e = new Error("Circle not configured");
+    e.code = "CIRCLE_CONFIG_MISSING";
+    throw e;
   }
+  const details = await getWalletDetails(walletId);
+  const address = details?.address;
+  if (!address) {
+    const e = new Error("Could not resolve wallet address for faucet claim.");
+    e.code = "WALLET_ADDRESS_MISSING";
+    throw e;
+  }
+
+  try {
+    const r = await c.requestTestnetTokens({
+      address,
+      blockchain: "ARC-TESTNET",
+      usdc: Boolean(usdc),
+      native: Boolean(native),
+    });
+    return {
+      ok: true,
+      mode: "circle_api",
+      status: r.status,
+      address,
+      walletId,
+      balanceBefore: null,
+      manual: null,
+      message: "Faucet request accepted by Circle API.",
+    };
+  } catch (err) {
+    const status = err.response?.status || err.status || null;
+    const message = String(err.message || err);
+    const forbidden = status === 403 || /forbidden/i.test(message);
+    return {
+      ok: false,
+      mode: "manual_required",
+      status,
+      address,
+      walletId,
+      error: message,
+      code: forbidden ? "FAUCET_API_FORBIDDEN" : "FAUCET_API_FAILED",
+      manual: manualFaucetInfo(address),
+      message: forbidden
+        ? "Circle faucet API is not available on this API key (mainnet upgrade required). Use the web faucet with the issuer wallet address."
+        : `Circle faucet API failed: ${message}. Use the web faucet with the issuer wallet address.`,
+    };
+  }
+}
+
+/**
+ * Poll wallet USDC until min amount or timeout (for after manual faucet claim).
+ */
+export async function waitForUsdcBalance(walletId, { minAmount = "0.003", timeoutMs = 120_000, pollMs = 5000 } = {}) {
+  const { parseUnits } = await import("viem");
+  const need = parseUnits(String(minAmount), 6);
+  const started = Date.now();
+  let last = { amount: "0", decimals: 6 };
+  while (Date.now() - started < timeoutMs) {
+    last = (await getWalletBalance(walletId)) || last;
+    try {
+      if (parseUnits(String(last.amount || "0"), Number(last.decimals || 6)) >= need) {
+        return { ok: true, balance: last, waitedMs: Date.now() - started };
+      }
+    } catch {
+      // ignore parse errors
+    }
+    await new Promise((r) => setTimeout(r, pollMs));
+  }
+  return { ok: false, balance: last, waitedMs: Date.now() - started };
 }
 
 export function isCircleConfigured() {
@@ -204,12 +283,19 @@ export function getCircleStatus() {
     configured: isCircleConfigured(),
     clientVersion: "10.7.1",
     walletSetId: process.env.CIRCLE_WALLET_SET_ID || null,
+    faucet: {
+      api: "requestTestnetTokens",
+      network: "ARC-TESTNET",
+      manualUrl: "https://faucet.circle.com/",
+      note: "API faucet often Forbidden without Circle mainnet upgrade; web faucet remains the reliable path.",
+    },
     supportedActions: [
       "createAgentWallet",
       "sendUsdc",
       "getWalletBalance",
       "requestTestnetFunds",
       "executeContract",
+      "manualFaucetInfo",
     ],
   };
 }
