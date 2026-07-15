@@ -35,6 +35,14 @@ Live (after UI fund):
 JOB_ID=job_xxx AGENT_ID=agent_xxx PRIVATE_KEY=0x... npm run escrow:v2:live-claim
 ```
 
+### Circle Gateway x402 note
+
+Access fees use Circle Gateway x402. **Seller must not equal payer**:
+
+- Set `CIRCLE_GATEWAY_SELLER_ADDRESS` to a dedicated fee recipient
+- If it equals the agent payout / treasury used to sign payments, Gateway returns `self_transfer` (`Payment verification failed`)
+- Fallback rail remains Arc USDC event scan to treasury
+
 Mainnet remains unsupported. No production audit.
 
 ## P1 historical note
