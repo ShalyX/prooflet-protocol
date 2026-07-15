@@ -54,23 +54,51 @@ if (!key) {
   console.log(JSON.stringify({ registered: true, agentId, note: "save AGENT_API_KEY for reuse" }, null, 2));
 }
 
-// Access payment via gateway helper when possible
+// Access payment: try Gateway first, then fallback Arc USDC transfer verify.
 if (process.env.SKIP_ACCESS_PAY !== "1") {
-  if (!privateKey) throw new Error("PRIVATE_KEY/GATEWAY_PRIVATE_KEY required for access payment (or SKIP_ACCESS_PAY=1)");
-  const pay = spawnSync(process.execPath, [
-    "--no-warnings",
-    "scripts/pay-job-access.mjs",
-    `--api-url=${apiUrl}`,
-    `--job-id=${jobId}`,
-    `--agent-id=${agentId}`,
-    `--private-key=${privateKey}`,
-  ], { cwd: new URL("..", import.meta.url).pathname, encoding: "utf8", env: process.env });
-  if (pay.status !== 0) {
-    console.error(pay.stdout || "");
-    console.error(pay.stderr || "");
-    throw new Error(`gateway access payment failed (exit ${pay.status})`);
+  let paid = false;
+  if (privateKey) {
+    const pay = spawnSync(process.execPath, [
+      "--no-warnings",
+      "scripts/pay-job-access.mjs",
+      `--api-url=${apiUrl}`,
+      `--job-id=${jobId}`,
+      `--agent-id=${agentId}`,
+      `--private-key=${privateKey}`,
+    ], { cwd: new URL("..", import.meta.url).pathname, encoding: "utf8", env: process.env });
+    if (pay.status === 0) {
+      paid = true;
+      console.log(pay.stdout);
+    } else {
+      console.log(JSON.stringify({ gatewayPay: "failed", fallingBack: "arc_usdc_event_scan" }, null, 2));
+    }
   }
-  console.log(pay.stdout);
+  if (!paid) {
+    if (!privateKey) throw new Error("PRIVATE_KEY required for access payment (or SKIP_ACCESS_PAY=1)");
+    const { createWalletClient, createPublicClient, http } = await import("viem");
+    const { privateKeyToAccount } = await import("viem/accounts");
+    const pk = privateKey.startsWith("0x") ? privateKey : `0x${privateKey}`;
+    const account = privateKeyToAccount(pk);
+    const rpc = process.env.ARC_RPC_URL || "https://rpc.testnet.arc.network";
+    const chain = { id: 5042002, name: "Arc Testnet", nativeCurrency: { name: "ETH", symbol: "ETH", decimals: 18 }, rpcUrls: { default: { http: [rpc] } } };
+    const publicClient = createPublicClient({ transport: http(rpc), chain });
+    const walletClient = createWalletClient({ account, transport: http(rpc), chain });
+    const usdc = process.env.USDC_ADDRESS || process.env.ARC_USDC_ADDRESS || "0x3600000000000000000000000000000000000000";
+    const treasury = process.env.TREASURY_ADDRESS || account.address;
+    const transferHash = await walletClient.writeContract({
+      address: usdc,
+      abi: [{ type: "function", name: "transfer", stateMutability: "nonpayable", inputs: [{ type: "address" }, { type: "uint256" }], outputs: [{ type: "bool" }] }],
+      functionName: "transfer",
+      args: [treasury, 1n],
+    });
+    await publicClient.waitForTransactionReceipt({ hash: transferHash, timeout: 120_000 });
+    const verify = await req("POST", `/jobs/${encodeURIComponent(jobId)}/access-fee/verify`, {
+      agentId,
+      agentAddress: account.address,
+    }, key);
+    if (verify.status !== 200) throw new Error(`fallback access verify failed: ${verify.status} ${JSON.stringify(verify.data)}`);
+    console.log(JSON.stringify({ fallbackAccess: true, transferHash, verify: verify.data }, null, 2));
+  }
 }
 
 const claim = await req("POST", `/agents/${encodeURIComponent(agentId)}/claim-job`, { jobId, leaseSeconds: 180 }, key);

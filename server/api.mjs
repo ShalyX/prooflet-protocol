@@ -606,86 +606,100 @@ export function createApp({
     if (!await authenticate(db, request, "agent", proof.agentId)) throw httpError(401, "Valid agent API key required.");
     if (Number.isNaN(Date.parse(proof.proofTimestamp))) throw httpError(400, "proofTimestamp must be a valid timestamp.");
 
-    const result = await appStore.transaction(async (tx) => {
-      await expireLeasesWithEvents(db);
-      const job = await db.prepare("SELECT * FROM jobs WHERE job_id = ?").get(jobId);
-      if (!job) throw httpError(404, `Job ${jobId} does not exist.`);
-      if (job.status !== "claimed" || job.claimed_by !== proof.agentId) throw httpError(409, "Job is not actively claimed by this agent.");
-      const claim = await db.prepare(`
-        SELECT * FROM job_claims WHERE job_id = ? AND agent_id = ? AND status = 'active'
-        ORDER BY claim_id DESC LIMIT 1
-      `).get(jobId, proof.agentId);
-      if (!claim || claim.lease_expires_at <= new Date().toISOString()) throw httpError(409, "Claim lease expired before proof submission.");
-      if (await tx.proofs.getProof(proof.proofId)) throw httpError(409, `Proof ${proof.proofId} already exists.`);
+    // Lease expiry and reads that must be visible must not nest on a separate Postgres connection.
+    await expireLeasesWithEvents(db);
 
-      const requirements = parseJson(job.proof_requirements_json, {});
-      const fingerprint = proofFingerprint(proof);
-      const duplicate = await tx.proofs.findByFingerprint(fingerprint);
-      const subjective = job.verification_mode === "subjective";
-      const subjectivePreflight = subjective ? verifySubjectivePreflight(job, proof, requirements) : null;
-      const verification = duplicate
-        ? { approved: false, route: "duplicate_proof_v0", reason: `Duplicate proof payload matches ${duplicate.proofId} from ${duplicate.jobId}.` }
-        : subjective ? (subjectivePreflight || { approved: false, pending: true, route: "manual_adapter", reason: null })
-        : verifyProof({ jobType: job.job_type, input: parseJson(job.input_json, {}) }, proof, requirements);
-      const outcome = verification.pending ? "pending_adjudication" : verification.approved ? "accepted" : "rejected";
-      const fundingStatus = verification.pending ? "pending_adjudication" : verification.approved ? "payable" : "rejected";
-      const settlementStatus = verification.pending ? "Pending adjudication · No payout" : verification.approved ? "Awaiting Arc Testnet settlement" : "Rejected · No payout";
-      const verificationStatus = verification.pending ? "pending_adjudication" : verification.approved ? "deterministic_verified" : duplicate ? "duplicate_rejected" : "deterministic_rejected";
-      const adjudicationStatus = verification.pending ? "pending_adjudication" : "not_required";
-      const now = new Date().toISOString();
-      let created;
-      try {
-        created = await tx.proofs.createProof({
-          proofId: proof.proofId,
-          jobId,
-          agentId: proof.agentId,
-          jobType: proof.jobType,
-          input: proof.input,
-          result: proof.result,
-          verificationRoute: verification.route,
-          proofTimestamp: proof.proofTimestamp,
-          fingerprint,
-          outcome,
-          rejectionReason: verification.reason,
-          fundingStatus,
-          settlementStatus,
-          verificationStatus,
-          adjudicationStatus,
-          createdAt: now,
-        });
-      } catch (error) {
-        if (error?.code === "UNIQUE_VIOLATION") throw httpError(409, `Proof ${proof.proofId} already exists.`);
-        throw error;
-      }
-      await tx.proofs.markClaimSubmitted(claim.claim_id);
-      await tx.proofs.completeJobAfterProof({
-        jobId,
-        jobStatus: verification.pending ? "pending_adjudication" : verification.approved ? "completed" : "rejected",
-        fundingStatus,
-        updatedAt: now,
-      });
-      if (!verification.pending) await appendReputationEvent(db, { agentId: proof.agentId, eventType: duplicate ? "duplicate_proof_rejected" : verification.approved ? "proof_approved" : "proof_rejected", jobId, proofId: proof.proofId, issuerId: job.issuer_id, createdAt: now });
-      if (verification.pending) pendingManualRequest(proof.proofId, now);
+    const job = await db.prepare("SELECT * FROM jobs WHERE job_id = ?").get(jobId);
+    if (!job) throw httpError(404, `Job ${jobId} does not exist.`);
+    if (job.status !== "claimed" || job.claimed_by !== proof.agentId) throw httpError(409, "Job is not actively claimed by this agent.");
+    const claim = await db.prepare(`
+      SELECT * FROM job_claims WHERE job_id = ? AND agent_id = ? AND status = 'active'
+      ORDER BY claim_id DESC LIMIT 1
+    `).get(jobId, proof.agentId);
+    if (!claim || claim.lease_expires_at <= new Date().toISOString()) throw httpError(409, "Claim lease expired before proof submission.");
 
-      // Check compound job completion or failure
-      if (!verification.pending) {
-        if (verification.approved) {
-          checkCompoundJobCompletion(db, proof);
-        } else {
-          checkCompoundJobFailure(db, proof);
+    const requirements = parseJson(job.proof_requirements_json, {});
+    const fingerprint = proofFingerprint(proof);
+    const existingFingerprint = await appStore.proofs.findByFingerprint(fingerprint);
+    const subjective = job.verification_mode === "subjective";
+    const subjectivePreflight = subjective ? verifySubjectivePreflight(job, proof, requirements) : null;
+    const verification = existingFingerprint
+      ? { approved: false, route: "duplicate_proof_v0", reason: `Duplicate proof payload matches ${existingFingerprint.proofId} from ${existingFingerprint.jobId}.` }
+      : subjective ? (subjectivePreflight || { approved: false, pending: true, route: "manual_adapter", reason: null })
+      : verifyProof({ jobType: job.job_type, input: parseJson(job.input_json, {}) }, proof, requirements);
+    const outcome = verification.pending ? "pending_adjudication" : verification.approved ? "accepted" : "rejected";
+    const fundingStatus = verification.pending ? "pending_adjudication" : verification.approved ? "payable" : "rejected";
+    const settlementStatus = verification.pending ? "Pending adjudication · No payout" : verification.approved ? "Awaiting Arc Testnet settlement" : "Rejected · No payout";
+    const verificationStatus = verification.pending ? "pending_adjudication" : verification.approved ? "deterministic_verified" : existingFingerprint ? "duplicate_rejected" : "deterministic_rejected";
+    const adjudicationStatus = verification.pending ? "pending_adjudication" : "not_required";
+    const now = new Date().toISOString();
+    const duplicate = Boolean(existingFingerprint);
+
+    try {
+      await appStore.transaction(async (tx) => {
+        if (await tx.proofs.getProof(proof.proofId)) throw httpError(409, `Proof ${proof.proofId} already exists.`);
+        try {
+          await tx.proofs.createProof({
+            proofId: proof.proofId,
+            jobId,
+            agentId: proof.agentId,
+            jobType: proof.jobType,
+            input: proof.input,
+            result: proof.result,
+            verificationRoute: verification.route,
+            proofTimestamp: proof.proofTimestamp,
+            fingerprint,
+            outcome,
+            rejectionReason: verification.reason,
+            fundingStatus,
+            settlementStatus,
+            verificationStatus,
+            adjudicationStatus,
+            createdAt: now,
+          });
+        } catch (error) {
+          if (error?.code === "UNIQUE_VIOLATION") throw httpError(409, `Proof ${proof.proofId} already exists.`);
+          throw error;
         }
-      }
-      return await db.prepare("SELECT * FROM proofs WHERE proof_id = ?").get(proof.proofId);
-    });
+        await tx.proofs.markClaimSubmitted(claim.claim_id);
+        await tx.proofs.completeJobAfterProof({
+          jobId,
+          jobStatus: verification.pending ? "pending_adjudication" : verification.approved ? "completed" : "rejected",
+          fundingStatus,
+          updatedAt: now,
+        });
+      });
+    } catch (error) {
+      if (error?.status) throw error;
+      throw error;
+    }
+
+    // After commit only: reputation + compound helpers use the outer db connection.
+    if (!verification.pending) {
+      await appendReputationEvent(db, {
+        agentId: proof.agentId,
+        eventType: duplicate ? "duplicate_proof_rejected" : verification.approved ? "proof_approved" : "proof_rejected",
+        jobId,
+        proofId: proof.proofId,
+        issuerId: job.issuer_id,
+        createdAt: now,
+      });
+      if (verification.approved) checkCompoundJobCompletion(db, proof);
+      else checkCompoundJobFailure(db, proof);
+    } else {
+      pendingManualRequest(proof.proofId, now);
+    }
+
     let adjudication = null;
-    if (result.outcome === "pending_adjudication") {
+    if (outcome === "pending_adjudication") {
       try {
-        adjudication = await routeConfiguredAdjudication(db, result.proof_id);
+        adjudication = await routeConfiguredAdjudication(db, proof.proofId);
       } catch (error) {
         adjudication = { route: "genlayer", status: "failed", error: { code: error.code || "genlayer_request_failed", message: error.message } };
       }
     }
-    const current = await db.prepare("SELECT * FROM proofs WHERE proof_id=?").get(result.proof_id);
+    const current = await db.prepare("SELECT * FROM proofs WHERE proof_id=?").get(proof.proofId);
+    if (!current) throw httpError(500, "Proof was not persisted.");
     response.status(current.outcome === "accepted" || current.outcome === "pending_adjudication" ? 201 : 422).json({ proof: serializeProof(current), ...(adjudication ? { adjudication } : {}) });
   });
 
