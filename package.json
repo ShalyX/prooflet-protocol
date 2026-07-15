@@ -55,7 +55,7 @@
     "job:create-link": "node --no-warnings --env-file-if-exists=.env scripts/create-link-job.mjs",
     "job:create-link:check": "node --no-warnings scripts/create-link-job-acceptance.mjs",
     "submission:check": "npm run sdk:test && npm run reputation:check && npm run adjudication:check && npm run genlayer:mock-check && npm run uploads:check && npm run settlement:check && npm run api:check && npm run agent-wallet:check && npm run job:create-link:check && npm run build",
-    "post-submission:check": "npm run production-core:check && npm run storage:check && npm run postgres:migrations:check && npm run identity:check && npm run jobs:check && npm run access-proofs:check && npm run settlement-repo:check && npm run escrow-v2:check && npm run frontend:truth:check && npm run submission:check",
+    "post-submission:check": "npm run production-core:check && npm run storage:check && npm run postgres:migrations:check && npm run identity:check && npm run jobs:check && npm run access-proofs:check && npm run settlement-repo:check && npm run escrow-v2:check && npm run escrow-v2:claim-proof:check && npm run frontend:truth:check && npm run submission:check",
     "settlement:daemon": "node --no-warnings --env-file-if-exists=.env workers/settlement-daemon.mjs",
     "settlement:daemon:dry-run": "node --no-warnings --env-file-if-exists=.env workers/settlement-daemon.mjs --mode=dry-run",
     "settlement:daemon:execute": "node --no-warnings --env-file-if-exists=.env workers/settlement-daemon.mjs --mode=execute",
@@ -76,7 +76,9 @@
     "escrow-v2:check": "ESCROW_V2_SKIP_ONCHAIN=true node --no-warnings scripts/escrow-v2-acceptance.mjs",
     "escrow:v2:compile": "npx --yes solc --bin --abi --optimize -o contracts/out contracts/EscrowV2.sol && cp contracts/out/contracts_EscrowV2_sol_ProofletEscrowV2.abi contracts/out/EscrowV2.abi && cp contracts/out/contracts_EscrowV2_sol_ProofletEscrowV2.bin contracts/out/EscrowV2.bin",
     "escrow:v2:deploy": "node --env-file=.env scripts/deploy-escrow-v2.mjs",
-    "escrow:v2:operator": "node --env-file=.env workers/escrow-v2-operator.mjs"
+    "escrow:v2:operator": "node --env-file=.env workers/escrow-v2-operator.mjs",
+    "escrow-v2:claim-proof:check": "node --no-warnings scripts/escrow-v2-claim-proof-acceptance.mjs",
+    "escrow:v2:live-claim": "node --no-warnings --env-file-if-exists=.env scripts/escrow-v2-live-claim.mjs"
   },
   "dependencies": {
     "@circle-fin/developer-controlled-wallets": "^10.7.1",

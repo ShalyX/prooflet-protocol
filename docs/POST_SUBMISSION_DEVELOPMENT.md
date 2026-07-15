@@ -22,6 +22,19 @@ Secrets (`DATABASE_URL`) stay in Render; never commit connection strings.
 - Issuer Workbench: **Record Escrow V2 fund tx**
 - Release receipt: `POST /jobs/:jobId/escrow-release-receipt` (on-chain verified)
 
+### Claim → proof acceptance
+
+```bash
+npm run escrow-v2:claim-proof:check
+# fund → access payment gate → claim → deterministic proof → payable
+```
+
+Live (after UI fund):
+
+```bash
+JOB_ID=job_xxx AGENT_ID=agent_xxx PRIVATE_KEY=0x... npm run escrow:v2:live-claim
+```
+
 Mainnet remains unsupported. No production audit.
 
 ## P1 historical note

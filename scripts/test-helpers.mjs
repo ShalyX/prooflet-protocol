@@ -21,12 +21,12 @@ export async function api(baseUrl, method, route, body, apiKey) {
   return { status: response.status, body: await response.json() };
 }
 
-export function grantJobAccess(db, jobId, agentId, { rail = "circle_gateway_x402", amount = "0.000001", payerAddress = "0x3333333333333333333333333333333333333333" } = {}) {
+export async function grantJobAccess(db, jobId, agentId, { rail = "circle_gateway_x402", amount = "0.000001", payerAddress = "0x3333333333333333333333333333333333333333" } = {}) {
   const now = new Date().toISOString();
-  db.prepare(`
+  await Promise.resolve(db.prepare(`
     INSERT INTO job_access_payments
       (job_id, agent_id, rail, amount, payer_address, tx_hash, gateway_transaction_id, network, status, metadata_json, created_at, updated_at)
     VALUES (?, ?, ?, ?, ?, NULL, ?, 'eip155:5042002', 'paid', '{}', ?, ?)
     ON CONFLICT(job_id, agent_id) DO UPDATE SET status='paid', updated_at=excluded.updated_at
-  `).run(jobId, agentId, rail, amount, payerAddress, `test-gateway-${jobId}-${agentId}`, now, now);
+  `).run(jobId, agentId, rail, amount, payerAddress, `test-gateway-${jobId}-${agentId}`, now, now));
 }
