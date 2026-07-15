@@ -264,13 +264,30 @@ export function initIssuerWorkbench({ apiUrl, onNavigate }) {
 
   async function fundJob(jobId) {
     try {
-      setStatus(`Record Arc Testnet Escrow V2 fund for ${jobId}...`, true);
+      setStatus(`Funding Escrow V2 for ${jobId}…`, true);
+      // Prefer issuer Circle wallet path when available (no browser private key).
+      const circleRes = await fetch(`${apiUrl}/jobs/${encodeURIComponent(jobId)}/fund-from-circle-wallet`, {
+        method: "POST",
+        headers: { "X-API-Key": client.apiKey, "Content-Type": "application/json" },
+        body: JSON.stringify({ issuerId: client.issuerId, requestFaucet: false }),
+      });
+      const circleData = await circleRes.json().catch(() => ({}));
+      if (circleRes.ok) {
+        const hash = circleData.fund?.hash || "";
+        setStatus(`Escrow V2 funded from Circle wallet for ${jobId}${hash ? ` · ${hash.slice(0, 12)}…` : ""}. Job is open for agents.`, true);
+        await refresh();
+        if (typeof fetchWallet === "function") await fetchWallet().catch(() => {});
+        return;
+      }
+
+      // If wallet missing/unfunded, fall back to recording an external fundJob tx hash.
+      const reason = circleData.error || circleData.message || `Circle fund failed (${circleRes.status})`;
       const txHash = window.prompt(
-        "Paste the Arc Testnet fundJob transaction hash (0x…).\n\nFund first with:\nnpm run escrow:v2:operator -- --fund=JOB_ID --amount=REWARD",
+        `${reason}\n\nOption A: top up issuer Circle wallet with Arc Testnet USDC, then retry.\nOption B: paste a fundJob tx hash from:\nnpm run escrow:v2:operator -- --fund=${jobId} --amount=REWARD\n\nTx hash (0x…):`,
         "",
       );
       if (!txHash) {
-        setStatus("Funding cancelled — no transaction hash provided.", false);
+        setStatus(`Circle fund blocked: ${reason}`, false);
         return;
       }
       const res = await fetch(`${apiUrl}/jobs/${encodeURIComponent(jobId)}/fund-escrow`, {
@@ -350,7 +367,7 @@ export function initIssuerWorkbench({ apiUrl, onNavigate }) {
     document.querySelector("#issuerJobs").innerHTML=rows.length?table(["Job","Type","Reward","Status","Funding","Claimed by","Access"],rows.map((row)=>{
       let fundingCol = pill(fundingState(row.fundingStatus));
       if (row.fundingStatus === "awaiting_wallet_funding" || (mode === "external" && row.fundingStatus === "awaiting_escrow_funding")) {
-        fundingCol = `${pill("Awaiting wallet funding")} <br><button class="secondary" style="margin-top:6px; font-size:0.7rem; padding:4px 8px;" onclick="window.fundJobAction('${escape(row.jobId)}')">Record Escrow V2 fund tx</button> <br><span class="issuer-helper" style="display:inline-block; margin-top:4px; max-width: 180px;">Fund on Arc Testnet with fundJob, then paste the tx hash. Agent is not required at fund time.</span>`;
+        fundingCol = `${pill("Awaiting wallet funding")} <br><button class="secondary" style="margin-top:6px; font-size:0.7rem; padding:4px 8px;" onclick="window.fundJobAction('${escape(row.jobId)}')">Fund Escrow V2 (Circle wallet)</button> <br><span class="issuer-helper" style="display:inline-block; margin-top:4px; max-width: 200px;">Uses issuer Circle wallet when funded; otherwise paste a fundJob tx. Agent not required at fund time.</span>`;
       } else if (row.fundingRail === "arc_usdc_escrow_v2" && row.escrowStatus === "funded") {
         fundingCol = `${pill("Escrow V2 funded")}<br><span class="issuer-helper">${row.escrowTxHash ? escape(String(row.escrowTxHash).slice(0, 12)) + "…" : ""}</span>`;
       }

@@ -23,6 +23,7 @@ import {
   nanopaymentConfig, recordAccessPayment, serializeAccessPayment, verifyNanopayment,
 } from "./circle-nanopayment.mjs";
 import { escrowV2Config, isTxHash, jobIdToBytes32, verifyFundJobTransaction, verifyReleaseTransaction } from "./escrow-v2.mjs";
+import { fundEscrowV2FromCircleWallet } from "./issuer-escrow-fund.mjs";
 
 export function createApp({
   db: injectedDb,
@@ -271,6 +272,68 @@ export function createApp({
             : "Fund receipt recorded. Deploy ProofletEscrowV2 and set ESCROW_V2_ADDRESS for on-chain verification."),
       },
     });
+  });
+
+  // Issuer Circle wallet funds Escrow V2 on-chain (approve + fundJob), then opens job.
+  app.post("/jobs/:jobId/fund-from-circle-wallet", async (request, response) => {
+    const { jobId } = request.params;
+    const { issuerId, expiresHours = 72, requestFaucet = false } = request.body || {};
+    requireId(issuerId, "issuerId");
+    if (!await authenticate(db, request, "issuer", issuerId)) throw httpError(401, "Valid issuer API key required.");
+
+    const job = await db.prepare("SELECT * FROM jobs WHERE job_id = ? AND issuer_id = ?").get(jobId, issuerId);
+    if (!job) throw httpError(404, "Job not found");
+    const issuer = await db.prepare("SELECT * FROM issuers WHERE issuer_id = ?").get(issuerId);
+    if (!issuer) throw httpError(404, "Issuer not found");
+
+    try {
+      const result = await fundEscrowV2FromCircleWallet({
+        db,
+        job,
+        issuer,
+        expiresHours,
+        requestFaucet: Boolean(requestFaucet),
+      });
+      response.json({
+        ok: true,
+        protocol: "Prooflet",
+        escrowVersion: 2,
+        network: "Arc Testnet",
+        job: serializeJob(result.job),
+        issuerWallet: result.issuerWallet,
+        approve: {
+          transactionId: result.approve.transactionId,
+          state: result.approve.state,
+          hash: result.approve.hash,
+          explorer: result.approve.explorer,
+        },
+        fund: {
+          transactionId: result.fund.transactionId,
+          state: result.fund.state,
+          hash: result.fund.hash,
+          explorer: result.fund.explorer,
+        },
+        amount: result.amount,
+        verifiedOnchain: Boolean(result.verification),
+        verification: result.verification,
+        note: "Escrow V2 funded from issuer Circle wallet. Job is open for agents; operator release remains required after proof approval.",
+      });
+    } catch (error) {
+      if (error.status) {
+        const err = httpError(error.status < 500 ? error.status : 400, error.message);
+        if (error.code) err.code = error.code;
+        if (error.walletAddress) {
+          err.walletProvisioning = {
+            code: error.code,
+            walletAddress: error.walletAddress,
+            balance: error.balance,
+            required: error.required,
+          };
+        }
+        throw err;
+      }
+      throw error;
+    }
   });
 
   app.get("/escrow/v2/config", (_request, response) => {

@@ -35,6 +35,19 @@ Live (after UI fund):
 JOB_ID=job_xxx AGENT_ID=agent_xxx PRIVATE_KEY=0x... npm run escrow:v2:live-claim
 ```
 
+### Issuer Circle wallet → Escrow V2 fund
+
+Real issuer demos can fund open-market jobs **without a browser wallet**:
+
+```bash
+# authenticated issuer API call (server signs via Circle DCW)
+POST /jobs/:jobId/fund-from-circle-wallet
+{ "issuerId": "...", "requestFaucet": false }
+```
+
+Requires issuer `circle_wallet_id`, Arc Testnet USDC balance, and configured Escrow V2.
+UI button **Fund Escrow V2 (Circle wallet)** tries this first, then falls back to paste-tx.
+
 ### Auto-release (operator machine)
 
 ```bash
