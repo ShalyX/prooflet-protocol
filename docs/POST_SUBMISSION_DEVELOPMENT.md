@@ -35,6 +35,15 @@ Live (after UI fund):
 JOB_ID=job_xxx AGENT_ID=agent_xxx PRIVATE_KEY=0x... npm run escrow:v2:live-claim
 ```
 
+### Auto-release (operator machine)
+
+```bash
+npm run escrow:v2:auto-release -- --once           # dry-run payable queue
+npm run escrow:v2:auto-release -- --execute --once # sign releases
+```
+
+Uses `GET /escrow/v2/payable`. Keys stay off Render.
+
 ### Full live x402 e2e
 
 ```bash
