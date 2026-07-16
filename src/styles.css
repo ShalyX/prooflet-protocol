@@ -2632,38 +2632,30 @@ td { border-bottom: 1px solid var(--line-subtle) !important; color: var(--ink-2)
 
 /* Protocol */
 .protocol-hero {
-  display: flex;
-  justify-content: space-between;
-  gap: 20px;
-  align-items: flex-end;
-  margin-bottom: 18px;
+  display: block;
+  margin-bottom: 24px;
+  max-width: 40rem;
+}
+.protocol-hero > span {
+  display: block;
+  color: var(--accent);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
 }
 .protocol-hero h2 {
   font-size: clamp(1.6rem, 3vw, 2.1rem);
   letter-spacing: -0.04em;
-  margin: 6px 0 8px;
-}
-.protocol-hero p { color: var(--muted); margin: 0; max-width: 36rem; }
-.protocol-hero-chip {
-  border: 1px solid rgba(113,112,255,0.3);
-  background: rgba(113,112,255,0.08);
-  border-radius: 12px;
-  padding: 12px 14px;
-  min-width: 180px;
-}
-.protocol-hero-chip em {
-  display: block;
-  font-style: normal;
-  color: var(--accent);
-  font-size: 0.65rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  font-weight: 600;
-}
-.protocol-hero-chip strong {
+  margin: 0 0 10px;
   color: var(--ink);
-  font-size: 0.92rem;
-  letter-spacing: -0.02em;
+}
+.protocol-hero p {
+  color: var(--muted);
+  margin: 0;
+  max-width: 36rem;
+  line-height: 1.5;
 }
 .protocol-grid {
   display: grid;
@@ -2859,7 +2851,6 @@ td { border-bottom: 1px solid var(--line-subtle) !important; color: var(--ink-2)
   .metrics { grid-template-columns: 1fr 1fr !important; }
   .ops-command-center { grid-template-columns: 1fr !important; }
   .protocol-grid { grid-template-columns: 1fr; }
-  .protocol-hero { flex-direction: column; align-items: flex-start; }
 }
 
 
@@ -2928,14 +2919,16 @@ td { border-bottom: 1px solid var(--line-subtle) !important; color: var(--ink-2)
 .funding-rail-title { display:block; margin-bottom: 4px; color: var(--ink); font-weight: 600; }
 
 
-/* Landing loop steps — first-viewport emotional path */
+/* Landing loop steps — first-viewport path */
 .loop-steps {
   list-style: none;
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin: 18px 0 12px;
+  align-items: center;
+  gap: 8px 6px;
+  margin: 20px 0 14px;
   padding: 0;
+  max-width: 40rem;
 }
 .loop-steps li {
   display: inline-flex;
@@ -2943,11 +2936,17 @@ td { border-bottom: 1px solid var(--line-subtle) !important; color: var(--ink-2)
   gap: 8px;
   border: 1px solid var(--line);
   border-radius: 999px;
-  padding: 7px 11px 7px 8px;
+  padding: 7px 12px 7px 8px;
   background: rgba(255,255,255,0.02);
   color: var(--ink-2);
   font-size: 0.78rem;
   font-weight: 500;
+}
+.loop-steps li:not(:last-child)::after {
+  content: "\2192";
+  margin-left: 10px;
+  color: var(--faint);
+  font-size: 0.75rem;
 }
 .loop-steps b {
   display: inline-grid;
@@ -2960,27 +2959,15 @@ td { border-bottom: 1px solid var(--line-subtle) !important; color: var(--ink-2)
   font-size: 0.65rem;
   font-weight: 700;
 }
-.loop-steps li:not(:last-child)::after {
-  content: "\2192";
-  margin-left: 4px;
-  margin-right: -2px;
-  color: var(--faint);
-  font-size: 0.75rem;
-}
-/* avoid double-arrow look: put arrow between items as separator instead */
-.loop-steps {
-  column-gap: 6px;
-  row-gap: 8px;
-}
-.loop-steps li:not(:last-child)::after {
-  content: none;
-}
-.loop-steps li + li {
-  position: relative;
-}
 .product-diagram-grid-stack {
   grid-template-columns: 1fr 1fr;
 }
 @media (max-width: 520px) {
-  .loop-steps li { width: 100%; }
+  .loop-steps {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .loop-steps li:not(:last-child)::after {
+    content: none;
+  }
 }
