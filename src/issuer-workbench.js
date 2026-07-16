@@ -6,6 +6,8 @@ export function initIssuerWorkbench({ apiUrl, onNavigate }) {
   let client=null, preview=null, mode="external";
   
   issuerInput.value=sessionStorage.getItem("uwp.extIssuerId")||sessionStorage.getItem("uwp.issuerId")||issuerInput.value; keyInput.value=sessionStorage.getItem("uwp.extIssuerApiKey")||sessionStorage.getItem("uwp.issuerApiKey")||"";
+  // Session-first: if tab already has credentials, connect without making paste the primary path.
+  queueMicrotask(() => { if (issuerInput.value && keyInput.value) document.querySelector("#connectIssuer")?.click(); });
   
   if(import.meta.env.DEV){const helper=document.createElement("button");helper.className="ghost dev-issuer-helper";helper.type="button";helper.textContent="Use local dev issuer";helper.addEventListener("click",()=>{issuerInput.value="useful_waiting_protocol";keyInput.value="uwp_issuer_useful_waiting_protocol_dev";message.textContent="Local development credentials loaded. Select Connect to start the issuer session.";message.dataset.state="ok";document.querySelector("#workbenchConnection").textContent="Credentials loaded";});document.querySelector("#issuerCol").append(helper);}
   

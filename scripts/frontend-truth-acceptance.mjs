@@ -4,7 +4,9 @@ import { resolve } from "node:path";
 
 const read = (path) => readFileSync(resolve(path), "utf8");
 const app = read("src/app.js");
-const html = read("index.html");
+const landing = read("index.html");
+const product = read("app.html");
+const html = `${landing}\n${product}`;
 const css = read("src/styles.css");
 const archive = read("src/archive-evidence.js");
 
@@ -98,6 +100,20 @@ check("API-supplied dashboard values are escaped and transaction links are allow
   assert.match(app, /escapeHtml\(row\.settledVolume/);
   assert.match(app, /\^0x\[0-9a-f\]\{64\}\$/i);
   assert.doesNotMatch(app, /item\.explorer\s*\|\|/);
+});
+
+check("landing is pitch-only with two primary CTAs", () => {
+  assert.match(landing, /Register as Issuer/);
+  assert.match(landing, /Register Agent/);
+  assert.match(landing, /src\/landing\.js/);
+  assert.doesNotMatch(landing, /Operator release queue|Hosted loop|CLI spine/);
+  assert.doesNotMatch(landing, /id="issuerWorkbench"|id="agentWorkbench"/);
+});
+
+check("product shell is split from landing god-file", () => {
+  assert.match(product, /id="issuerWorkbench"/);
+  assert.match(product, /src\/app\.js/);
+  assert.ok(landing.length < 12_000, "landing page should stay sparse");
 });
 
 console.log(JSON.stringify({ ok: true, checks }, null, 2));

@@ -25,6 +25,8 @@ export function initAgentWorkbench({ apiUrl }) {
   let agent = null;
 
   restoreSession();
+  // auto-continue if tab session exists
+  queueMicrotask(() => { if (idInput?.value && keyInput?.value) connect().catch(() => {}); });
 
   connectBtn?.addEventListener("click", () => connect());
   clearBtn?.addEventListener("click", () => clearSession());
