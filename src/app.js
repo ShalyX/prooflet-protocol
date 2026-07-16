@@ -958,29 +958,71 @@ const issuerWorkbench = initIssuerWorkbench({ apiUrl: API_URL, onNavigate: navig
 const agentWorkbench = initAgentWorkbench({ apiUrl: API_URL });
 
 function navigate(path) {
+  // Product routes live on app.html; pitch lives on index.html
+  if (path === "/" || path === "") {
+    window.location.href = "/";
+    return;
+  }
+  const product = ["/dashboard", "/issuer", "/agents", "/protocol"];
+  if (!product.includes(path)) {
+    window.location.href = path;
+    return;
+  }
+  // If we're still on the marketing page for some reason, hard-navigate to the product shell.
+  if (!document.querySelector("#issuerWorkbench") && !document.querySelector(".protocol-route")) {
+    window.location.href = path;
+    return;
+  }
   if (location.pathname !== path) history.pushState({}, "", path);
   renderRoute();
 }
 
 function renderRoute() {
-  const route = ["/dashboard", "/issuer", "/agents", "/protocol"].includes(location.pathname) ? location.pathname : "/";
-  $("#landingRoute").hidden = route !== "/";
-  document.querySelectorAll(".protocol-route").forEach((element) => { element.hidden = route === "/"; });
-  document.querySelectorAll(".dashboard-surface").forEach((element) => { element.hidden = route !== "/dashboard"; });
-  document.querySelectorAll(".agents-surface").forEach((element) => { element.hidden = route !== "/agents"; });
+  const product = ["/dashboard", "/issuer", "/agents", "/protocol"];
+  let route = product.includes(location.pathname) ? location.pathname : "/dashboard";
+  const landing = document.querySelector("#landingRoute");
+  if (landing) landing.hidden = true;
+  document.querySelectorAll(".protocol-route").forEach((element) => {
+    element.hidden = false;
+  });
+  document.querySelectorAll(".dashboard-surface").forEach((element) => {
+    element.hidden = route !== "/dashboard";
+  });
+  document.querySelectorAll(".agents-surface").forEach((element) => {
+    element.hidden = route !== "/agents";
+  });
   if ($("#protocolPage")) $("#protocolPage").hidden = route !== "/protocol";
-  if (route === "/issuer") issuerWorkbench.show(); else issuerWorkbench.hide();
-  if (route === "/agents") agentWorkbench.show(); else agentWorkbench.hide();
+  // Console chrome always on product shell
+  document.querySelectorAll(".console-bar, .system-strip, .protocol-footer").forEach((el) => {
+    el.hidden = false;
+  });
+  if (route === "/issuer") issuerWorkbench.show();
+  else issuerWorkbench.hide();
+  if (route === "/agents") agentWorkbench.show();
+  else agentWorkbench.hide();
   document.querySelectorAll(".page-nav a").forEach((link) => link.classList.toggle("active", link.pathname === route));
-  document.title = route === "/" ? "Prooflet" : route === "/issuer" ? "Issuer Workbench · Prooflet" : route === "/agents" ? "Agent Network · Prooflet" : route === "/protocol" ? "Protocol Transparency · Prooflet" : "Protocol Dashboard · Prooflet";
+  document.title =
+    route === "/issuer"
+      ? "Issuer Portal · Prooflet"
+      : route === "/agents"
+        ? "Agent Portal · Prooflet"
+        : route === "/protocol"
+          ? "Protocol · Prooflet"
+          : "Ledger · Prooflet";
   window.scrollTo({ top: 0, behavior: "instant" });
 }
 
 document.addEventListener("click", (event) => {
-  const link = event.target.closest("a[data-route]");
+  const link = event.target.closest("a[data-route], a[href^='/']");
   if (!link || link.origin !== location.origin) return;
-  event.preventDefault();
-  navigate(link.pathname);
+  const path = link.pathname;
+  if (path === "/" || path === "") return; // let browser load landing
+  if (!["/dashboard", "/issuer", "/agents", "/protocol"].includes(path)) return;
+  // From product shell, SPA-nav product routes
+  if (document.querySelector("#issuerWorkbench") || document.querySelector(".protocol-route")) {
+    event.preventDefault();
+    navigate(path);
+  }
 });
 window.addEventListener("popstate", renderRoute);
 renderRoute();

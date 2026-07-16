@@ -3,6 +3,11 @@
   "outputDirectory": "outputs/useful-waiting",
   "installCommand": "npm install",
   "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
+    { "source": "/issuer", "destination": "/app.html" },
+    { "source": "/agents", "destination": "/app.html" },
+    { "source": "/dashboard", "destination": "/app.html" },
+    { "source": "/protocol", "destination": "/app.html" },
+    { "source": "/app", "destination": "/app.html" },
+    { "source": "/((?!assets/).*)", "destination": "/index.html" }
   ]
 }
