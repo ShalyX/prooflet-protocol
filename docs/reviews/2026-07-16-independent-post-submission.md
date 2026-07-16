@@ -1,8 +1,8 @@
 # Independent review — Prooflet post-submission (origin/main `dca7592`)
 
-**Date:** 2026-07-16  
-**Scope:** Post-boundary work after `298415b` (durable Neon, Escrow V2, x402, faucet, UI polish)  
-**Live API:** https://prooflet-api.onrender.com  
+**Date:** 2026-07-16
+**Scope:** Post-boundary work after `298415b` (durable Neon, Escrow V2, x402, faucet, UI polish)
+**Live API:** https://prooflet-api.onrender.com
 
 ## Verdict
 
@@ -79,8 +79,8 @@ Prior PRs fixed reputation-after-commit and proof tx-scoped reads. No new outer-
 
 ### Blockers for completing agent→release now
 
-1. Treasury Gateway USDC insufficient for more x402 pays  
-2. Circle W3S mutation API rejecting writes (cannot top-up treasury from faucet wallet or fund new escrow jobs)  
+1. Treasury Gateway USDC insufficient for more x402 pays
+2. Circle W3S mutation API rejecting writes (cannot top-up treasury from faucet wallet or fund new escrow jobs)
 
 ### Recommendation
 
