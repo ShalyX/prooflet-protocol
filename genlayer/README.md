@@ -33,7 +33,7 @@ npm run genlayer:submit-fixture -- --proof-id <pending-proof-id>
 npm run genlayer:poll-decision -- --request-id <request-id>
 ```
 
-Contract source: `genlayer/contracts/useful_waiting_adjudicator.py`  
+Contract source: `genlayer/contracts/useful_waiting_adjudicator.py`
 Runner pin: `py-genlayer:1jb45aa8ynh2a9c9xn3b7qqh8sm5q93hwfp7jqmwsfhh8jpz09h6`
 
 ## Config
