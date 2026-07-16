@@ -1,8 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="12" fill="#15130E" stroke="#3A3024" stroke-width="2"/>
-  <path d="M16 16 h24 l8 8 v24 h-32 z" fill="#1E1A16" stroke="#F2A93B" stroke-width="2"/>
-  <path d="M40 16 v8 h8" fill="none" stroke="#F2A93B" stroke-width="2" stroke-linejoin="round"/>
-  <path d="M24 32 l6 6 l12 -12" fill="none" stroke="#FFD98A" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-  <line x1="22" y1="42" x2="36" y2="42" stroke="#3A3024" stroke-width="2" stroke-linecap="round"/>
-  <line x1="22" y1="48" x2="42" y2="48" stroke="#3A3024" stroke-width="2" stroke-linecap="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none">
+  <!-- Prooflet mark: sealed proof gate — cool product system -->
+  <rect width="64" height="64" rx="14" fill="#0f1011"/>
+  <rect x="1" y="1" width="62" height="62" rx="13" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+  <!-- gate posts -->
+  <path d="M18 46V22c0-2.2 1.8-4 4-4h8.5c1.1 0 2.1.4 2.8 1.2L42 28v18" stroke="#7170ff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M33.5 18v8.5c0 1.4 1.1 2.5 2.5 2.5H42" stroke="#7170ff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- verification bar -->
+  <path d="M24 36.5l4.2 4.2 9.3-9.3" stroke="#f7f8f8" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- pulse node -->
+  <circle cx="46" cy="42" r="3.2" fill="#7170ff"/>
+  <circle cx="46" cy="42" r="6" stroke="rgba(113,112,255,0.35)" stroke-width="1.5"/>
 </svg>
