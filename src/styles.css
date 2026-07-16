@@ -1883,7 +1883,12 @@ body:not([data-app-mode="replay"]) .replay-note { display: none; }
 /* Live ledger ticker (landing) */
 .live-ticker{margin-top:22px;display:flex;gap:12px;align-items:center;padding:10px 12px;border:1px solid var(--line);background:rgba(30,26,22,.85);border-radius:12px;overflow:hidden}
 .live-ticker-label{flex:0 0 auto;font-size:.68rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--green)}
-.live-ticker-track{display:flex;gap:10px;overflow-x:auto;scrollbar-width:thin;white-space:nowrap;padding-bottom:2px}
+.live-ticker-track{display:flex;gap:10px;overflow-x:auto;scrollbar-width:thin;white-space:nowrap;padding-bottom:2px;mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent)}
+.live-ticker-item{transition:transform .2s ease,border-color .2s ease,box-shadow .2s ease}
+.live-ticker-item:hover{transform:translateY(-1px);box-shadow:0 0 0 1px var(--amber)}
+.live-ticker-label{position:relative}
+.live-ticker-label::before{content:"";display:inline-block;width:7px;height:7px;margin-right:6px;border-radius:50%;background:var(--green);box-shadow:0 0 10px var(--green);animation:ticker-pulse 1.4s ease-in-out infinite}
+@keyframes ticker-pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.45;transform:scale(.85)}}
 .live-ticker-item{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid var(--line-strong);border-radius:999px;background:#12100d;font-size:.78rem;color:var(--muted)}
 .live-ticker-item b{color:var(--text);font-weight:700;text-transform:uppercase;font-size:.68rem}
 .live-ticker-item code{color:var(--amber);font-size:.72rem}

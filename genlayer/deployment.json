@@ -1,12 +1,11 @@
 {
   "network": "testnet-bradbury",
-  "deploymentTxHash": "0x7df8da92ea39c91a692320b14b050feaa8da400e15e806f99ae2e6adb66ff819",
-  "contractAddress": "0x3bF4b60176F8FAbA367bfC129C0529aeF462E397",
-  "status": "FINALIZED",
+  "deploymentTxHash": "0x30d48eba80982ab1c2a015d18d5151601177010e4b7373626f6aa5d5e05729d6",
+  "contractAddress": "0x132fF41207B4E94172A0184A738a51EF39aEFbF6",
+  "status": "ACCEPTED",
   "resultName": "AGREE",
-  "statusName": "FINALIZED",
-  "deployedAt": "2026-07-16T02:30:59.000Z",
-  "finalizedObservedAt": "2026-07-16T07:42:00.000Z",
+  "txExecutionResultName": "FINISHED_WITH_RETURN",
+  "deployedAt": "2026-07-16T08:00:00.000Z",
   "supports": [
     "content_summary",
     "content_summary_quality",
@@ -15,6 +14,18 @@
     "context_compression_quality",
     "sentiment_toxicity_tagging"
   ],
-  "previousContractAddress": "0xFF413C5cC01ffc8070BC8E4C0365bA1A33F013Bb",
-  "note": "Address taken from FINALIZED receipt recipient / txDataDecoded.contractAddress per genlayer-js decodeInputData mapping."
+  "liveProbe": {
+    "requestId": "glr_cs_a368b2ce",
+    "adjudicateTxHash": "0x093fc688da33fba32c7220fbdb8c874e9aa81755de49dd59f75e473ec589c75f",
+    "jobType": "content_summary",
+    "decision": "approved",
+    "confidence": 0.95,
+    "reason": "The summary accurately restates the key elements: funding and settling verified agent micro-work using Arc Testnet USDC, matching the source text.",
+    "status": "ACCEPTED"
+  },
+  "supersededAddresses": [
+    "0xFF413C5cC01ffc8070BC8E4C0365bA1A33F013Bb",
+    "0x3bF4b60176F8FAbA367bfC129C0529aeF462E397"
+  ],
+  "note": "Use recipient from ACCEPTED/FINALIZED deploy receipt as contract address. Intermediate 0x3bF4… address from an earlier deploy is superseded."
 }
