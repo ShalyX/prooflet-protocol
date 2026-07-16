@@ -484,7 +484,7 @@ export function initIssuerWorkbench({ apiUrl, onNavigate }) {
     document.querySelector("#issuerOverview").innerHTML=empty("Connect an issuer session","Create funded jobs, validate uploads, review proofs, and follow Arc Testnet payouts.");
     document.querySelector("#issuerJobs").innerHTML=empty("Issuer access required","Connect to inspect and manage funded jobs.");
     document.querySelector("#issuerProofs").innerHTML=empty("Issuer access required","Connect to review proof and payout states.");
-    document.querySelector("#issuerSettlements").innerHTML=empty("Issuer access required","Connect to follow settlement batches and Arcscan receipts.");
+    document.querySelector("#issuerSettlements").innerHTML=empty("Issuer access required","Connect to follow payouts and Arcscan receipts.");
     
     const jobBtn = document.querySelector("#singleJobForm button[type=submit]");
     jobBtn.disabled = true;

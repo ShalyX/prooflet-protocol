@@ -36,10 +36,10 @@
             <details class="dev-tools">
               <summary>Simulate</summary>
               <p class="dev-tools-note">Browser-only simulation. Does not move USDC or write settlement.</p>
-              <button class="secondary compact" id="toggleReplay" type="button">Enter simulation</button>
+              <button class="secondary compact" id="toggleReplay" type="button">Simulate</button>
               <button class="secondary compact" id="runCycle" type="button" hidden>Run worker cycle</button>
-              <button class="secondary compact" id="prepareBatch" type="button" hidden>Prepare batch JSON</button>
-              <button class="secondary compact" id="addJobs" type="button" hidden>Add sample jobs</button>
+              <button class="secondary compact" id="prepareBatch" type="button" hidden>Prep batch</button>
+              <button class="secondary compact" id="addJobs" type="button" hidden>Add jobs</button>
             </details>
           </div>
         </div>
@@ -55,7 +55,7 @@
         <span><strong>Latest payout</strong><em id="systemPayout">—</em></span>
       </section>
 
-      <section class="workbench protocol-route" id="issuerWorkbench" hidden aria-label="Issuer Workbench">
+      <section class="workbench protocol-route" id="issuerWorkbench" hidden aria-label="Issuer portal">
         <header class="workbench-head"><div><span>ISSUER PORTAL</span><h2>Fund jobs · review proofs</h2></div><strong id="workbenchConnection">Not signed in</strong></header>
         <div class="issuer-mode-tabs" hidden>
           <button class="mode-tab active" data-mode="external">External Issuer</button>
@@ -139,7 +139,7 @@
               </div>
             </div>
             <div class="issuer-session-actions">
-              <button class="primary" id="continueWorkbenchBtn" type="button">Continue to Workbench</button>
+              <button class="primary" id="continueWorkbenchBtn" type="button">Continue</button>
               <button class="secondary" id="copyCredsBtn" type="button">Copy credentials</button>
               <button class="secondary" id="downloadEnvBtn" type="button">Download .env snippet</button>
             </div>
@@ -241,24 +241,24 @@
           <strong id="needsActionCount">0</strong>
           <p id="needsActionCopy">No proof packets are waiting for release.</p>
           <div class="ops-action-row">
-            <a class="primary compact" href="/protocol" data-route="/protocol">View release queue</a>
-            <a class="secondary compact" href="/issuer" data-route="/issuer">Issuer desk</a>
+            <a class="primary compact" href="/protocol" data-route="/protocol">Release queue</a>
+            <a class="secondary compact" href="/issuer" data-route="/issuer">Issuer</a>
           </div>
         </article>
         <article class="ops-card">
           <span>Open work</span>
           <strong id="opsOpenJobs">0 jobs</strong>
-          <p>Claimable micro-work with reward and lease rules.</p>
+          <p>Open jobs ready to claim.</p>
         </article>
         <article class="ops-card">
           <span>Proof quality</span>
           <strong id="opsProofQuality">0 accepted / 0 rejected</strong>
-          <p>Rejected packets stay out of payout batches.</p>
+          <p>Rejected proofs never get paid.</p>
         </article>
         <article class="ops-card">
           <span>Settlement</span>
           <strong>Autonomous operator host</strong>
-          <p>Release keys stay off the public API. Loop runs unattended on the operator host.</p>
+          <p>Release runs on the operator host. Keys stay off this app.</p>
         </article>
       </section>
 
@@ -487,7 +487,7 @@
               <table class="protocol-table">
                 <thead><tr><th>Batch ID</th><th>Status</th><th>Payout</th><th>Proofs</th><th>Network</th></tr></thead>
                 <tbody id="protocolBatches">
-                  <tr><td colspan="5">Loading live settlement batches</td></tr>
+                  <tr><td colspan="5">Loading settlement batches…</td></tr>
                 </tbody>
               </table>
             </div>
@@ -496,10 +496,10 @@
           <article class="protocol-card">
             <header><h3>Safety rules</h3></header>
             <ul class="protocol-safety-list">
-              <li>Dry-run sends nothing.</li>
-              <li>Execute needs operator key env on the operator host.</li>
-              <li>Confirm flag required for Arc Testnet USDC sends.</li>
-              <li>Hosted API never auto-pays with treasury keys.</li>
+              <li>Local dry-run tools send nothing.</li>
+              <li>Live Escrow V2 release runs on the autonomous operator host.</li>
+              <li>Hosted API never holds release keys.</li>
+              <li>Live ledger is separate from archived Lepton receipts.</li>
               <li>Rejected / pending / paid proofs stay excluded.</li>
               <li>Arc Testnet USDC only. No mainnet funds.</li>
             </ul>
@@ -520,7 +520,7 @@
         <details class="archive-band protocol-section archive-collapse">
           <summary>
             <span>Archived Lepton submission</span>
-            <strong>Historical settlement only · never counted in live ledger</strong>
+            <strong>Archive only · never mixed into live totals</strong>
           </summary>
           <div class="archive-evidence" id="archiveEvidence"><p>Loading archived evidence…</p></div>
         </details>

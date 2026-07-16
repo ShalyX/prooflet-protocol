@@ -88,7 +88,7 @@ check("archive evidence has an explicit dedicated surface", () => {
 
 check("protocol live surface has no static treasury balance or settlement batch", () => {
   assert.match(html, /id="protoTreasuryBalance">Unavailable until reported by the API/);
-  assert.match(html, /id="protocolBatches">\s*<tr><td colspan="5">Loading live settlement batches/);
+  assert.match(html, /id="protocolBatches">\s*<tr><td colspan="5">Loading settlement batches/);
   assert.doesNotMatch(html, /1\.761023 USDC/);
 });
 
