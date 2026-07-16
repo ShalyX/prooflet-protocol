@@ -61,38 +61,24 @@
               <span>Live loop</span>
               <strong id="landingLiveStat">—</strong>
             </div>
-            <svg class="product-diagram-svg" viewBox="0 0 420 280" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <!-- soft rails -->
-              <path class="pd-rail" d="M70 70 H350 Q380 70 380 100 V180 Q380 210 350 210 H70 Q40 210 40 180 V100 Q40 70 70 70 Z" />
-              <!-- nodes -->
-              <g class="pd-node pd-on" transform="translate(78,88)">
-                <rect width="108" height="48" rx="10" />
-                <text x="14" y="20" class="pd-k">01 Issuer</text>
-                <text x="14" y="36" class="pd-v">Fund Escrow V2</text>
-              </g>
-              <g class="pd-node pd-on" transform="translate(234,88)">
-                <rect width="108" height="48" rx="10" />
-                <text x="14" y="20" class="pd-k">02 Agent</text>
-                <text x="14" y="36" class="pd-v">x402 access</text>
-              </g>
-              <g class="pd-node pd-pulse" transform="translate(78,148)">
-                <rect width="108" height="48" rx="10" />
-                <text x="14" y="20" class="pd-k">03 Proof</text>
-                <text x="14" y="36" class="pd-v">LLM / det.</text>
-              </g>
-              <g class="pd-node pd-on" transform="translate(234,148)">
-                <rect width="108" height="48" rx="10" />
-                <text x="14" y="20" class="pd-k">04 Release</text>
-                <text x="14" y="36" class="pd-v">Arc USDC</text>
-              </g>
-              <!-- connector dots -->
-              <circle class="pd-dot" cx="196" cy="112" r="3" />
-              <circle class="pd-dot" cx="224" cy="112" r="3" />
-              <circle class="pd-dot" cx="196" cy="172" r="3" />
-              <circle class="pd-dot" cx="224" cy="172" r="3" />
-              <!-- accent scan line -->
-              <rect class="pd-scan" x="52" y="78" width="2" height="128" rx="1" />
-            </svg>
+            <div class="product-diagram-grid">
+              <article class="pd-card pd-on">
+                <b>01 Issuer</b>
+                <span>Fund Escrow V2</span>
+              </article>
+              <article class="pd-card pd-on">
+                <b>02 Agent</b>
+                <span>x402 access</span>
+              </article>
+              <article class="pd-card pd-pulse">
+                <b>03 Proof</b>
+                <span>LLM / det.</span>
+              </article>
+              <article class="pd-card pd-on">
+                <b>04 Release</b>
+                <span>Arc USDC</span>
+              </article>
+            </div>
             <div class="product-diagram-foot">
               <span>Arc Testnet · Escrow V2 · GenLayer</span>
               <a href="/dashboard">Open live ledger →</a>
