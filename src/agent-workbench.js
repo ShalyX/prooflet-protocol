@@ -4,6 +4,7 @@
  * Private keys never enter the browser.
  */
 import { AgentClient } from "@useful-waiting/agent-sdk";
+import { restoreSessionWithWallet } from "./wallet-session.js";
 
 const SESSION_KEY = "prooflet.agent.session.v1";
 
@@ -31,6 +32,20 @@ export function initAgentWorkbench({ apiUrl }) {
   connectBtn?.addEventListener("click", () => connect());
   clearBtn?.addEventListener("click", () => clearSession());
   refreshBtn?.addEventListener("click", () => refresh().catch((e) => setStatus(e.message, false)));
+  document.querySelector("#walletAgentSessionBtn")?.addEventListener("click", async () => {
+    try {
+      const session = await restoreSessionWithWallet({
+        apiUrl,
+        role: "agent",
+        onStatus: (s) => setStatus(s, true),
+      });
+      idInput.value = session.id;
+      keyInput.value = session.apiKey;
+      await connect();
+    } catch (error) {
+      setStatus(error.message || "Wallet session failed.", false);
+    }
+  });
 
   window.agentClaimJob = (jobId) => claimJob(jobId);
   window.agentCheckAccess = (jobId) => checkAccess(jobId);

@@ -9,6 +9,8 @@ import { grantJobAccess, cleanupDatabase } from "./test-helpers.mjs";
 
 process.env.ESCROW_V2_SKIP_ONCHAIN = "true";
 process.env.ESCROW_V2_ADDRESS = process.env.ESCROW_V2_ADDRESS || "0x55bde7d3546f3e6e534a508a9b96d4e8d839eee9";
+process.env.ESCROW_OPERATOR_API_KEY = process.env.ESCROW_OPERATOR_API_KEY || "uwp_operator_test_auto_release";
+const OP_KEY = process.env.ESCROW_OPERATOR_API_KEY;
 
 const path = `data/v2-auto-release-${Date.now()}.sqlite`;
 const db = openDatabase({ path, reset: true });
@@ -31,7 +33,10 @@ async function req(method, route, body, apiKey) {
 }
 
 try {
-  const empty = await req("GET", "/escrow/v2/payable");
+  const denied = await req("GET", "/escrow/v2/payable");
+  assert.equal(denied.status, 403);
+
+  const empty = await req("GET", "/escrow/v2/payable", null, OP_KEY);
   assert.equal(empty.status, 200);
   assert.equal(empty.data.count, 0);
 
@@ -79,7 +84,7 @@ try {
   assert.ok([200, 201].includes(submitted.status), JSON.stringify(submitted.data));
   assert.equal(submitted.data.proof?.fundingStatus, "payable");
 
-  const payable = await req("GET", "/escrow/v2/payable");
+  const payable = await req("GET", "/escrow/v2/payable", null, OP_KEY);
   assert.equal(payable.status, 200);
   assert.ok(payable.data.count >= 1);
   const item = payable.data.items.find((row) => row.jobId === jobId);
@@ -90,7 +95,7 @@ try {
 
   // After marking released, item should leave the queue.
   await db.prepare("UPDATE jobs SET escrow_status='released' WHERE job_id=?").run(jobId);
-  const after = await req("GET", "/escrow/v2/payable");
+  const after = await req("GET", "/escrow/v2/payable", null, OP_KEY);
   assert.equal(after.data.items.some((row) => row.jobId === jobId), false);
 
   console.log(JSON.stringify({

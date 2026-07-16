@@ -2047,3 +2047,17 @@ body.page-landing{
 .session-restore{margin-top:14px;border-top:1px solid var(--line);padding-top:12px;color:var(--muted)}
 .session-restore summary{cursor:pointer;color:var(--ink-2);font-weight:600}
 .session-restore label{display:grid;gap:6px;margin-top:10px}
+
+
+/* product surface status motion */
+tr.flash-payable td{animation:row-payable-glow 1.6s ease-out 1}
+tr.flash-paid td{animation:row-paid-glow 1.6s ease-out 1}
+@keyframes row-payable-glow{
+  0%{background:rgba(113,112,255,.18)}
+  100%{background:transparent}
+}
+@keyframes row-paid-glow{
+  0%{background:rgba(39,166,68,.18)}
+  100%{background:transparent}
+}
+.pill-payable,.status-pill[data-status="payable"]{box-shadow:0 0 0 1px rgba(113,112,255,.35)}

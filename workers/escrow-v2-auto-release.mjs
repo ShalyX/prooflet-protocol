@@ -72,7 +72,13 @@ async function waitReceipt(hash, attempts = 12) {
 }
 
 async function fetchPayable() {
-  const res = await fetch(`${API_URL}/escrow/v2/payable`);
+  const key =
+    process.env.ESCROW_OPERATOR_API_KEY ||
+    process.env.OPERATOR_API_KEY ||
+    process.env.ADJUDICATOR_API_KEY ||
+    "";
+  const headers = key ? { authorization: `Bearer ${key}`, "x-api-key": key } : {};
+  const res = await fetch(`${API_URL}/escrow/v2/payable`, { headers });
   const body = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(`payable list failed: ${res.status} ${JSON.stringify(body)}`);
   return body;
