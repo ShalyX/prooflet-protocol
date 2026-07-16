@@ -48,24 +48,16 @@ export ADJUDICATOR_API_KEY=…               # scoped key
 
 If deploy credentials are missing, leave mode `manual` and keep shipping schema-verified LLM demos.
 
-## Deployment (post-submission, 2026-07-16) — FINALIZED
+## Deployment (post-submission, 2026-07-16) — LIVE LLM ADJUDICATE
 
 | Field | Value |
 |---|---|
 | Network | `testnet-bradbury` |
-| Deploy tx | `0x7df8da92ea39c91a692320b14b050feaa8da400e15e806f99ae2e6adb66ff819` |
-| Status | **FINALIZED** (`status_name: FINALIZED`, `resultName: AGREE`) |
-| Contract address | **`0x3bF4b60176F8FAbA367bfC129C0529aeF462E397`** |
-| Record | `genlayer/deployment.json` |
-| Previous env address | `0xFF413C5cC01ffc8070BC8E4C0365bA1A33F013Bb` (superseded for new LLM quality code) |
+| Deploy tx | `0x30d48eba80982ab1c2a015d18d5151601177010e4b7373626f6aa5d5e05729d6` |
+| Status | **ACCEPTED** / AGREE / FINISHED_WITH_RETURN |
+| Contract address | **`0x132fF41207B4E94172A0184A738a51EF39aEFbF6`** |
+| Live adjudicate | `content_summary` → **approved** @ 0.95 |
+| Adjudicate tx | `0x093fc688da33fba32c7220fbdb8c874e9aa81755de49dd59f75e473ec589c75f` |
+| Record | `genlayer/deployment.json` · `docs/GENLAYER_LIVE_LLM.md` |
 
-Set hosted:
-
-```bash
-ADJUDICATION_MODE=genlayer
-GENLAYER_NETWORK=testnet-bradbury
-GENLAYER_CONTRACT_ADDRESS=0x3bF4b60176F8FAbA367bfC129C0529aeF462E397
-GENLAYER_PRIVATE_KEY=…   # server only
-```
-
-Do **not** claim live GenLayer quality consensus on hosted until Render env is updated and a subjective proof is submitted through the live path.
+Hosted Render `prooflet-api` env set to this contract with `ADJUDICATION_MODE=genlayer`.
