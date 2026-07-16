@@ -214,6 +214,22 @@ export const migrations = [
         revokeSourceVisibleDevelopmentCredentials(db);
       },
     },
+    {
+      version: 14,
+      name: "wallet_auth_nonces",
+      up(db) {
+        db.exec(`
+          CREATE TABLE IF NOT EXISTS wallet_auth_nonces (
+            address TEXT PRIMARY KEY,
+            nonce TEXT NOT NULL,
+            message TEXT NOT NULL,
+            expires_at TEXT NOT NULL,
+            created_at TEXT NOT NULL
+          );
+          CREATE INDEX IF NOT EXISTS idx_wallet_auth_nonces_expires ON wallet_auth_nonces(expires_at);
+        `);
+      },
+    },
       ];
 
 export function runMigrations(db) {
