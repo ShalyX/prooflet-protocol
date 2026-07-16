@@ -101,7 +101,7 @@ Do **not** put private signing keys on Render for the public test deployment. Se
 5. Register agent and pay Circle Gateway x402 access fee before claim.
 6. Claim + submit proof (agent workbench or worker CLI).
 7. Confirm proof is `payable` and appears on `GET /escrow/v2/payable`.
-8. Operator release offline: `npm run escrow:v2:auto-release -- --execute --once` (keys never on Render).
+8. Autonomous release: `npm run settlement:autonomous` on an operator host (keys never on Render).
 
 Workers should point `USEFUL_WAITING_API_URL` at the Render API URL.
 
