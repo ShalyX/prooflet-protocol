@@ -787,7 +787,7 @@ async function hydrateEscrowV2ProtocolPanel() {
     const payable = await payRes.json().catch(() => ({}));
     const health = await healthRes.json().catch(() => ({}));
     if (settleEl) {
-      const mode = health.settlement?.mode || health.settlementMode || (health.ok ? "Hosted API · operator release offline" : "Unavailable");
+      const mode = health.settlement?.mode || health.settlementMode || (health.ok ? "Hosted API · autonomous operator release" : "Unavailable");
       settleEl.textContent = mode;
     }
     if (storageEl) {

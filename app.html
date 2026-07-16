@@ -60,12 +60,12 @@
           <div><span>01</span><strong>Authenticate</strong><small>API key session (tab-local)</small></div>
           <div><span>02</span><strong>Faucet + fund</strong><small>Circle wallet → Escrow V2</small></div>
           <div><span>03</span><strong>Review proof</strong><small>Accepted packets become payable</small></div>
-          <div><span>04</span><strong>Operator release</strong><small>Signed CLI · not the hosted API</small></div>
+          <div><span>04</span><strong>Autonomous release</strong><small>Operator loop · keys off public API</small></div>
         </section>
         <section class="issuer-boundary-strip" aria-label="Issuer readiness boundary">
           <div><span>Funding rail</span><strong>Escrow V2 on Arc Testnet — fund before agent is known.</strong></div>
           <div><span>Issuer funds</span><strong>Faucet → Circle wallet. Treasury is not the issuer fund source.</strong></div>
-          <div><span>Settlement</span><strong>Approved proofs become payable; operator signs release offline.</strong></div>
+          <div><span>Settlement</span><strong>Approved proofs become payable; operator host releases Escrow V2 unattended.</strong></div>
         </section>
 
         <div class="issuer-session-panel workbench-auth demo-only" id="demoIssuerPanel" hidden>
@@ -158,7 +158,7 @@
                 </div>
                 <div class="external-only" style="margin-top: 12px; padding: 12px; background: rgba(80, 200, 120, 0.08); border: 1px solid var(--primary); border-radius: 8px;">
                   <strong style="color: var(--primary);">Escrow V2 open-market funding is live (Arc Testnet)</strong>
-                  <p style="font-size: 0.85rem; margin-top: 4px;">Create a draft job, claim faucet USDC into the issuer Circle wallet, then <strong>Fund Escrow V2 (Circle wallet)</strong>. Operator release remains explicit after proof approval. Treasury is not used for issuer funds.</p>
+                  <p style="font-size: 0.85rem; margin-top: 4px;">Create a draft job, claim faucet USDC into the issuer Circle wallet, then <strong>Fund Escrow V2 (Circle wallet)</strong>. Autonomous release remains explicit after proof approval. Treasury is not used for issuer funds.</p>
                   <p style="font-size: 0.8rem; margin-top: 8px; color: var(--muted);">Contract: <code id="escrowV2AddressHint">Loading…</code></p>
                 </div>
               </div>
@@ -205,7 +205,7 @@
         <div>
           <span>Operating model</span>
           <strong>Proof-first payouts, not blind automation</strong>
-          <p>Every reward moves through claim, evidence, verification, and operator-controlled settlement. The hosted app shows live protocol state without pretending it holds treasury keys.</p>
+          <p>Every reward moves through claim, evidence, verification, and autonomous Escrow V2 release on the operator host. The hosted app shows live protocol state without pretending it holds treasury keys.</p>
         </div>
         <div class="pulse-steps" aria-label="Current product loop">
           <span>Issue</span><span>Claim</span><span>Verify</span><span>Payable</span><span>Release</span>
@@ -235,7 +235,7 @@
         <article class="ops-card">
           <span>Settlement boundary</span>
           <strong>Dry-run by default</strong>
-          <p>Hosted API displays status; treasury-key release remains operator-controlled.</p>
+          <p>Hosted API displays status; treasury keys stay on the autonomous operator host.</p>
         </article>
       </section>
 
@@ -250,7 +250,7 @@
       <section class="trust-boundary-board dashboard-surface protocol-route" hidden aria-label="Trust boundary">
         <article><span>Hosted UI</span><strong>Read-only status + issuer workspace</strong><p>Vercel renders product state and calls the Render API; it does not contain treasury keys.</p></article>
         <article><span>API ledger</span><strong>Jobs, claims, proofs, reputation</strong><p>The status banner identifies whether the current hosted ledger is ephemeral or has a durable path configured. Restart survival still requires a separate live proof.</p></article>
-        <article><span>Settlement operator</span><strong>Release remains explicit</strong><p>Dry-run prepares a payout plan; real Arc Testnet USDC release requires operator-held signing authority.</p></article>
+        <article><span>Settlement operator</span><strong>Release is autonomous</strong><p>Operator host loop signs Escrow V2 release unattended; hosted API never holds signing keys.</p></article>
       </section>
 
       <section class="console-grid screenshot-board dashboard-surface protocol-route" hidden>
@@ -463,7 +463,7 @@
 
           <article class="protocol-card protocol-wide-block">
             <header><h3>Escrow V2 release queue</h3></header>
-            <p class="issuer-helper" style="margin: 0 0 10px;">Accepted payable proofs on open-market Escrow V2 awaiting operator release. Hosted API never holds operator keys.</p>
+            <p class="issuer-helper" style="margin: 0 0 10px;">Accepted payable proofs on open-market Escrow V2 awaiting autonomous operator-host release. Hosted API never holds operator keys.</p>
             <div class="protocol-status-card" style="margin-bottom: 12px;">
               <div><span>V2 contract</span><strong id="protoEscrowV2" class="mono-data">Loading…</strong></div>
               <div><span>Queue depth</span><strong id="protoV2QueueCount">—</strong></div>
@@ -521,7 +521,7 @@
       <footer class="protocol-footer protocol-route" hidden>
         <div>
           <strong>Prooflet</strong>
-          <span>Circle Agent Stack alignment: Developer-Controlled Wallets, Gateway x402 nanopayment access (npm run gateway:pay-access), Arc Testnet USDC rewards, and operator-controlled settlement.</span>
+          <span>Circle Agent Stack alignment: Developer-Controlled Wallets, Gateway x402 nanopayment access (npm run gateway:pay-access), Arc Testnet USDC rewards, and autonomous Escrow V2 release on the operator host.</span>
         </div>
         <nav aria-label="Protocol footer links">
           <a href="/dashboard" data-route="/dashboard">Dashboard</a>
