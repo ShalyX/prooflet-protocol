@@ -57,12 +57,22 @@ export function loadEscrowV2Deployment(env = process.env) {
 
 export function escrowV2Config(env = process.env) {
   const deployment = loadEscrowV2Deployment(env);
-  const skipOnchain = env.ESCROW_V2_SKIP_ONCHAIN === "true";
+  // Fail-closed on hosted/production: never skip on-chain fund verification.
+  const hosted =
+    env.RENDER === "true" ||
+    Boolean(env.RENDER_SERVICE_ID) ||
+    env.PROOFLET_HOSTED === "true" ||
+    env.NODE_ENV === "production";
+  const skipRequested = env.ESCROW_V2_SKIP_ONCHAIN === "true";
+  const skipOnchain = skipRequested && !hosted;
   return {
     ...deployment,
     acceptReportedFunding: env.ESCROW_V2_ACCEPT_REPORTED_FUNDING !== "false",
-    // When a contract is configured, require on-chain fund proof unless explicitly skipped (tests).
+    // When a contract is configured, require on-chain fund proof unless explicitly skipped (local tests only).
     requireOnchainVerification: deployment.configured && !skipOnchain,
+    skipOnchainRequested: skipRequested,
+    skipOnchainEffective: skipOnchain,
+    hostedFailClosed: hosted && skipRequested,
   };
 }
 

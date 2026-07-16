@@ -87,6 +87,8 @@
             </div>
             <details class="session-restore">
               <summary>Restore existing session</summary>
+              <button class="secondary" id="walletIssuerSessionBtn" type="button">Connect wallet session</button>
+              <p class="session-copy">Wallet must match the issuer treasury/Circle wallet used at register.</p>
               <label>Issuer ID<input id="issuerIdInput" autocomplete="username"></label>
               <label>Session key<input id="issuerKeyInput" type="password" placeholder="Shown once at registration" autocomplete="current-password"></label>
             </details>
@@ -354,6 +356,8 @@
               </div>
               <details class="session-restore">
                 <summary>Restore existing session</summary>
+                <button class="secondary" id="walletAgentSessionBtn" type="button">Connect wallet session</button>
+                <p class="session-copy">Wallet must match the agent payout address.</p>
                 <label>Agent ID<input id="agentSessionId" autocomplete="username" placeholder="agent_…"></label>
                 <label>Session key<input id="agentSessionKey" type="password" autocomplete="current-password" placeholder="Shown once at registration"></label>
               </details>

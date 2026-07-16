@@ -24,6 +24,7 @@ import {
 } from "./circle-nanopayment.mjs";
 import { escrowV2Config, isTxHash, jobIdToBytes32, verifyFundJobTransaction, verifyReleaseTransaction } from "./escrow-v2.mjs";
 import { fundEscrowV2FromCircleWallet } from "./issuer-escrow-fund.mjs";
+import { createWalletNonce, verifyWalletSession, isEscrowOperatorRequest } from "./auth-wallet.mjs";
 
 export function createApp({
   db: injectedDb,
@@ -414,12 +415,17 @@ export function createApp({
       fundingRail: v2.fundingRail,
       acceptReportedFunding: v2.acceptReportedFunding,
       requireOnchainVerification: v2.requireOnchainVerification,
+      hostedFailClosed: Boolean(v2.hostedFailClosed),
       mainnet: false,
     });
   });
 
   // Operator queue: V2 jobs with approved payable proofs not yet released on-chain.
-  app.get("/escrow/v2/payable", async (_request, response) => {
+  // Gated — contains agent payout addresses; operators only.
+  app.get("/escrow/v2/payable", async (request, response) => {
+    if (!isEscrowOperatorRequest(request) && !(await authenticateAdjudicator(db, request, "genlayer:write"))) {
+      throw httpError(403, "Escrow operator API key required for payable queue.");
+    }
     const rows = await db.prepare(`
       SELECT
         p.proof_id AS proof_id,
@@ -470,7 +476,7 @@ export function createApp({
     });
   });
 
-  // Record an on-chain V2 release against a protocol job (public if on-chain verifies).
+  // Record an on-chain V2 release against a protocol job (operator or job issuer; on-chain still verified).
   app.post("/jobs/:jobId/escrow-release-receipt", async (request, response) => {
     const { jobId } = request.params;
     const { txHash, agentAddress = null } = request.body || {};
@@ -478,10 +484,14 @@ export function createApp({
 
     const job = await db.prepare("SELECT * FROM jobs WHERE job_id = ?").get(jobId);
     if (!job) throw httpError(404, "Job not found");
-    if (job.funding_rail !== "arc_usdc_escrow_v2" && job.escrow_status !== "funded" && job.escrow_status !== "released") {
-      // Allow if already funded via V2 rail or status funded
-    }
     if (job.network !== "Arc Testnet") throw httpError(400, "Escrow V2 release recording is Arc Testnet only.");
+
+    const issuerOk = await authenticate(db, request, "issuer", job.issuer_id);
+    const operatorOk =
+      isEscrowOperatorRequest(request) || Boolean(await authenticateAdjudicator(db, request, "genlayer:write"));
+    if (!issuerOk && !operatorOk) {
+      throw httpError(403, "Issuer or escrow operator API key required to record release.");
+    }
 
     let verification;
     try {
@@ -511,6 +521,26 @@ export function createApp({
       job: serializeJob(updated),
       release: verification,
     });
+  });
+
+  // Wallet SIWE-style session restore (optional — not full account abstraction).
+  app.post("/auth/wallet/nonce", (request, response) => {
+    const { address } = request.body || {};
+    response.json({ ok: true, ...createWalletNonce(address) });
+  });
+
+  app.post("/auth/wallet/session", async (request, response) => {
+    try {
+      const session = await verifyWalletSession(db, request.body || {});
+      response.status(201).json({ ok: true, session });
+    } catch (error) {
+      if (error?.expose) {
+        const err = httpError(error.status || 400, error.message);
+        if (error.code) err.code = error.code;
+        throw err;
+      }
+      throw error;
+    }
   });
 
   app.post("/agents/register", async (request, response) => {

@@ -1,4 +1,5 @@
 import { IssuerClient } from "@useful-waiting/issuer-sdk";
+import { restoreSessionWithWallet } from "./wallet-session.js";
 
 export function initIssuerWorkbench({ apiUrl, onNavigate }) {
   const panel=document.querySelector("#issuerWorkbench"), toggle=document.querySelector("#toggleWorkbench");
@@ -8,6 +9,26 @@ export function initIssuerWorkbench({ apiUrl, onNavigate }) {
   issuerInput.value=sessionStorage.getItem("uwp.extIssuerId")||sessionStorage.getItem("uwp.issuerId")||issuerInput.value; keyInput.value=sessionStorage.getItem("uwp.extIssuerApiKey")||sessionStorage.getItem("uwp.issuerApiKey")||"";
   // Session-first: if tab already has credentials, connect without making paste the primary path.
   queueMicrotask(() => { if (issuerInput.value && keyInput.value) document.querySelector("#connectIssuer")?.click(); });
+
+  document.querySelector("#walletIssuerSessionBtn")?.addEventListener("click", async () => {
+    try {
+      const session = await restoreSessionWithWallet({
+        apiUrl,
+        role: "issuer",
+        onStatus: (s) => { message.textContent = s; message.dataset.state = "ok"; },
+      });
+      issuerInput.value = session.id;
+      keyInput.value = session.apiKey;
+      sessionStorage.setItem("uwp.extIssuerId", session.id);
+      sessionStorage.setItem("uwp.extIssuerApiKey", session.apiKey);
+      message.textContent = `Wallet session restored for ${session.id}.`;
+      message.dataset.state = "ok";
+      document.querySelector("#connectIssuer")?.click();
+    } catch (error) {
+      message.textContent = error.message || "Wallet session failed.";
+      message.dataset.state = "error";
+    }
+  });
   
   if(import.meta.env.DEV){const helper=document.createElement("button");helper.className="ghost dev-issuer-helper";helper.type="button";helper.textContent="Use local dev issuer";helper.addEventListener("click",()=>{issuerInput.value="useful_waiting_protocol";keyInput.value="uwp_issuer_useful_waiting_protocol_dev";message.textContent="Local development credentials loaded. Select Connect to start the issuer session.";message.dataset.state="ok";document.querySelector("#workbenchConnection").textContent="Credentials loaded";});document.querySelector("#issuerCol").append(helper);}
   
@@ -443,7 +464,7 @@ export function initIssuerWorkbench({ apiUrl, onNavigate }) {
     }),true):empty("No funded jobs yet","Create a single job or validate a bulk upload to begin.");
   }
   
-  function renderProofs(rows){document.querySelector("#issuerProofs").innerHTML=rows.length?table(["Proof","Agent","Route","Verification","Adjudication","Funding","Settlement","Transaction"],rows.map((row)=>[truncateId(row.proofId),truncateId(row.agentId),row.verificationRoute,pill(row.verificationStatus),adjudicationState(row),pill(fundingState(row.fundingStatus)),settlementState(row),row.txHash?`<a href="${escape(row.explorer)}" target="_blank" rel="noreferrer">Arcscan</a>`:"—"]),true):empty("No proofs submitted","Verified agent work will appear here with its payout state.");}
+  function renderProofs(rows){document.querySelector("#issuerProofs").innerHTML=rows.length?table(["Proof","Agent","Route","Verification","Adjudication","Funding","Settlement","Transaction"],rows.map((row)=>{const flash=row.fundingStatus==="payable"?"flash-payable":row.fundingStatus==="paid"?"flash-paid":"";return{className:flash,cells:[truncateId(row.proofId),truncateId(row.agentId),row.verificationRoute,pill(row.verificationStatus),adjudicationState(row),pill(fundingState(row.fundingStatus)),settlementState(row),row.txHash?`<a href="${escape(row.explorer)}" target="_blank" rel="noreferrer">Arcscan</a>`:"—"]};}),true):empty("No proofs submitted","Verified agent work will appear here with its payout state.");}
   function renderSettlements(value){document.querySelector("#issuerSettlements").innerHTML=table(["Batch","Status","Payout","Created","Settled"],value.batches.map((row)=>[row.batch_id,row.status,`${row.total_payout} USDC`,date(row.created_at),row.settled_at?date(row.settled_at):"—"]));}
   function setStatus(text,ok){message.textContent=text;message.dataset.state=ok?"ok":"error";document.querySelector("#workbenchConnection").textContent=ok?"Session active":"Not authenticated";}
   function renderUnauthenticated() {
@@ -502,7 +523,7 @@ export function initIssuerWorkbench({ apiUrl, onNavigate }) {
     },
   };
 }
-function table(headers,rows,allowHtml=false){return `<table><thead><tr>${headers.map((value)=>`<th>${escape(value)}</th>`).join("")}</tr></thead><tbody>${rows.map((row)=>`<tr>${row.map((value)=>`<td>${allowHtml?value:escape(value)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;}
+function table(headers,rows,allowHtml=false){return `<table><thead><tr>${headers.map((value)=>`<th>${escape(value)}</th>`).join("")}</tr></thead><tbody>${rows.map((row)=>{const cells=Array.isArray(row)?row:row.cells;const cls=Array.isArray(row)?"":row.className||"";return `<tr class="${cls}">${cells.map((value)=>`<td>${allowHtml?value:escape(value)}</td>`).join("")}</tr>`;}).join("")}</tbody></table>`;}
 function escape(value){return String(value??"").replace(/[&<>"']/g,(char)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[char]);}
 function truncateId(id){if(!id)return "—";return `<span title="${escape(id)}" class="truncated-id">${escape(id).substring(0,8)}...</span>`;}
 function pill(status){const cssClass = String(status).toLowerCase().split(" ")[0]; return `<span class="state-badge ${escape(cssClass)}">${escape(status)}</span>`;}

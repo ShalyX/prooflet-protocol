@@ -16,3 +16,18 @@ Prooflet is a hackathon/test-phase implementation. Current limitations are expli
 - **Frontend replay data is demonstrative and isolated.** Current job, proof, reputation, treasury, and settlement state comes only from the connected API. API failure renders unavailable state rather than fixtures. Historical Lepton settlement receipts are labeled archived/committed evidence, while synthetic worker controls require explicit browser-only replay mode.
 
 These constraints keep the project honest: the protocol demonstrates agent micro-labor and Arc Testnet settlement without presenting hackathon infrastructure as a production financial system.
+
+
+## Settlement autonomy (honest)
+
+Payment **approval** can be automatic (deterministic verifiers or GenLayer finalize → `payable`).
+
+Payment **release** is **operator-supervised**, not a always-on hosted autopilot:
+
+| Path | Autonomous? |
+|---|---|
+| Schema / GenLayer → `payable` | Yes (on API path) |
+| Escrow V2 `release` on Arc | **No** until operator runs `escrow:v2:auto-release --execute` or CLI release |
+| Settlement daemon USDC send | **No** until daemon runs in execute mode with keys |
+
+Keys never live on the public Render API. Auto-release is a separate operator process (`workers/escrow-v2-auto-release.mjs`). Default is dry-run.
