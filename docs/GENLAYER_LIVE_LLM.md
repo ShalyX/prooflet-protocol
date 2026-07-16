@@ -17,7 +17,7 @@
 | Status | ACCEPTED / AGREE / FINISHED_WITH_RETURN |
 | Network call | **true** (not mock_genlayer) |
 
-Reason (validator consensus output):  
+Reason (validator consensus output):
 > The summary accurately restates the key elements: funding and settling verified agent micro-work using Arc Testnet USDC, matching the source text.
 
 ## Hosted Render env (set on `prooflet-api`)
