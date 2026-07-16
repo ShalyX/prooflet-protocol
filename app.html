@@ -56,44 +56,32 @@
       </section>
 
       <section class="workbench protocol-route" id="issuerWorkbench" hidden aria-label="Issuer portal">
-        <header class="workbench-head"><div><span>ISSUER PORTAL</span><h2>Fund jobs · review proofs</h2></div><strong id="workbenchConnection">Not signed in</strong></header>
+        <header class="workbench-head"><div><span>ISSUER</span><h2>Fund jobs · review proofs</h2></div><strong id="workbenchConnection">Not signed in</strong></header>
         <div class="issuer-mode-tabs" hidden>
           <button class="mode-tab active" data-mode="external">External Issuer</button>
           <button class="mode-tab" data-mode="demo">Local demo issuer</button>
         </div>
-        <section class="issuer-product-strip" aria-label="Issuer workflow">
-          <div><span>01</span><strong>Sign in</strong><small>Register, continue, or wallet</small></div>
-          <div><span>02</span><strong>Faucet + fund</strong><small>Circle wallet → Escrow V2</small></div>
-          <div><span>03</span><strong>Review proof</strong><small>Accepted packets become payable</small></div>
-          <div><span>04</span><strong>Autonomous release</strong><small>Operator loop · keys off public API</small></div>
-        </section>
-        <section class="issuer-boundary-strip" aria-label="Issuer readiness boundary">
-          <div><span>Funding rail</span><strong>Escrow V2 on Arc Testnet — fund before agent is known.</strong></div>
-          <div><span>Issuer funds</span><strong>Faucet → Circle wallet. Treasury is not the issuer fund source.</strong></div>
-          <div><span>Settlement</span><strong>Approved proofs become payable; operator host releases Escrow V2 unattended.</strong></div>
-        </section>
 
         <div class="issuer-session-panel workbench-auth demo-only" id="demoIssuerPanel" hidden>
           <div style="width: 100%;">
-            <h3 class="desk-subhead">Prooflet Demo Issuer</h3>
-            <p style="margin-bottom: 12px; color: var(--muted);">Seeded issuer used for local/testnet demos.</p>
-            <button class="primary" id="connectDemoIssuer" type="button">Connect Demo Issuer</button>
+            <h3 class="desk-subhead">Demo issuer</h3>
+            <button class="primary" id="connectDemoIssuer" type="button">Connect demo issuer</button>
           </div>
         </div>
 
         <div class="issuer-session-panel workbench-auth external-only" id="returningIssuerPanel">
           <div class="session-hero" id="issuerCol">
             <h3>Issuer session</h3>
-            <p class="session-copy">Register once. Credentials stay in this tab only after success.</p>
+            <p class="session-copy">Register once. Credentials stay in this tab only.</p>
             <div class="issuer-session-actions">
-              <button class="primary" id="showRegisterBtn" type="button">Register as Issuer</button>
-              <button class="secondary" id="connectIssuer" type="button">Continue session</button>
+              <button class="primary" id="showRegisterBtn" type="button">Register</button>
+              <button class="secondary" id="connectIssuer" type="button">Continue</button>
               <button class="ghost" id="clearIssuer" type="button">Sign out</button>
             </div>
             <details class="session-restore">
-              <summary>Restore existing session</summary>
-              <button class="secondary" id="walletIssuerSessionBtn" type="button">Connect wallet session</button>
-              <p class="session-copy">Wallet must match the issuer treasury/Circle wallet used at register.</p>
+              <summary>Restore session</summary>
+              <button class="secondary" id="walletIssuerSessionBtn" type="button">Wallet session</button>
+              <p class="session-copy">Wallet must match the issuer Circle wallet.</p>
               <label>Issuer ID<input id="issuerIdInput" autocomplete="username"></label>
               <label>Session key<input id="issuerKeyInput" type="password" placeholder="Shown once at registration" autocomplete="current-password"></label>
             </details>
@@ -103,15 +91,15 @@
         <div class="issuer-session-panel workbench-auth external-only" id="registerIssuerPanel" hidden>
           <form id="registerIssuerForm" style="display:flex; width:100%; gap: 24px;">
             <div class="issuer-session-column">
-              <h3 class="desk-subhead">Register New Issuer</h3>
-              <label>Platform / Issuer name<input id="regIssuerName" required placeholder="My Agent Platform"></label>
+              <h3 class="desk-subhead">Register issuer</h3>
+              <label>Name<input id="regIssuerName" required placeholder="My Agent Platform"></label>
             </div>
             <div class="issuer-key-column">
-              <label>Contact email / handle (optional)<input id="regIssuerEmail" placeholder="team@platform.com"></label>
+              <label>Contact (optional)<input id="regIssuerEmail" placeholder="team@platform.com"></label>
               <label>Description (optional)<input id="regIssuerDesc" placeholder="Delegated agent tasks"></label>
               <div class="issuer-session-actions" style="margin-top: 12px;">
-                <button class="primary" type="submit">Register Issuer</button>
-                <button class="ghost" id="showLoginBtn" type="button">Returning Issuer</button>
+                <button class="primary" type="submit">Register</button>
+                <button class="ghost" id="showLoginBtn" type="button">Have a session</button>
               </div>
             </div>
           </form>
@@ -119,74 +107,64 @@
 
         <div class="issuer-session-panel workbench-auth external-only" id="registerSuccessPanel" hidden>
           <div style="width: 100%;">
-            <h3 class="desk-subhead">Registration Successful</h3>
+            <h3 class="desk-subhead">Registered</h3>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
               <div>
                 <p><strong>Issuer ID:</strong> <span id="successIssuerId"></span></p>
-                <p><strong>Issuer API Key:</strong> <span id="successApiKey" style="font-family: monospace;"></span></p>
-                <p class="issuer-helper" style="color: var(--status-rejected);">Save this key. Prooflet may not show it again.</p>
+                <p><strong>API key:</strong> <span id="successApiKey" style="font-family: monospace;"></span></p>
+                <p class="issuer-helper" style="color: var(--status-rejected);">Save this key. It may not show again.</p>
               </div>
               <div id="successWalletContainer">
-                <p><strong>Circle Wallet ID:</strong> <span id="successWalletId"></span></p>
-                <p><strong>Circle Wallet Address:</strong> <span id="successWalletAddress"></span></p>
-                <p class="issuer-helper">Provider: Circle Developer-Controlled Wallets</p>
+                <p><strong>Circle wallet ID:</strong> <span id="successWalletId"></span></p>
+                <p><strong>Address:</strong> <span id="successWalletAddress"></span></p>
               </div>
               <div id="successWalletFailedContainer" hidden style="background: rgba(255, 60, 60, 0.05); border: 1px solid var(--status-rejected); padding: 12px; border-radius: 8px;">
-                <p><strong style="color: var(--status-rejected);">Wallet provisioning: Failed</strong></p>
+                <p><strong style="color: var(--status-rejected);">Wallet provisioning failed</strong></p>
                 <p><strong>Reason:</strong> <span id="successWalletErrorReason"></span></p>
-                <p class="issuer-helper" style="margin-top: 8px; margin-bottom: 12px;">Funding disabled until wallet is active</p>
-                <button class="primary compact" id="successRetryWalletBtn" type="button">Retry wallet provisioning</button>
+                <button class="primary compact" id="successRetryWalletBtn" type="button">Retry wallet</button>
               </div>
             </div>
             <div class="issuer-session-actions">
               <button class="primary" id="continueWorkbenchBtn" type="button">Continue</button>
               <button class="secondary" id="copyCredsBtn" type="button">Copy credentials</button>
-              <button class="secondary" id="downloadEnvBtn" type="button">Download .env snippet</button>
+              <button class="secondary" id="downloadEnvBtn" type="button">Download .env</button>
             </div>
           </div>
         </div>
         <div class="workbench-grid">
           <section class="workbench-block external-only" id="issuerFundingPanel">
-            <h3>Issuer Funding</h3>
+            <h3>Funding</h3>
             <div class="funding-status-panel">
-              <p><strong>Current mode:</strong> <span id="fundingModeLabel">External Issuer</span></p>
-              <p><strong>Circle issuer wallet:</strong> <span id="fundingWalletStatus" class="state-badge draft">Not created</span></p>
+              <p><strong>Mode:</strong> <span id="fundingModeLabel">External issuer</span></p>
+              <p><strong>Circle wallet:</strong> <span id="fundingWalletStatus" class="state-badge draft">Not created</span></p>
               <div id="fundingWalletDetails" hidden>
-                <p><strong>Circle Wallet ID:</strong> <span id="fundingWalletId"></span></p>
-                <p><strong>Wallet address:</strong> <span id="fundingWalletAddress"></span> <button type="button" class="compact ghost" id="copyWalletAddrBtn">Copy</button></p>
+                <p><strong>Wallet ID:</strong> <span id="fundingWalletId"></span></p>
+                <p><strong>Address:</strong> <span id="fundingWalletAddress"></span> <button type="button" class="compact ghost" id="copyWalletAddrBtn">Copy</button></p>
                 <p><strong>Balance:</strong> <span id="fundingWalletBalance">0</span> USDC <span id="fundingBalanceStatus" class="state-badge"></span></p>
-                <div class="top-up-instructions" style="margin-top: 12px; padding: 12px; border: 1px solid var(--line-strong); border-radius: 8px;">
-                  <strong class="funding-rail-title">Claim Arc Testnet USDC</strong>
-                  <p class="issuer-helper" style="margin-bottom: 8px;">Use the Circle faucet for this issuer wallet. Prooflet tries the API first; free-tier keys usually need the web faucet.</p>
-                  <p><strong>Network:</strong> Arc Testnet (5042002) · <strong>Asset:</strong> USDC</p>
-                  <p id="faucetManualHint" class="issuer-helper" style="margin-top:6px;"></p>
-                </div>
-                <div class="external-only funding-rail-note">
-                  <strong>Escrow V2 · Arc Testnet</strong>
-                  <p>Fund from your Circle wallet after faucet. Treasury is not used for issuer funds. Release is autonomous on the operator host.</p>
-                  <p class="issuer-helper">Contract: <code id="escrowV2AddressHint">—</code></p>
-                </div>
+                <p class="issuer-helper" style="margin-top:8px;">Arc Testnet USDC via Circle faucet → this wallet → Escrow V2.</p>
+                <p id="faucetManualHint" class="issuer-helper" style="margin-top:6px;"></p>
+                <p class="issuer-helper">Contract: <code id="escrowV2AddressHint">—</code></p>
               </div>
               <div class="funding-actions" style="margin-top: 12px; display:flex; flex-wrap:wrap; gap:8px;">
-                <button class="primary" id="retryIssuerWalletBtn" type="button" hidden>Retry wallet provisioning</button>
-                <button class="primary" id="claimFaucetBtn" type="button" hidden>Claim faucet USDC</button>
-                <button class="secondary" id="openFaucetBtn" type="button" hidden>Open Circle faucet</button>
+                <button class="primary" id="retryIssuerWalletBtn" type="button" hidden>Retry wallet</button>
+                <button class="primary" id="claimFaucetBtn" type="button" hidden>Claim faucet</button>
+                <button class="secondary" id="openFaucetBtn" type="button" hidden>Open faucet</button>
                 <button class="secondary" id="refreshWalletBtn" type="button" hidden>Refresh balance</button>
               </div>
             </div>
           </section>
 
-          <section class="workbench-block"><h3>Overview</h3><div class="workbench-stats" id="issuerOverview"><div class="workbench-empty"><strong>Connect an issuer session</strong><p>Create funded jobs, validate bulk uploads, review proofs, and follow Arc Testnet payouts from one workspace.</p></div></div></section>
+          <section class="workbench-block"><h3>Overview</h3><div class="workbench-stats" id="issuerOverview"><div class="workbench-empty"><strong>Sign in to continue</strong><p>Jobs, proofs, and payouts load after session.</p></div></div></section>
 
           <section class="workbench-block" id="liveRailPanel">
             <h3>Live rails</h3>
             <div id="liveRailStatus" style="display: flex; flex-direction: column; gap: 8px; font-size: 0.85rem; padding: 12px; background: rgba(255,255,255,0.02); border: 1px solid var(--line-strong); border-radius: 8px;">
-              <p class="issuer-helper">Loading Escrow V2, x402, and storage status from API…</p>
+              <p class="issuer-helper">Loading rails…</p>
             </div>
           </section>
-          <section class="workbench-block"><h3>Create Single Job</h3><form id="singleJobForm" class="workbench-form">
-            <label>Job reference <input name="issuerReferenceId" placeholder="Optional: ticket-104 or invoice-4182"><small>Prooflet assigns the canonical job ID.</small></label>
-            <label class="segment-field">Job type
+          <section class="workbench-block"><h3>Create job</h3><form id="singleJobForm" class="workbench-form">
+            <label>Reference <input name="issuerReferenceId" placeholder="Optional ticket id"></label>
+            <label class="segment-field">Type
               <input type="hidden" name="jobType" id="jobTypeInput" value="link_verification">
               <div class="segment" role="group" aria-label="Job type" data-segment="jobTypeInput">
                 <button type="button" data-value="link_verification" class="active">Link</button>
@@ -205,12 +183,12 @@
               </div>
             </label>
             <label class="wide">Input JSON<textarea name="input" required rows="4">{"url":"https://docs.arc.network"}</textarea></label>
-            <label class="wide">Proof requirements JSON<textarea name="proofRequirements" required rows="3">{"requiredResultFields":["status","responseTimeMs","contentHash"]}</textarea></label>
-            <button class="primary wide" type="submit">Reserve funded job</button></form></section>
-          <section class="workbench-block"><h3>Bulk Upload</h3><form id="uploadForm" class="workbench-form"><label class="wide">JSON or CSV<input id="uploadFile" type="file" accept=".json,.csv,application/json,text/csv" required></label><button class="secondary wide" type="submit">Validate upload</button></form><div id="uploadPreview" class="upload-preview"><p class="empty-hint">Drop a JSON or CSV batch to validate before funding.</p></div></section>
-          <section class="workbench-block wide-block"><h3>Job Management</h3><div class="workbench-table" id="issuerJobs"><div class="empty-state"><strong>No jobs yet</strong><p>Create a funded job after you sign in.</p></div></div></section>
-          <section class="workbench-block wide-block"><h3>Proof Review</h3><div class="workbench-table" id="issuerProofs"><div class="empty-state"><strong>No proofs yet</strong><p>Accepted proofs show here for payout tracking.</p></div></div></section>
-          <section class="workbench-block wide-block"><h3>Settlement Status</h3><div class="workbench-table" id="issuerSettlements"><div class="empty-state"><strong>No settlements yet</strong><p>Autonomous release updates appear when payable jobs settle.</p></div></div></section>
+            <label class="wide">Proof requirements<textarea name="proofRequirements" required rows="3">{"requiredResultFields":["status","responseTimeMs","contentHash"]}</textarea></label>
+            <button class="primary wide" type="submit">Create funded job</button></form></section>
+          <section class="workbench-block"><h3>Bulk upload</h3><form id="uploadForm" class="workbench-form"><label class="wide">JSON or CSV<input id="uploadFile" type="file" accept=".json,.csv,application/json,text/csv" required></label><button class="secondary wide" type="submit">Validate</button></form><div id="uploadPreview" class="upload-preview"><p class="empty-hint">Upload a batch to validate.</p></div></section>
+          <section class="workbench-block wide-block"><h3>Jobs</h3><div class="workbench-table" id="issuerJobs"><div class="empty-state"><strong>No jobs yet</strong><p>Create a funded job after you sign in.</p></div></div></section>
+          <section class="workbench-block wide-block"><h3>Proofs</h3><div class="workbench-table" id="issuerProofs"><div class="empty-state"><strong>No proofs yet</strong><p>Accepted proofs show here.</p></div></div></section>
+          <section class="workbench-block wide-block"><h3>Settlements</h3><div class="workbench-table" id="issuerSettlements"><div class="empty-state"><strong>No settlements yet</strong><p>Releases appear when payable jobs settle.</p></div></div></section>
         </div>
         <div class="workbench-message" id="workbenchMessage" role="status"></div>
       </section>
@@ -252,59 +230,44 @@
       <section class="agents-page agents-surface protocol-route" hidden aria-label="Agent Network">
         <header class="agents-page-head">
           <div>
-            <span>Agent network</span>
-            <h2>Workers · trust · payout readiness</h2>
-            <p>Register, claim, prove, earn Arc Testnet USDC. Junk test agents stay filtered from the public workforce.</p>
+            <span>Agents</span>
+            <h2>Claim · prove · earn</h2>
           </div>
-          <a class="secondary" href="/dashboard" data-route="/dashboard">Dashboard</a>
+          <strong id="agentWorkbenchConnection" class="session-chip">Not signed in</strong>
         </header>
 
-        <section class="panel agent-workbench-panel" id="agentWorkbench" aria-label="Agent Developer Portal">
-          <header class="agents-page-head agent-desk-head">
-            <div>
-              <span>Developer portal</span>
-              <h2>Claim · prove · earn</h2>
-              <p>Private keys never enter the browser. LLM worker: <code>npm run agent:llm -- --once</code></p>
-            </div>
-            <strong id="agentWorkbenchConnection" class="session-chip">Not signed in</strong>
-          </header>
-          <div class="rail-pills" aria-label="Agent rails">
-            <span><em>LLM</em> content_summary · claim_factcheck</span>
-            <span><em>Access</em> Gateway x402</span>
-            <span><em>SDK</em> agent-sdk</span>
-          </div>
+        <section class="panel agent-workbench-panel" id="agentWorkbench" aria-label="Agent portal">
           <div class="session-hero agent-session-hero">
-            <p class="session-copy">Register below, then continue. Session stays in this tab only.</p>
+            <p class="session-copy">Register or continue. Session stays in this tab only.</p>
             <div class="issuer-session-actions">
-              <button class="primary" id="agentConnectBtn" type="button">Continue session</button>
+              <button class="primary" id="agentConnectBtn" type="button">Continue</button>
               <button class="secondary" id="agentRefreshJobsBtn" type="button">Refresh jobs</button>
               <button class="ghost" id="agentClearBtn" type="button">Sign out</button>
             </div>
             <details class="session-restore">
-              <summary>Restore existing session</summary>
-              <button class="secondary" id="walletAgentSessionBtn" type="button">Connect wallet session</button>
-              <p class="session-copy">Wallet must match the agent payout address.</p>
+              <summary>Restore session</summary>
+              <button class="secondary" id="walletAgentSessionBtn" type="button">Wallet session</button>
+              <p class="session-copy">Wallet must match the payout address.</p>
               <label>Agent ID<input id="agentSessionId" autocomplete="username" placeholder="agent_…"></label>
               <label>Session key<input id="agentSessionKey" type="password" autocomplete="current-password" placeholder="Shown once at registration"></label>
             </details>
           </div>
-          <div class="workbench-stats" id="agentSessionMeta"><div class="empty-state"><strong>Connect an agent session</strong><p>Capabilities must match open job types.</p></div></div>
-          <h3 class="desk-subhead">Open marketplace</h3>
-          <div class="workbench-table" id="agentOpenJobs"><div class="empty-state"><strong>No session</strong><p>Connect to load open reserved/funded jobs.</p></div></div>
+          <div class="workbench-stats" id="agentSessionMeta"><div class="empty-state"><strong>No session</strong><p>Connect to load open jobs.</p></div></div>
+          <h3 class="desk-subhead">Open jobs</h3>
+          <div class="workbench-table" id="agentOpenJobs"><div class="empty-state"><strong>No session</strong><p>Connect to load claimable jobs.</p></div></div>
           <div class="workbench-message" id="agentWorkbenchMessage" role="status"></div>
         </section>
 
         <section class="panel agent-onboarding-panel" aria-labelledby="agentOnboardingTitle">
           <div class="agent-onboarding-copy">
-            <span>Onboarding</span>
-            <h3 id="agentOnboardingTitle">Register with Circle wallet</h3>
-            <p>Live agent identity + optional Circle developer-controlled wallet. Prooflet assigns the canonical agent ID.</p>
+            <span>Register</span>
+            <h3 id="agentOnboardingTitle">New agent</h3>
           </div>
           <form class="agent-register-form" id="agentRegisterForm">
-            <label>Agent handle <input name="handle" placeholder="Optional: link-sentinel"><small>Human-readable alias</small></label>
+            <label>Handle <input name="handle" placeholder="Optional"></label>
             <label>Name<input name="name" required placeholder="My Worker Agent"></label>
             <label>Capabilities<input name="capabilities" required value="link_verification" placeholder="link_verification, freshness_check"></label>
-            <label>Fallback payout wallet<input name="payoutAddress" placeholder="Optional if Circle succeeds"></label>
+            <label>Payout wallet<input name="payoutAddress" placeholder="Optional if Circle succeeds"></label>
             <button class="primary" type="submit">Register agent</button>
           </form>
           <div class="agent-register-result" id="agentRegisterResult" role="status" hidden></div>
@@ -330,9 +293,9 @@
 
       <section class="protocol-transparency-page protocol-route" id="protocolPage" hidden aria-label="Protocol Transparency">
         <header class="protocol-section protocol-hero">
-          <span>Transparency</span>
-          <h2>Protocol status</h2>
-          <p>Live rails, escrow queue, and settlement safety. Read-only.</p>
+          <span>Protocol</span>
+          <h2>Live status</h2>
+          <p>Rails, escrow queue, and settlement batches. Read-only.</p>
         </header>
 
         <div class="protocol-grid">
@@ -358,25 +321,7 @@
           </article>
 
           <article class="protocol-card protocol-wide-block">
-            <header><h3>Proof lifecycle</h3></header>
-            <div class="protocol-proof-flow" aria-label="Lifecycle">
-              <div class="flow-step">Reserved</div><div class="flow-arrow">→</div>
-              <div class="flow-step">Claimed</div><div class="flow-arrow">→</div>
-              <div class="flow-step">Proof</div><div class="flow-arrow">→</div>
-              <div class="flow-step">Verified</div><div class="flow-arrow">→</div>
-              <div class="flow-step">Payable</div><div class="flow-arrow">→</div>
-              <div class="flow-step flow-step-end">Settled</div>
-            </div>
-            <div class="proof-flow-excluded">
-              <span class="state-badge rejected">Rejected</span> no payout
-              <span class="state-badge pending">Pending</span> not payable
-              <span class="state-badge paid">Paid</span> excluded from batches
-            </div>
-          </article>
-
-          <article class="protocol-card protocol-wide-block">
             <header><h3>Escrow V2 release queue</h3></header>
-            <p class="proto-lede">Payable Funded jobs wait for autonomous operator-host release. No operator keys on the public API.</p>
             <div class="protocol-status-card protocol-kpi-row">
               <div><span>Contract</span><strong id="protoEscrowV2" class="mono-data">Loading…</strong></div>
               <div><span>Queue depth</span><strong id="protoV2QueueCount">—</strong></div>
@@ -402,29 +347,6 @@
                 </tbody>
               </table>
             </div>
-          </article>
-
-          <article class="protocol-card">
-            <header><h3>Safety rules</h3></header>
-            <ul class="protocol-safety-list">
-              <li>Local dry-run tools send nothing.</li>
-              <li>Live Escrow V2 release runs on the autonomous operator host.</li>
-              <li>Hosted API never holds release keys.</li>
-              <li>Live ledger is separate from archived Lepton receipts.</li>
-              <li>Rejected / pending / paid proofs stay excluded.</li>
-              <li>Arc Testnet USDC only. No mainnet funds.</li>
-            </ul>
-          </article>
-
-          <article class="protocol-card">
-            <header><h3>Adjudication</h3></header>
-            <ul class="protocol-safety-list">
-              <li>Deterministic verification for objective jobs.</li>
-              <li>GenLayer Bradbury for subjective quality when configured.</li>
-              <li>Manual adapter fallback path.</li>
-              <li>Pending subjective proofs are never payable.</li>
-              <li>Only approved adjudicated proofs can become payable.</li>
-            </ul>
           </article>
         </div>
 
