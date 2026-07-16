@@ -224,97 +224,9 @@
         <article class="metric metric-danger"><span>Rejected proofs</span><strong id="rejectedMetricMain">0</strong><p>failed validation</p></article>
       </section>
 
-      <section class="product-pulse dashboard-surface protocol-route" hidden aria-label="Prooflet operating model">
-        <div>
-          <span>Operating model</span>
-          <strong>Proof-first payouts</strong>
-          <p>Claim → evidence → verification → autonomous Escrow V2 release. Hosted API never holds treasury keys.</p>
-        </div>
-        <div class="pulse-steps" aria-label="Current product loop">
-          <span>Issue</span><span>Claim</span><span>Verify</span><span>Payable</span><span>Release</span>
-        </div>
-      </section>
-
-      <section class="ops-command-center dashboard-surface protocol-route" hidden aria-label="Operator command center">
-        <article class="ops-focus-card">
-          <span>Needs release</span>
-          <strong id="needsActionCount">0</strong>
-          <p id="needsActionCopy">No proof packets are waiting for release.</p>
-          <div class="ops-action-row">
-            <a class="primary compact" href="/protocol" data-route="/protocol">Release queue</a>
-            <a class="secondary compact" href="/issuer" data-route="/issuer">Issuer</a>
-          </div>
-        </article>
-        <article class="ops-card">
-          <span>Open work</span>
-          <strong id="opsOpenJobs">0 jobs</strong>
-          <p>Open jobs ready to claim.</p>
-        </article>
-        <article class="ops-card">
-          <span>Proof quality</span>
-          <strong id="opsProofQuality">0 accepted / 0 rejected</strong>
-          <p>Rejected proofs never get paid.</p>
-        </article>
-        <article class="ops-card">
-          <span>Settlement</span>
-          <strong>Autonomous operator host</strong>
-          <p>Release runs on the operator host. Keys stay off this app.</p>
-        </article>
-      </section>
-
-      <section class="proof-review-board dashboard-surface protocol-route" hidden aria-label="Proof packet review">
-        <header>
-          <div><span>Review queue</span><h2>Proof packets ready for decision</h2></div>
-          <strong id="reviewQueueSummary">0 payable · 0 rejected</strong>
-        </header>
-        <div class="proof-review-list" id="proofReviewList"></div>
-      </section>
-
-      <section class="trust-boundary-board dashboard-surface protocol-route" hidden aria-label="Trust boundary">
-        <article><span>Hosted UI</span><strong>Read-only status + issuer workspace</strong><p>Vercel renders product state and calls the Render API; it does not contain treasury keys.</p></article>
-        <article><span>API ledger</span><strong>Jobs, claims, proofs, reputation</strong><p>The status banner identifies whether the current hosted ledger is ephemeral or has a durable path configured. Restart survival still requires a separate live proof.</p></article>
-        <article><span>Settlement operator</span><strong>Release is autonomous</strong><p>Operator host loop signs Escrow V2 release unattended; hosted API never holds signing keys.</p></article>
-      </section>
-
-      <section class="console-grid screenshot-board dashboard-surface protocol-route" hidden>
-        <section class="panel workstream-panel">
-          <header><h2>Live activity</h2><span class="panel-badge">timeline</span></header>
-          <div class="flow-strip" aria-label="Protocol flow">
-            <span>Open</span>
-            <span>Claimed</span>
-            <span>Proof</span>
-            <span>Payable</span>
-            <span>Released</span>
-          </div>
-          <div class="event-list" id="events"></div>
-        </section>
-
+      <section class="console-grid dashboard-surface protocol-route" hidden>
         <section class="panel settlement-panel">
-          <header><h2>Proofs & payouts</h2><span class="panel-badge">Arc Testnet</span></header>
-          <p class="panel-note">
-            Live ledger from the hosted API. Rewards are Arc Testnet USDC. Rejected proofs never enter payout.
-          </p>
-          <div class="treasury-panel" aria-label="Prooflet treasury status">
-            <div><span>Network</span><strong id="treasuryNetwork">Arc Testnet</strong></div>
-            <div><span>Asset</span><strong id="treasuryAsset">USDC</strong></div>
-            <div class="wide"><span>Treasury address</span><strong id="treasuryAddress">Not reported by API</strong></div>
-            <div class="wide"><span>Available balance</span><strong id="treasuryBalance">Not reported by API</strong></div>
-            <div><span>Reserved</span><strong id="treasuryReserved">0.000 USDC</strong><small>Funded jobs not completed</small></div>
-            <div><span>Payable rewards</span><strong id="treasuryPending">0.000 USDC</strong><small>Approved proofs not paid</small></div>
-            <div><span>Paid</span><strong id="treasuryPaid">0.000 USDC</strong><small>Settled on Arc Testnet</small></div>
-          </div>
-          <div class="settlement-preview" aria-label="Ledger snapshot">
-            <div class="settlement-grid">
-              <div><span>Payable rewards</span><strong id="batchPending">0.000 USDC</strong></div>
-              <div><span>Approved proofs</span><strong id="batchApproved">0</strong></div>
-              <div><span>Rejected proofs</span><strong id="batchRejected">0</strong></div>
-              <div><span>Settlement</span><strong>Autonomous operator host</strong></div>
-              <div><span>Network</span><strong>Arc Testnet</strong></div>
-              <div><span>Release</span><strong>No keys in this browser</strong></div>
-            </div>
-            <a class="batch-download" id="batchDownload" download="prooflet-settlement-batch.json" hidden>Download batch JSON</a>
-            <pre id="batchPayload" aria-label="Settlement batch payload" hidden></pre>
-          </div>
+          <header><h2>Proofs</h2><span class="panel-badge">live ledger</span></header>
           <div class="ledger" id="ledger"></div>
         </section>
 
@@ -329,6 +241,11 @@
             <button data-queue-filter="rejected" type="button">Rejected</button>
           </nav>
           <div class="job-list" id="jobs"></div>
+        </section>
+
+        <section class="panel workstream-panel">
+          <header><h2>Activity</h2><span class="panel-badge">timeline</span></header>
+          <div class="event-list" id="events"></div>
         </section>
       </section>
 
