@@ -48,6 +48,10 @@ let events = [];
 
 const $ = (selector) => document.querySelector(selector);
 const money = (value) => value.toLocaleString("en-US", { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+const setText = (selector, value) => {
+  const el = $(selector);
+  if (el) el.textContent = value;
+};
 
 function modeLabel() {
   if (appMode === "live" && storageDurable === true) return "Live · durable path configured";
@@ -182,67 +186,39 @@ function render() {
   const pendingPayout = payableProofs.reduce((sum, item) => sum + item.amount, 0);
   const batch = buildSettlementBatch();
   const openJobs = jobs.filter((job) => queueState(job) === "open");
-  const actionProofs = [...payableProofs, ...rejectedProofs].slice(0, 4);
 
   if (appMode === "replay") {
-    $("#cyclesMetricLabel").textContent = "Worker cycles";
-    $("#cyclesMetric").textContent = idleCyclesUsed;
-    $("#activeMetric").textContent = `${active.length} active`;
-    if ($("#proofsMetricNote")) $("#proofsMetricNote").textContent = "replay simulation";
+    setText("#cyclesMetricLabel", "Worker cycles");
+    setText("#cyclesMetric", idleCyclesUsed);
+    setText("#activeMetric", `${active.length} active`);
+    setText("#proofsMetricNote", "replay simulation");
   } else {
-    $("#cyclesMetricLabel").textContent = "Open jobs";
-    $("#cyclesMetric").textContent = openJobs.length;
-    $("#activeMetric").textContent = `${active.length} claimed`;
-    if ($("#proofsMetricNote")) $("#proofsMetricNote").textContent = "current live ledger";
+    setText("#cyclesMetricLabel", "Open jobs");
+    setText("#cyclesMetric", openJobs.length);
+    setText("#activeMetric", `${active.length} claimed`);
+    setText("#proofsMetricNote", "current live ledger");
   }
-  $("#proofsMetric").textContent = ledger.length;
-  $("#pendingMetricMain").textContent = `${money(pendingPayout)} USDC`;
-  $("#earnedMetric").textContent = `${money(settled)} USDC`;
-  $("#arcMetric").textContent = paidProofs.length;
-  $("#rejectedMetricMain").textContent = rejectedProofs.length;
-  $("#needsActionCount").textContent = payableProofs.length;
-  $("#needsActionCopy").textContent = payableProofs.length
-    ? `${money(pendingPayout)} Arc Testnet USDC is approved and waiting for autonomous operator-host release.`
-    : "No proof packets are waiting for release.";
-  $("#opsOpenJobs").textContent = `${openJobs.length} ${openJobs.length === 1 ? "job" : "jobs"}`;
-  $("#opsProofQuality").textContent = `${acceptedProofs.length} accepted / ${rejectedProofs.length} rejected`;
-  $("#reviewQueueSummary").textContent = `${payableProofs.length} payable · ${rejectedProofs.length} rejected`;
-  $("#proofReviewList").innerHTML = actionProofs.length ? actionProofs.map((item) => `
-    <article class="proof-review-card ${item.outcome}">
-      <div>
-        <span>${escapeHtml(item.outcome === "accepted" ? "Payable packet" : "Rejected packet")}</span>
-        <strong>${escapeHtml(item.job)}</strong>
-        <p>${escapeHtml(item.agent)} · ${escapeHtml(item.jobId)} · ${escapeHtml(item.proof || item.rejectionReason || "Evidence packet recorded")}</p>
-      </div>
-      <div class="proof-review-status">
-        <b>${item.outcome === "accepted" ? `${money(item.amount)} USDC` : "No payout"}</b>
-        <small>${escapeHtml(proofStatus(item))}</small>
-      </div>
-    </article>
-  `).join("") : `<div class="queue-empty"><strong>No packets need action</strong><p>Approved proof packets will appear here when they become payable.</p></div>`;
-  $("#batchPending").textContent = `${money(batch.totalPayout)} USDC`;
-  $("#batchApproved").textContent = batch.approvedProofs;
-  $("#batchRejected").textContent = batch.rejectedProofs;
-  $("#treasuryNetwork").textContent = TREASURY.network || "Not reported";
-  $("#treasuryAsset").textContent = TREASURY.asset || "Not reported";
-  $("#treasuryAddress").textContent = TREASURY.address || "Not reported by API";
-  $("#treasuryBalance").textContent = TREASURY.availableBalance || "Not reported by API";
-  $("#treasuryReserved").textContent = `${money(reservedRewards)} USDC`;
-  $("#treasuryPending").textContent = `${money(pendingPayout)} USDC`;
-  $("#treasuryPaid").textContent = `${money(settled)} USDC`;
-  $("#treasuryPending").closest("div").classList.toggle("has-payable", pendingPayout > 0);
-  $("#systemApi").textContent = systemStatus.api;
-  $("#systemArc").textContent = systemStatus.arc;
-  $("#systemMode").textContent = systemStatus.mode || "Operator host";
-  $("#systemBatch").textContent = systemStatus.batch || "—";
-  $("#systemPayout").textContent =
-    systemStatus.payout > 0 ? `${money(systemStatus.payout)} USDC` : "—";
+  setText("#proofsMetric", ledger.length);
+  setText("#pendingMetricMain", `${money(pendingPayout)} USDC`);
+  setText("#earnedMetric", `${money(settled)} USDC`);
+  setText("#arcMetric", paidProofs.length);
+  setText("#rejectedMetricMain", rejectedProofs.length);
+  setText("#systemApi", systemStatus.api);
+  setText("#systemArc", systemStatus.arc);
+  setText("#systemMode", systemStatus.mode || "Operator host");
+  setText("#systemBatch", systemStatus.batch || "—");
+  setText(
+    "#systemPayout",
+    systemStatus.payout > 0 ? `${money(systemStatus.payout)} USDC` : "—",
+  );
   if (latestBatchPayload) renderPreparedBatch(batch);
   const runCycleBtn = $("#runCycle");
   if (runCycleBtn) runCycleBtn.disabled = appMode !== "replay" || running || queued.length === 0;
 
-  $("#events").innerHTML = events.length
-    ? events.map((event) => `
+  const eventsEl = $("#events");
+  if (eventsEl) {
+    eventsEl.innerHTML = events.length
+      ? events.map((event) => `
     <article class="event-row ${eventKindClass(event.kind)}">
       <div class="event-dot"></div>
       <div>
@@ -252,10 +228,13 @@ function render() {
       <span>${escapeHtml(event.meta)}</span>
     </article>
   `).join("")
-    : `<div class="empty-state"><strong>No live events yet</strong><p>Claims, proofs, and releases will show up here as they happen.</p></div>`;
+      : `<div class="empty-state"><strong>No live events yet</strong><p>Claims, proofs, and releases will show up here as they happen.</p></div>`;
+  }
 
   const visibleJobs = filteredJobs(jobs, activeQueueFilter).filter(job => !job.title?.includes("Fixture") && !job.title?.includes("fixture"));
-  $("#jobs").innerHTML = visibleJobs.length ? visibleJobs.map((job) => `
+  const jobsEl = $("#jobs");
+  if (jobsEl) {
+    jobsEl.innerHTML = visibleJobs.length ? visibleJobs.map((job) => `
     <article class="job ${queueState(job)} ${job.compoundParentId ? 'is-subtask' : ''} ${job.type === 'compound_job' ? 'is-compound' : ''}">
       <div class="job-main">
         <div style="display:flex; gap: 8px; align-items: center;">
@@ -269,6 +248,7 @@ function render() {
       <div class="payout"><strong>${money(job.reward)}</strong><span>USDC</span></div>
     </article>
   `).join("") : `<div class="queue-empty"><strong>No ${queueLabel(activeQueueFilter)} jobs</strong><p>Jobs will appear here when they enter this protocol state.</p></div>`;
+  }
   document.querySelectorAll("[data-queue-filter]").forEach((button) => {
     button.classList.toggle("active", button.dataset.queueFilter === activeQueueFilter);
     const count = filteredJobs(jobs, button.dataset.queueFilter).length;
@@ -280,13 +260,15 @@ function render() {
   const agentsSource = $("#agentsSource");
   if (agentsSource) agentsSource.textContent = `${workforceSource} · ${workforceCount}`;
 
-  if (!agents.length) {
-    $("#agents").innerHTML = `<div class="empty-state workforce-empty"><strong>${appMode === "loading" ? "Loading workforce" : "No public agents yet"}</strong><p>${appMode === "loading" ? "Fetching registered agents from the hosted API." : "Junk test agents are filtered. Real registered agents appear here."}</p></div>`;
-  } else {
-  $("#agents").innerHTML = agents.map((agent) => {
-    const agentKind = appMode === "replay" ? "Replay agent" : "Registered live agent";
-    const walletKind = agent.circleWalletId ? "Circle wallet" : "Manual payout";
-    return `
+  const agentsEl = $("#agents");
+  if (agentsEl) {
+    if (!agents.length) {
+      agentsEl.innerHTML = `<div class="empty-state workforce-empty"><strong>${appMode === "loading" ? "Loading workforce" : "No public agents yet"}</strong><p>${appMode === "loading" ? "Fetching registered agents from the hosted API." : "Junk test agents are filtered. Real registered agents appear here."}</p></div>`;
+    } else {
+      agentsEl.innerHTML = agents.map((agent) => {
+        const agentKind = appMode === "replay" ? "Replay agent" : "Registered live agent";
+        const walletKind = agent.circleWalletId ? "Circle wallet" : "Manual payout";
+        return `
     <article class="agent ${agentStatusClass(agent.status)}">
       <div class="agent-head">
         <div class="agent-icon">${escapeHtml(agent.icon)}</div>
@@ -298,12 +280,15 @@ function render() {
       <div class="agent-stats"><span>${money(agent.earned)} USDC</span><span>${Math.round(agent.score)} trust</span></div>
       <code>${escapeHtml(agent.payoutWallet || "No payout wallet")}</code>
     </article>`;
-  }).join("");
+      }).join("");
+    }
   }
 
   const visibleLedgerItems = ledger.filter(item => !item.job?.includes("Fixture") && !item.job?.includes("fixture"));
-  $("#ledger").innerHTML = visibleLedgerItems.length
-    ? visibleLedgerItems.map((item) => `
+  const ledgerEl = $("#ledger");
+  if (ledgerEl) {
+    ledgerEl.innerHTML = visibleLedgerItems.length
+      ? visibleLedgerItems.map((item) => `
     <article class="receipt ${proofOutcomeClass(item.outcome)}">
       <div>
         <strong>${escapeHtml(item.agent)}</strong>
@@ -318,7 +303,8 @@ function render() {
       </div>
     </article>
   `).join("")
-    : `<div class="empty-state"><strong>No proofs in the live ledger</strong><p>Verified agent work will appear here after submission.</p></div>`;
+      : `<div class="empty-state"><strong>No proofs in the live ledger</strong><p>Verified agent work will appear here after submission.</p></div>`;
+  }
 }
 
 function prepareBatch() {

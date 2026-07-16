@@ -2971,3 +2971,19 @@ td { border-bottom: 1px solid var(--line-subtle) !important; color: var(--ink-2)
     content: none;
   }
 }
+
+
+/* lean dashboard grid */
+.console-grid.dashboard-surface {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 12px;
+  padding-top: 12px !important;
+  padding-bottom: 32px !important;
+}
+.console-grid .settlement-panel { grid-column: 1 / -1; }
+.console-grid .queue-panel,
+.console-grid .workstream-panel { min-height: 280px; }
+@media (max-width: 900px) {
+  .console-grid.dashboard-surface { grid-template-columns: 1fr; }
+}
