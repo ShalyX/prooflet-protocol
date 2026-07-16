@@ -22,12 +22,18 @@ These constraints keep the project honest: the protocol demonstrates agent micro
 
 Payment **approval** can be automatic (deterministic verifiers or GenLayer finalize → `payable`).
 
-Payment **release** is **operator-supervised**, not a always-on hosted autopilot:
+Payment **release** is autonomous on the **operator host** (keys never on the public Render API / browser):
 
-| Path | Autonomous? |
+| Path | Autonomy |
 |---|---|
-| Schema / GenLayer → `payable` | Yes (on API path) |
-| Escrow V2 `release` on Arc | **No** until operator runs `escrow:v2:auto-release --execute` or CLI release |
-| Settlement daemon USDC send | **No** until daemon runs in execute mode with keys |
+| Schema / GenLayer → `payable` | Automatic on hosted API |
+| Escrow V2 `release` on Arc | **Autonomous** via operator loop: `npm run settlement:autonomous` (execute mode, 60s poll) |
+| Cron backup tick | `scripts/autonomous-settlement-tick.mjs` (silent when queue empty) |
+| Settlement daemon USDC send | Separate path for non-V2 batches; enable with execute mode if needed |
 
-Keys never live on the public Render API. Auto-release is a separate operator process (`workers/escrow-v2-auto-release.mjs`). Default is dry-run.
+Operator process:
+- Polls gated `GET /escrow/v2/payable` with `ESCROW_OPERATOR_API_KEY`
+- Signs `release` with `SETTLEMENT_OPERATOR_PRIVATE_KEY` / treasury key on Arc Testnet only
+- Posts authenticated `escrow-release-receipt` to update Neon ledger
+
+Still **not** “keys in the public API”. Autonomy = operator machine / Hermes host runs the loop unattended.

@@ -29,7 +29,9 @@ import {
 
 const flags = parseArgs(process.argv.slice(2));
 const API_URL = (flags.apiUrl || process.env.PROOFLET_API_URL || process.env.USEFUL_WAITING_API_URL || "https://prooflet-api.onrender.com").replace(/\/$/, "");
-const mode = flags.execute || process.env.ESCROW_V2_AUTO_RELEASE_MODE === "execute" ? "execute" : "dry-run";
+let mode = process.env.ESCROW_V2_AUTO_RELEASE_MODE === "execute" ? "execute" : "dry-run";
+if (flags.execute === true) mode = "execute";
+if (flags.execute === false) mode = "dry-run";
 const once = Boolean(flags.once) || process.env.ESCROW_V2_AUTO_RELEASE_ONCE === "true";
 const intervalMs = Number(flags.intervalMs || process.env.ESCROW_V2_AUTO_RELEASE_INTERVAL_MS || 30_000);
 const RPC_URL = process.env.ARC_RPC_URL || process.env.ARC_TESTNET_RPC_URL || "https://rpc.testnet.arc.network";
@@ -71,14 +73,20 @@ async function waitReceipt(hash, attempts = 12) {
   throw lastError;
 }
 
-async function fetchPayable() {
+async function operatorHeaders(json = false) {
   const key =
     process.env.ESCROW_OPERATOR_API_KEY ||
     process.env.OPERATOR_API_KEY ||
     process.env.ADJUDICATOR_API_KEY ||
     "";
-  const headers = key ? { authorization: `Bearer ${key}`, "x-api-key": key } : {};
-  const res = await fetch(`${API_URL}/escrow/v2/payable`, { headers });
+  return {
+    ...(json ? { "content-type": "application/json" } : {}),
+    ...(key ? { authorization: `Bearer ${key}`, "x-api-key": key } : {}),
+  };
+}
+
+async function fetchPayable() {
+  const res = await fetch(`${API_URL}/escrow/v2/payable`, { headers: await operatorHeaders() });
   const body = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(`payable list failed: ${res.status} ${JSON.stringify(body)}`);
   return body;
@@ -150,11 +158,11 @@ async function releaseOne(item) {
   try {
     const res = await fetch(`${API_URL}/jobs/${encodeURIComponent(item.jobId)}/escrow-release-receipt`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: await operatorHeaders(true),
       body: JSON.stringify({ txHash: hash, agentAddress: item.agentPayoutAddress }),
     });
     const body = await res.json().catch(() => ({}));
-    ledger = { ok: res.ok, status: res.status, escrowStatus: body.job?.escrowStatus };
+    ledger = { ok: res.ok, status: res.status, escrowStatus: body.job?.escrowStatus, error: body.error };
   } catch (error) {
     ledger = { ok: false, error: String(error.message || error) };
   }
