@@ -1878,3 +1878,15 @@ body:not([data-app-mode="replay"]) .replay-note { display: none; }
 .archive-evidence header span { color: var(--amber); font-weight: 900; }
 .archive-evidence ul { display: grid; gap: 8px; list-style: none; margin: 0; padding: 0; }
 .archive-evidence a { color: var(--mint); }
+
+
+/* Live ledger ticker (landing) */
+.live-ticker{margin-top:22px;display:flex;gap:12px;align-items:center;padding:10px 12px;border:1px solid var(--line);background:rgba(30,26,22,.85);border-radius:12px;overflow:hidden}
+.live-ticker-label{flex:0 0 auto;font-size:.68rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--green)}
+.live-ticker-track{display:flex;gap:10px;overflow-x:auto;scrollbar-width:thin;white-space:nowrap;padding-bottom:2px}
+.live-ticker-item{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid var(--line-strong);border-radius:999px;background:#12100d;font-size:.78rem;color:var(--muted)}
+.live-ticker-item b{color:var(--text);font-weight:700;text-transform:uppercase;font-size:.68rem}
+.live-ticker-item code{color:var(--amber);font-size:.72rem}
+.live-ticker-item[data-status="payable"]{border-color:#2f6b4a}
+.live-ticker-item[data-status="paid"],.live-ticker-item[data-status="accepted"]{border-color:#2f6b4a}
+.live-ticker-item[data-status="rejected"]{border-color:#6b2f2f}
