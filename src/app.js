@@ -107,6 +107,10 @@ function clearLiveState() {
 }
 
 function enterReplayMode() {
+  const ok = window.confirm(
+    "Replay replaces the live ledger with a browser-only simulation (zeros until you run cycles).\n\nLive data returns when you exit replay. Continue?",
+  );
+  if (!ok) return;
   hydrationVersion += 1;
   replayGeneration += 1;
   running = false;
@@ -120,6 +124,8 @@ function enterReplayMode() {
   apiError = null;
   renderLeaderboardUnavailable();
   render();
+  const toggle = document.getElementById("toggleReplay");
+  if (toggle) toggle.textContent = "Exit replay · restore live";
 }
 
 function renderArchiveEvidence() {
@@ -157,7 +163,7 @@ function render() {
   const reservedRewards = jobs.filter((job) => job.fundingStatus === "reserved").reduce((sum, item) => sum + item.reward, 0);
   const pendingPayout = payableProofs.reduce((sum, item) => sum + item.amount, 0);
   const batch = buildSettlementBatch();
-  const openJobs = jobs.filter((job) => ["queued", "open"].includes(job.state));
+  const openJobs = jobs.filter((job) => queueState(job) === "open");
   const actionProofs = [...payableProofs, ...rejectedProofs].slice(0, 4);
 
   if (appMode === "replay") {
@@ -178,7 +184,7 @@ function render() {
   $("#rejectedMetricMain").textContent = rejectedProofs.length;
   $("#needsActionCount").textContent = payableProofs.length;
   $("#needsActionCopy").textContent = payableProofs.length
-    ? `${money(pendingPayout)} Arc Testnet USDC is approved and waiting for operator release.`
+    ? `${money(pendingPayout)} Arc Testnet USDC is approved and waiting for autonomous operator-host release.`
     : "No proof packets are waiting for release.";
   $("#opsOpenJobs").textContent = `${openJobs.length} ${openJobs.length === 1 ? "job" : "jobs"}`;
   $("#opsProofQuality").textContent = `${acceptedProofs.length} accepted / ${rejectedProofs.length} rejected`;
@@ -800,7 +806,6 @@ async function hydrateEscrowV2ProtocolPanel() {
         contractEl.innerHTML = `<a href="${ARCSCAN}/address/${escapeHtml(cfg.contract)}" target="_blank" rel="noreferrer">${escapeHtml(cfg.contract)}</a>`;
       }
     }
-    if (countEl) countEl.textContent = String(payable.count ?? (payable.items || []).length ?? "—");
     if (sellerEl) {
       try {
         const nano = await fetch(`${API_URL}/nanopayment/config`).then((r) => r.json());
@@ -809,18 +814,61 @@ async function hydrateEscrowV2ProtocolPanel() {
         sellerEl.textContent = "—";
       }
     }
+
+    // Operator-gated queue: do not fake empty on 403. Use public dashboard ledger for transparency depth.
+    if (payRes.status === 403 || payable.error) {
+      const publicItems = ledger
+        .filter((p) => p.fundingStatus === "payable")
+        .map((p) => {
+          const job = jobs.find((j) => j.id === p.jobId || j.jobId === p.jobId);
+          return {
+            jobId: p.jobId,
+            proofId: p.id || p.proofId,
+            agentId: p.agentId,
+            rewardAmount: money(p.amount || job?.reward || 0),
+            ready: true,
+            public: true,
+          };
+        });
+      if (countEl) countEl.textContent = String(publicItems.length);
+      if (!publicItems.length) {
+        body.innerHTML =
+          '<tr><td colspan="5">No payable proofs in the public ledger. Detailed Escrow V2 operator queue is authenticated (403 without operator key).</td></tr>';
+        return;
+      }
+      body.innerHTML =
+        `<tr><td colspan="5" class="proto-note">Operator queue is key-gated. Public view uses live payable proofs (no payout addresses).</td></tr>` +
+        publicItems
+          .map(
+            (item) => `<tr>
+        <td class="mono-data">${escapeHtml(item.jobId)}</td>
+        <td class="mono-data">${escapeHtml(item.proofId)}</td>
+        <td class="mono-data">${escapeHtml(item.agentId)}</td>
+        <td>${escapeHtml(item.rewardAmount)} USDC</td>
+        <td><span class="state-badge completed">Payable</span></td>
+      </tr>`,
+          )
+          .join("");
+      return;
+    }
+
+    if (countEl) countEl.textContent = String(payable.count ?? (payable.items || []).length ?? "—");
     const items = payable.items || [];
     if (!items.length) {
       body.innerHTML = '<tr><td colspan="5">No Escrow V2 proofs awaiting release</td></tr>';
       return;
     }
-    body.innerHTML = items.map((item) => `<tr>
+    body.innerHTML = items
+      .map(
+        (item) => `<tr>
       <td class="mono-data">${escapeHtml(item.jobId)}</td>
       <td class="mono-data">${escapeHtml(item.proofId)}</td>
       <td class="mono-data">${escapeHtml(item.agentId)}</td>
       <td>${escapeHtml(item.rewardAmount)} USDC</td>
       <td>${item.ready ? '<span class="state-badge completed">Ready</span>' : '<span class="state-badge draft">Missing payout</span>'}</td>
-    </tr>`).join("");
+    </tr>`,
+      )
+      .join("");
   } catch {
     if (countEl) countEl.textContent = "Unavailable";
     if (contractEl) contractEl.textContent = "Unavailable";
@@ -888,15 +936,17 @@ function filteredJobs(allJobs, filter) {
 }
 
 function queueState(job) {
-  if (job.fundingStatus === "paid") return "paid";
+  if (job.fundingStatus === "paid" || job.escrowStatus === "released") return "paid";
   if (job.fundingStatus === "rejected" || job.state === "rejected") return "rejected";
   if (job.fundingStatus === "payable") return "payable";
-  if (job.state === "running") return "claimed";
-  return "open";
+  if (job.state === "running" || job.claimedBy || job.agentId) return "claimed";
+  if (job.state === "open" || job.state === "queued") return "open";
+  // draft / completed / other — not "open" for queue badges
+  return "other";
 }
 
 function queueRank(job) {
-  return { open: 0, payable: 1, claimed: 2, paid: 3, rejected: 4 }[queueState(job)] ?? 5;
+  return { open: 0, payable: 1, claimed: 2, paid: 3, rejected: 4, other: 5 }[queueState(job)] ?? 5;
 }
 
 function queueLabel(filter) { return filter === "priority" ? "open or payable" : filter; }
@@ -940,7 +990,13 @@ $("#runCycle").addEventListener("click", runCycle);
 $("#prepareBatch").addEventListener("click", prepareBatch);
 $("#prepareBatchHero").addEventListener("click", prepareBatch);
 $("#toggleReplay").addEventListener("click", () => {
-  if (appMode === "replay") hydrateFromApi({ force: true }); else enterReplayMode();
+  if (appMode === "replay") {
+    const toggle = document.getElementById("toggleReplay");
+    if (toggle) toggle.textContent = "Enter replay (sim)";
+    hydrateFromApi({ force: true });
+  } else {
+    enterReplayMode();
+  }
 });
 const agentRegisterForm = document.getElementById("agentRegisterForm");
 if (agentRegisterForm) agentRegisterForm.addEventListener("submit", registerAgentWithWallet);
