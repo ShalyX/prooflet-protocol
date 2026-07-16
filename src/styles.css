@@ -2973,17 +2973,41 @@ td { border-bottom: 1px solid var(--line-subtle) !important; color: var(--ink-2)
 }
 
 
-/* lean dashboard grid */
+/* lean dashboard grid — must fully reset legacy named areas */
 .console-grid.dashboard-surface {
-  display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
-  gap: 12px;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+  grid-template-rows: auto auto !important;
+  grid-template-areas: "settlement settlement" "queue stream" !important;
+  gap: 12px !important;
+  align-items: stretch !important;
   padding-top: 12px !important;
   padding-bottom: 32px !important;
 }
-.console-grid .settlement-panel { grid-column: 1 / -1; }
-.console-grid .queue-panel,
-.console-grid .workstream-panel { min-height: 280px; }
+.console-grid.dashboard-surface > .settlement-panel {
+  grid-area: settlement !important;
+  min-height: 280px !important;
+  max-height: none !important;
+  border: 1px solid var(--line) !important;
+  box-shadow: none !important;
+}
+.console-grid.dashboard-surface > .queue-panel {
+  grid-area: queue !important;
+  min-height: 280px !important;
+}
+.console-grid.dashboard-surface > .workstream-panel {
+  grid-area: stream !important;
+  min-height: 280px !important;
+}
+.console-grid.dashboard-surface .ledger,
+.console-grid.dashboard-surface .event-list,
+.console-grid.dashboard-surface .job-list {
+  max-height: 420px;
+  overflow: auto;
+}
 @media (max-width: 900px) {
-  .console-grid.dashboard-surface { grid-template-columns: 1fr; }
+  .console-grid.dashboard-surface {
+    grid-template-columns: 1fr !important;
+    grid-template-areas: "settlement" "queue" "stream" !important;
+  }
 }
