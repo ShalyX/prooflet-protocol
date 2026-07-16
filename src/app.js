@@ -1073,24 +1073,56 @@ function renderRoute() {
   let route = product.includes(location.pathname) ? location.pathname : "/dashboard";
   const landing = document.querySelector("#landingRoute");
   if (landing) landing.hidden = true;
-  document.querySelectorAll(".protocol-route").forEach((element) => {
-    element.hidden = false;
-  });
-  document.querySelectorAll(".dashboard-surface").forEach((element) => {
-    element.hidden = route !== "/dashboard";
-  });
-  document.querySelectorAll(".agents-surface").forEach((element) => {
-    element.hidden = route !== "/agents";
-  });
-  if ($("#protocolPage")) $("#protocolPage").hidden = route !== "/protocol";
-  // Console chrome always on product shell
+
+  // Always-on product chrome
   document.querySelectorAll(".console-bar, .system-strip, .protocol-footer").forEach((el) => {
     el.hidden = false;
   });
+
+  // Dashboard-only surfaces (metrics, ops center, review, ledger grid, etc.)
+  document.querySelectorAll(".dashboard-surface").forEach((element) => {
+    element.hidden = route !== "/dashboard";
+  });
+
+  // Agents-only surfaces
+  document.querySelectorAll(".agents-surface").forEach((element) => {
+    element.hidden = route !== "/agents";
+  });
+
+  // Protocol page
+  if ($("#protocolPage")) $("#protocolPage").hidden = route !== "/protocol";
+
+  // Issuer / agent workbenches are explicit (also carry protocol-route)
   if (route === "/issuer") issuerWorkbench.show();
   else issuerWorkbench.hide();
   if (route === "/agents") agentWorkbench.show();
   else agentWorkbench.hide();
+
+  // Defensive: any leftover protocol-route that is not shared chrome / active surface
+  document.querySelectorAll(".protocol-route").forEach((element) => {
+    if (element.matches(".console-bar, .system-strip, .protocol-footer")) return;
+    if (element.matches(".dashboard-surface")) {
+      element.hidden = route !== "/dashboard";
+      return;
+    }
+    if (element.matches(".agents-surface") || element.closest(".agents-surface")) {
+      element.hidden = route !== "/agents";
+      return;
+    }
+    if (element.id === "protocolPage") {
+      element.hidden = route !== "/protocol";
+      return;
+    }
+    if (element.id === "issuerWorkbench") {
+      element.hidden = route !== "/issuer";
+      return;
+    }
+    if (element.id === "agentWorkbench" || element.closest("#agentWorkbench")) {
+      // agentWorkbench lives inside agents-surface; parent handles visibility
+      return;
+    }
+  });
+
   document.querySelectorAll(".page-nav a").forEach((link) => link.classList.toggle("active", link.pathname === route));
   document.title =
     route === "/issuer"
