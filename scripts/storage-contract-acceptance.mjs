@@ -55,7 +55,7 @@ try {
   assert.equal(store.dialect, "sqlite");
   assert.ok(store.native);
   const health = await store.health();
-  assert.deepEqual(health, { connected: true, migrationVersion: 13, foreignKeys: true });
+  assert.deepEqual(health, { connected: true, migrationVersion: 14, foreignKeys: true });
 
   await store.transaction(async (transactionStore) => {
     transactionStore.native.prepare("INSERT INTO issuers (issuer_id,name,status,created_at) VALUES (?,?,?,?)")
