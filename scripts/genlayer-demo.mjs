@@ -73,7 +73,7 @@ export async function runGenLayerDemo({ decision = readDecision(), quiet = false
     }, registered.apiKey);
     if (pending.proof.fundingStatus !== "pending_adjudication") throw new Error("Demo proof did not enter pending_adjudication before mock routing.");
 
-    process.env.ADJUDICATION_MODE = process.env.GENLAYER_ENABLED === "true" ? "genlayer" : "mock_genlayer";
+    process.env.ADJUDICATION_MODE = process.env.GENLAYER_LIVE === "true" ? "genlayer" : "mock_genlayer";
     const routed = await request(baseUrl, "POST", `/adjudication/genlayer/proofs/${proofId}/submit`, null, DEV_KEYS.genlayerOperator);
     const status = await request(baseUrl, "GET", `/adjudication/genlayer/proofs/${proofId}`, null, DEV_KEYS.genlayerOperator);
     const proof = db.prepare("SELECT funding_status,settlement_status,verification_status FROM proofs WHERE proof_id=?").get(proofId);
