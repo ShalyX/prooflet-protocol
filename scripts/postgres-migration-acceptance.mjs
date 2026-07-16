@@ -28,7 +28,10 @@ try {
     assert.equal("native" in first, false);
 
     const migrationRows = await first.query("SELECT version,name FROM schema_migrations ORDER BY version");
-    assert.deepEqual(migrationRows.rows, [{ version: POSTGRES_MIGRATION_VERSION, name: "postgres_v13_compatibility_baseline" }]);
+    assert.deepEqual(migrationRows.rows, [
+      { version: 13, name: "postgres_v13_compatibility_baseline" },
+      { version: 14, name: "wallet_auth_nonces_v14" },
+    ]);
 
     const tables = await admin.query(
       "SELECT table_name FROM information_schema.tables WHERE table_schema=$1 ORDER BY table_name",
@@ -42,6 +45,7 @@ try {
       "genlayer_adjudication_requests", "genlayer_adjudication_decisions",
       "issuer_uploads", "issuer_upload_rows", "compound_jobs",
       "settlement_batches", "settlement_transactions", "settlement_failures",
+      "wallet_auth_nonces",
       "schema_migrations",
     ]) assert.equal(tableNames.has(required), true, `Missing Postgres table ${required}`);
 

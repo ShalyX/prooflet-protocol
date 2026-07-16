@@ -25,6 +25,7 @@ import {
 import { escrowV2Config, isTxHash, jobIdToBytes32, verifyFundJobTransaction, verifyReleaseTransaction } from "./escrow-v2.mjs";
 import { fundEscrowV2FromCircleWallet } from "./issuer-escrow-fund.mjs";
 import { createWalletNonce, verifyWalletSession, isEscrowOperatorRequest } from "./auth-wallet.mjs";
+import { filterPublicAgents } from "./public-agent-filter.mjs";
 
 export function createApp({
   db: injectedDb,
@@ -524,9 +525,9 @@ export function createApp({
   });
 
   // Wallet SIWE-style session restore (optional — not full account abstraction).
-  app.post("/auth/wallet/nonce", (request, response) => {
+  app.post("/auth/wallet/nonce", async (request, response) => {
     const { address } = request.body || {};
-    response.json({ ok: true, ...createWalletNonce(address) });
+    response.json({ ok: true, ...(await createWalletNonce(db, address)) });
   });
 
   app.post("/auth/wallet/session", async (request, response) => {
@@ -1042,23 +1043,29 @@ export function createApp({
       LEFT JOIN agent_reputation_summary rs ON rs.agent_id = a.agent_id
       ORDER BY rs.approved_proofs DESC, a.reputation_score DESC
     `).all();
-    const ranked = rows.map((row, i) => ({
-      rank: i + 1,
-      agentId: row.agent_id,
-      name: row.name,
-      score: row.reputation_score,
-      approvedProofs: row.approved_proofs,
-      paidProofs: row.paid_proofs,
-      settledVolume: row.settled_volume,
-      duplicateRate: row.duplicate_rate,
-      riskFlag: row.risk_flag,
-      accessLevel: row.access_level,
-      status: row.status,
-    }));
+    const ranked = filterPublicAgents(
+      rows.map((row, i) => ({
+        rank: i + 1,
+        agentId: row.agent_id,
+        name: row.name,
+        score: row.reputation_score,
+        approvedProofs: row.approved_proofs,
+        paidProofs: row.paid_proofs,
+        settledVolume: row.settled_volume,
+        duplicateRate: row.duplicate_rate,
+        riskFlag: row.risk_flag,
+        accessLevel: row.access_level,
+        status: row.status,
+      })),
+    );
     response.json({ leaderboard: ranked });
   });
 
-  app.get("/agents", async (_request, response) => response.json({ agents: (await db.prepare("SELECT * FROM agents ORDER BY agent_id").all()).map(serializeAgent) }));
+  app.get("/agents", async (_request, response) =>
+    response.json({
+      agents: filterPublicAgents((await db.prepare("SELECT * FROM agents ORDER BY agent_id").all()).map(serializeAgent)),
+    }),
+  );
   app.get("/jobs", async (_request, response) => {
     await expireLeases(db);
     response.json({ jobs: (await db.prepare("SELECT * FROM jobs ORDER BY created_at DESC, job_id DESC").all()).map(serializeJob) });
@@ -1237,7 +1244,7 @@ async function buildDashboard(db, circle) {
     version: "v0",
     issuer: issuer ? { issuerId: issuer.issuer_id, name: issuer.name, treasuryAddress: issuer.treasury_address } : null,
     treasury: { network: "Arc Testnet", asset: "USDC", reservedRewards: reserved, pendingPayout: await sum("payable"), paidOut: await sum("paid") },
-    agents,
+    agents: filterPublicAgents(agents),
     jobs,
     proofs,
     settlements,

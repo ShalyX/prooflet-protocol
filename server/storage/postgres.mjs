@@ -8,9 +8,10 @@ import {
   withPostgresTransaction,
 } from "./index.mjs";
 
-export const POSTGRES_MIGRATION_VERSION = 13;
+export const POSTGRES_MIGRATION_VERSION = 14;
 const MIGRATION_NAME = "postgres_v13_compatibility_baseline";
 const BASELINE_SQL_URL = new URL("./postgres/migrations/013_v13_compatibility_baseline.sql", import.meta.url);
+const WALLET_NONCE_MIGRATION = "wallet_auth_nonces_v14";
 const SAFE_SCHEMA = /^[a-z_][a-z0-9_]{0,62}$/;
 const REVOKED_API_KEY_HASHES = [
   "ac5aa45be82d1f55f17cdb2cade05fc317495b7e5b3d9fb679a9a9035ceba16d",
@@ -129,18 +130,37 @@ export async function runPostgresMigrations(pool, { schema = "public" } = {}) {
     `);
     const applied = await client.query(
       "SELECT version, name FROM schema_migrations WHERE version=$1",
-      [POSTGRES_MIGRATION_VERSION],
+      [13],
     );
     if (applied.rowCount === 0) {
       const sql = await readFile(BASELINE_SQL_URL, "utf8");
       await client.query(sql);
       await client.query(
         "INSERT INTO schema_migrations (version,name,applied_at) VALUES ($1,$2,$3)",
-        [POSTGRES_MIGRATION_VERSION, MIGRATION_NAME, new Date().toISOString()],
+        [13, MIGRATION_NAME, new Date().toISOString()],
       );
     } else if (applied.rows[0].name !== MIGRATION_NAME) {
-      throw new Error(`Unexpected Postgres migration name for version ${POSTGRES_MIGRATION_VERSION}: ${applied.rows[0].name}`);
+      throw new Error(`Unexpected Postgres migration name for version 13: ${applied.rows[0].name}`);
     }
+
+    const v14 = await client.query("SELECT version, name FROM schema_migrations WHERE version=$1", [14]);
+    if (v14.rowCount === 0) {
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS wallet_auth_nonces (
+          address TEXT PRIMARY KEY,
+          nonce TEXT NOT NULL,
+          message TEXT NOT NULL,
+          expires_at TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        )
+      `);
+      await client.query(`CREATE INDEX IF NOT EXISTS idx_wallet_auth_nonces_expires ON wallet_auth_nonces(expires_at)`);
+      await client.query(
+        "INSERT INTO schema_migrations (version,name,applied_at) VALUES ($1,$2,$3)",
+        [14, WALLET_NONCE_MIGRATION, new Date().toISOString()],
+      );
+    }
+
     await revokeSourceVisibleDevelopmentCredentials(client);
     await client.query("COMMIT");
   } catch (error) {

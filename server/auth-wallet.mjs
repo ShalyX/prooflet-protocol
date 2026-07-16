@@ -1,18 +1,47 @@
 import { randomBytes, createHash } from "node:crypto";
 import { verifyMessage } from "viem";
-import { generateApiKey, storeApiKey, hashApiKey } from "./auth.mjs";
+import { generateApiKey, storeApiKey } from "./auth.mjs";
 
-const nonces = new Map(); // address(lower) -> { nonce, expiresAt }
+const NONCE_TTL_MS = 5 * 60 * 1000;
+let tableReady = false;
 
-function cleanupNonces() {
-  const now = Date.now();
-  for (const [k, v] of nonces) {
-    if (v.expiresAt <= now) nonces.delete(k);
-  }
+async function q(value) {
+  return value && typeof value.then === "function" ? await value : value;
 }
 
-export function createWalletNonce(address) {
-  cleanupNonces();
+async function ensureWalletNonceTable(db) {
+  if (tableReady) return;
+  await q(
+    db
+      .prepare(
+        `CREATE TABLE IF NOT EXISTS wallet_auth_nonces (
+      address TEXT PRIMARY KEY,
+      nonce TEXT NOT NULL,
+      message TEXT NOT NULL,
+      expires_at TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    )`,
+      )
+      .run(),
+  );
+  // Best-effort index; ignore if dialect complains on re-run.
+  try {
+    await q(db.prepare(`CREATE INDEX IF NOT EXISTS idx_wallet_auth_nonces_expires ON wallet_auth_nonces(expires_at)`).run());
+  } catch {
+    /* sqlite/pg both support IF NOT EXISTS; ignore rare races */
+  }
+  tableReady = true;
+}
+
+async function purgeExpiredNonces(db) {
+  const now = new Date().toISOString();
+  await q(db.prepare(`DELETE FROM wallet_auth_nonces WHERE expires_at < ?`).run(now));
+}
+
+export async function createWalletNonce(db, address) {
+  await ensureWalletNonceTable(db);
+  await purgeExpiredNonces(db);
+
   const addr = String(address || "").toLowerCase();
   if (!/^0x[a-f0-9]{40}$/.test(addr)) {
     const err = new Error("address must be a 0x EVM address");
@@ -20,10 +49,10 @@ export function createWalletNonce(address) {
     err.expose = true;
     throw err;
   }
+
   const nonce = randomBytes(16).toString("hex");
   const issuedAt = new Date().toISOString();
-  const expiresAt = Date.now() + 5 * 60 * 1000;
-  nonces.set(addr, { nonce, expiresAt });
+  const expiresAt = new Date(Date.now() + NONCE_TTL_MS).toISOString();
   const message = [
     "Prooflet session",
     `Address: ${addr}`,
@@ -31,10 +60,25 @@ export function createWalletNonce(address) {
     `Issued: ${issuedAt}`,
     "Sign this message to restore a browser session. No gas. No transfer.",
   ].join("\n");
-  return { address: addr, nonce, message, expiresInSec: 300 };
+
+  // Upsert: one active nonce per address
+  await q(db.prepare(`DELETE FROM wallet_auth_nonces WHERE address = ?`).run(addr));
+  await q(
+    db
+      .prepare(
+        `INSERT INTO wallet_auth_nonces (address, nonce, message, expires_at, created_at)
+         VALUES (?, ?, ?, ?, ?)`,
+      )
+      .run(addr, nonce, message, expiresAt, issuedAt),
+  );
+
+  return { address: addr, nonce, message, expiresInSec: Math.floor(NONCE_TTL_MS / 1000) };
 }
 
 export async function verifyWalletSession(db, { address, message, signature, role }) {
+  await ensureWalletNonceTable(db);
+  await purgeExpiredNonces(db);
+
   const addr = String(address || "").toLowerCase();
   if (!/^0x[a-f0-9]{40}$/.test(addr)) {
     const err = new Error("address must be a 0x EVM address");
@@ -55,17 +99,19 @@ export async function verifyWalletSession(db, { address, message, signature, rol
     throw err;
   }
 
-  cleanupNonces();
-  const entry = nonces.get(addr);
-  if (!entry || !String(message).includes(`Nonce: ${entry.nonce}`)) {
-    const err = new Error("Unknown or expired wallet nonce. Request a new one.");
-    err.status = 401;
-    err.code = "wallet_nonce_invalid";
-    err.expose = true;
-    throw err;
+  const entry = await q(db.prepare(`SELECT * FROM wallet_auth_nonces WHERE address = ?`).get(addr));
+  if (!entry || entry.nonce !== extractNonce(message) || entry.message !== message) {
+    // Also accept if message embeds stored nonce (clients may only send signed message)
+    if (!entry || !String(message).includes(`Nonce: ${entry.nonce}`)) {
+      const err = new Error("Unknown or expired wallet nonce. Request a new one.");
+      err.status = 401;
+      err.code = "wallet_nonce_invalid";
+      err.expose = true;
+      throw err;
+    }
   }
-  if (entry.expiresAt <= Date.now()) {
-    nonces.delete(addr);
+  if (new Date(entry.expires_at).getTime() <= Date.now()) {
+    await q(db.prepare(`DELETE FROM wallet_auth_nonces WHERE address = ?`).run(addr));
     const err = new Error("Wallet nonce expired. Request a new one.");
     err.status = 401;
     err.code = "wallet_nonce_expired";
@@ -75,11 +121,7 @@ export async function verifyWalletSession(db, { address, message, signature, rol
 
   let valid = false;
   try {
-    valid = await verifyMessage({
-      address: addr,
-      message,
-      signature,
-    });
+    valid = await verifyMessage({ address: addr, message, signature });
   } catch {
     valid = false;
   }
@@ -90,11 +132,13 @@ export async function verifyWalletSession(db, { address, message, signature, rol
     err.expose = true;
     throw err;
   }
-  nonces.delete(addr);
+
+  // One-time use
+  await q(db.prepare(`DELETE FROM wallet_auth_nonces WHERE address = ?`).run(addr));
 
   let principal = null;
   if (role === "agent") {
-    const row = await Promise.resolve(
+    const row = await q(
       db
         .prepare(
           `SELECT agent_id, name, payout_address FROM agents
@@ -111,23 +155,19 @@ export async function verifyWalletSession(db, { address, message, signature, rol
     }
     principal = { role: "agent", id: row.agent_id, name: row.name, address: row.payout_address };
   } else {
-    // Prefer treasury / wallet address fields when present.
-    const row = await Promise.resolve(
+    let issuer = await q(
       db
         .prepare(
-          `SELECT issuer_id, name, treasury_address, circle_wallet_id
+          `SELECT issuer_id, name, treasury_address
            FROM issuers
            WHERE lower(coalesce(treasury_address, '')) = ?
-              OR lower(coalesce(circle_wallet_id, '')) = ?
            LIMIT 1`,
         )
-        .get(addr, addr),
+        .get(addr),
     );
-    // Also match if circle_wallets table exists with address
-    let issuer = row;
     if (!issuer) {
       try {
-        issuer = await Promise.resolve(
+        issuer = await q(
           db
             .prepare(
               `SELECT i.issuer_id, i.name, i.treasury_address
@@ -143,30 +183,22 @@ export async function verifyWalletSession(db, { address, message, signature, rol
       }
     }
     if (!issuer) {
-      const err = new Error(
-        "No issuer bound to this wallet. Register first, or restore with session key.",
-      );
+      const err = new Error("No issuer bound to this wallet. Register first, or restore with session key.");
       err.status = 404;
       err.code = "wallet_principal_not_found";
       err.expose = true;
       throw err;
     }
-    principal = {
-      role: "issuer",
-      id: issuer.issuer_id,
-      name: issuer.name,
-      address: addr,
-    };
+    principal = { role: "issuer", id: issuer.issuer_id, name: issuer.name, address: addr };
   }
 
-  // Mint a fresh tab session key (hash stored; plaintext returned once).
   const apiKey = generateApiKey(role === "agent" ? "agent" : "issuer");
   await storeApiKey(db, principal.role, principal.id, apiKey);
   return {
     ...principal,
     apiKey,
     auth: "wallet_siwe",
-    note: "Session key stored for this tab only. Private keys never leave the wallet.",
+    note: "Session key stored for this tab only. Private keys never leave the wallet. Nonce was durable (DB).",
   };
 }
 
@@ -181,11 +213,15 @@ export function isEscrowOperatorRequest(request) {
     process.env.ADJUDICATOR_API_KEY ||
     "";
   if (!expected || !apiKey) return false;
-  // Constant-time-ish compare
   const a = createHash("sha256").update(String(apiKey)).digest();
   const b = createHash("sha256").update(String(expected)).digest();
   if (a.length !== b.length) return false;
   let out = 0;
   for (let i = 0; i < a.length; i++) out |= a[i] ^ b[i];
   return out === 0;
+}
+
+function extractNonce(message) {
+  const m = String(message || "").match(/Nonce:\s*([a-f0-9]+)/i);
+  return m ? m[1] : null;
 }

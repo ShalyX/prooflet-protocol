@@ -20,7 +20,7 @@ try {
   assert.equal(response.headers.get("referrer-policy"), "no-referrer");
   assert.match(response.headers.get("x-request-id") || "", /^[0-9a-f-]{36}$/i);
   assert.deepEqual(Object.keys(body).sort(), ["database", "ok", "protocol", "requestId", "storage", "version"].sort());
-  assert.deepEqual(body.database, { connected: true, migrationVersion: 13, foreignKeys: true });
+  assert.deepEqual(body.database, { connected: true, migrationVersion: 14, foreignKeys: true });
   assert.equal(body.storage.configured, true);
   assert.equal(body.storage.durable, false);
   assert.equal(body.storage.mode, "local");
