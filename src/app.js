@@ -253,11 +253,14 @@ function render() {
     button.dataset.count = count;
   });
 
-  const workforceSource = appMode === "live" ? "Source: live API / registered agents" : appMode === "replay" ? "Source: browser-only replay" : "Source: live state unavailable";
-  const workforceCount = `${agents.length} registered ${agents.length === 1 ? "agent" : "agents"}`;
+  const workforceSource = appMode === "live" ? "Live API" : appMode === "replay" ? "Replay" : "Unavailable";
+  const workforceCount = `${agents.length} ${agents.length === 1 ? "agent" : "agents"}`;
   const agentsSource = $("#agentsSource");
   if (agentsSource) agentsSource.textContent = `${workforceSource} · ${workforceCount}`;
 
+  if (!agents.length) {
+    $("#agents").innerHTML = `<div class="empty-state workforce-empty"><strong>${appMode === "loading" ? "Loading workforce" : "No public agents yet"}</strong><p>${appMode === "loading" ? "Fetching registered agents from the hosted API." : "Junk test agents are filtered. Real registered agents appear here."}</p></div>`;
+  } else {
   $("#agents").innerHTML = agents.map((agent) => {
     const agentKind = appMode === "replay" ? "Replay agent" : "Registered live agent";
     const walletKind = agent.circleWalletId ? "Circle wallet" : "Manual payout";
@@ -274,6 +277,7 @@ function render() {
       <code>${escapeHtml(agent.payoutWallet || "No payout wallet")}</code>
     </article>`;
   }).join("");
+  }
 
   const visibleLedgerItems = ledger.filter(item => !item.job?.includes("Fixture") && !item.job?.includes("fixture"));
   $("#ledger").innerHTML = visibleLedgerItems.map((item) => `
@@ -1103,14 +1107,14 @@ async function hydrateLeaderboard() {
 
 function renderLeaderboardUnavailable() {
   const tbody = document.getElementById("leaderboardBody");
-  if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="leaderboard-empty">Leaderboard unavailable</td></tr>';
+  if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="leaderboard-empty">Leaderboard unavailable · check API</td></tr>';
 }
 
 function renderLeaderboard(rows) {
   const tbody = document.getElementById("leaderboardBody");
   if (!tbody) return;
   if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="7" class="leaderboard-empty">No agents found</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" class="leaderboard-empty">No ranked agents yet · junk test names are filtered</td></tr>';
     return;
   }
   tbody.innerHTML = rows.map((row) => {

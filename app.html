@@ -51,13 +51,13 @@
       </section>
 
       <section class="workbench protocol-route" id="issuerWorkbench" hidden aria-label="Issuer Workbench">
-        <header class="workbench-head"><div><span>ISSUER PORTAL</span><h2>Fund jobs · review proofs</h2></div><strong id="workbenchConnection">Not authenticated</strong></header>
+        <header class="workbench-head"><div><span>ISSUER PORTAL</span><h2>Fund jobs · review proofs</h2></div><strong id="workbenchConnection">Not signed in</strong></header>
         <div class="issuer-mode-tabs">
           <button class="mode-tab active" data-mode="external">External Issuer</button>
           <button class="mode-tab" data-mode="demo">Local demo issuer</button>
         </div>
         <section class="issuer-product-strip" aria-label="Issuer workflow">
-          <div><span>01</span><strong>Authenticate</strong><small>API key session (tab-local)</small></div>
+          <div><span>01</span><strong>Sign in</strong><small>Register, continue, or wallet</small></div>
           <div><span>02</span><strong>Faucet + fund</strong><small>Circle wallet → Escrow V2</small></div>
           <div><span>03</span><strong>Review proof</strong><small>Accepted packets become payable</small></div>
           <div><span>04</span><strong>Autonomous release</strong><small>Operator loop · keys off public API</small></div>
@@ -180,14 +180,32 @@
             </div>
           </section>
           <section class="workbench-block"><h3>Create Single Job</h3><form id="singleJobForm" class="workbench-form">
-            <label>Job reference <input name="issuerReferenceId" placeholder="Optional: ticket-104 or invoice-4182"><small>Prooflet assigns the canonical job ID.</small></label><label>Job type<select name="jobType"><option>link_verification</option><option>content_summary</option><option>claim_factcheck</option><option>freshness_check</option><option>eval_labeling</option></select></label>
-            <label>Reward USDC<input name="rewardAmount" required value="0.003"></label><label>Verification<select name="verificationMode"><option value="deterministic">Deterministic</option><option value="subjective">Subjective</option></select></label>
-            <label class="wide">Input JSON<textarea name="input" required>{"url":"https://docs.arc.network"}</textarea></label><label class="wide">Proof requirements JSON<textarea name="proofRequirements" required>{"requiredResultFields":["status","responseTimeMs","contentHash"]}</textarea></label>
+            <label>Job reference <input name="issuerReferenceId" placeholder="Optional: ticket-104 or invoice-4182"><small>Prooflet assigns the canonical job ID.</small></label>
+            <label class="segment-field">Job type
+              <input type="hidden" name="jobType" id="jobTypeInput" value="link_verification">
+              <div class="segment" role="group" aria-label="Job type" data-segment="jobTypeInput">
+                <button type="button" data-value="link_verification" class="active">Link</button>
+                <button type="button" data-value="content_summary">Summary</button>
+                <button type="button" data-value="claim_factcheck">Factcheck</button>
+                <button type="button" data-value="freshness_check">Freshness</button>
+                <button type="button" data-value="eval_labeling">Eval</button>
+              </div>
+            </label>
+            <label>Reward USDC<input name="rewardAmount" required value="0.003" inputmode="decimal"></label>
+            <label class="segment-field">Verification
+              <input type="hidden" name="verificationMode" id="verificationModeInput" value="deterministic">
+              <div class="segment" role="group" aria-label="Verification" data-segment="verificationModeInput">
+                <button type="button" data-value="deterministic" class="active">Deterministic</button>
+                <button type="button" data-value="subjective">Subjective</button>
+              </div>
+            </label>
+            <label class="wide">Input JSON<textarea name="input" required rows="4">{"url":"https://docs.arc.network"}</textarea></label>
+            <label class="wide">Proof requirements JSON<textarea name="proofRequirements" required rows="3">{"requiredResultFields":["status","responseTimeMs","contentHash"]}</textarea></label>
             <button class="primary wide" type="submit">Reserve funded job</button></form></section>
-          <section class="workbench-block"><h3>Bulk Upload</h3><form id="uploadForm" class="workbench-form"><label class="wide">JSON or CSV<input id="uploadFile" type="file" accept=".json,.csv,application/json,text/csv" required></label><button class="secondary wide" type="submit">Validate upload</button></form><div id="uploadPreview" class="upload-preview"><p>No validation preview.</p></div></section>
-          <section class="workbench-block wide-block"><h3>Job Management</h3><div class="workbench-table" id="issuerJobs"><p>No issuer data loaded.</p></div></section>
-          <section class="workbench-block wide-block"><h3>Proof Review</h3><div class="workbench-table" id="issuerProofs"><p>No issuer data loaded.</p></div></section>
-          <section class="workbench-block wide-block"><h3>Settlement Status</h3><div class="workbench-table" id="issuerSettlements"><p>No issuer data loaded.</p></div></section>
+          <section class="workbench-block"><h3>Bulk Upload</h3><form id="uploadForm" class="workbench-form"><label class="wide">JSON or CSV<input id="uploadFile" type="file" accept=".json,.csv,application/json,text/csv" required></label><button class="secondary wide" type="submit">Validate upload</button></form><div id="uploadPreview" class="upload-preview"><p class="empty-hint">Drop a JSON or CSV batch to validate before funding.</p></div></section>
+          <section class="workbench-block wide-block"><h3>Job Management</h3><div class="workbench-table" id="issuerJobs"><div class="empty-state"><strong>No jobs yet</strong><p>Create a funded job after you sign in.</p></div></div></section>
+          <section class="workbench-block wide-block"><h3>Proof Review</h3><div class="workbench-table" id="issuerProofs"><div class="empty-state"><strong>No proofs yet</strong><p>Accepted proofs show here for payout tracking.</p></div></div></section>
+          <section class="workbench-block wide-block"><h3>Settlement Status</h3><div class="workbench-table" id="issuerSettlements"><div class="empty-state"><strong>No settlements yet</strong><p>Autonomous release updates appear when payable jobs settle.</p></div></div></section>
         </div>
         <div class="workbench-message" id="workbenchMessage" role="status"></div>
       </section>
@@ -339,7 +357,7 @@
               <h2 style="margin: 4px 0;">Claim work · prove · earn USDC</h2>
               <p>Claim jobs, submit proofs, earn USDC. Private keys never enter the browser. LLM worker: <code>npm run agent:llm -- --once</code>.</p>
             </div>
-            <strong id="agentWorkbenchConnection">Not authenticated</strong>
+            <strong id="agentWorkbenchConnection">Not signed in</strong>
           </header>
           <div class="issuer-boundary-strip" style="margin-bottom:12px;" aria-label="Agent rails">
             <div><span>LLM worker</span><strong>content_summary / claim_factcheck · profit gate</strong></div>

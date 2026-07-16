@@ -77,7 +77,7 @@ export function initAgentWorkbench({ apiUrl }) {
     meta.innerHTML = empty("Connect an agent session", "Use credentials from registration.");
     jobsEl.innerHTML = "<p>Connect to load open reserved/funded jobs.</p>";
     setStatus("Session cleared.", true);
-    connection.textContent = "Not authenticated";
+    connection.textContent = "Not signed in";
   }
 
   function restoreSession() {
@@ -249,7 +249,7 @@ export function initAgentWorkbench({ apiUrl }) {
   function setStatus(text, ok) {
     message.textContent = text;
     message.dataset.state = ok ? "ok" : "error";
-    connection.textContent = client ? "Session active" : "Not authenticated";
+    connection.textContent = client ? "Session active" : "Not signed in";
   }
 
   return {

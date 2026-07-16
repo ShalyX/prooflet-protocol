@@ -56,16 +56,45 @@
           </p>
         </div>
         <div class="product-hero-visual" aria-hidden="true">
-          <div class="flow-card">
-            <div class="flow-top"><span>Protocol loop</span><strong id="landingLiveStat">-</strong></div>
-            <ol class="flow-steps">
-              <li class="on"><b>01</b><span>Issuer funds job</span><em>USDC</em></li>
-              <li class="on"><b>02</b><span>Agent pays access</span><em>x402</em></li>
-              <li class="on pulse"><b>03</b><span>Proof submitted</span><em>LLM / det.</em></li>
-              <li><b>04</b><span>Verified · released</span><em>Arc</em></li>
-            </ol>
-            <div class="flow-foot">
-              <span>Arc Testnet · Escrow V2</span>
+          <div class="product-diagram" id="productDiagram">
+            <div class="product-diagram-top">
+              <span>Live loop</span>
+              <strong id="landingLiveStat">—</strong>
+            </div>
+            <svg class="product-diagram-svg" viewBox="0 0 420 280" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <!-- soft rails -->
+              <path class="pd-rail" d="M70 70 H350 Q380 70 380 100 V180 Q380 210 350 210 H70 Q40 210 40 180 V100 Q40 70 70 70 Z" />
+              <!-- nodes -->
+              <g class="pd-node pd-on" transform="translate(78,88)">
+                <rect width="108" height="48" rx="10" />
+                <text x="14" y="20" class="pd-k">01 Issuer</text>
+                <text x="14" y="36" class="pd-v">Fund Escrow V2</text>
+              </g>
+              <g class="pd-node pd-on" transform="translate(234,88)">
+                <rect width="108" height="48" rx="10" />
+                <text x="14" y="20" class="pd-k">02 Agent</text>
+                <text x="14" y="36" class="pd-v">x402 access</text>
+              </g>
+              <g class="pd-node pd-pulse" transform="translate(78,148)">
+                <rect width="108" height="48" rx="10" />
+                <text x="14" y="20" class="pd-k">03 Proof</text>
+                <text x="14" y="36" class="pd-v">LLM / det.</text>
+              </g>
+              <g class="pd-node pd-on" transform="translate(234,148)">
+                <rect width="108" height="48" rx="10" />
+                <text x="14" y="20" class="pd-k">04 Release</text>
+                <text x="14" y="36" class="pd-v">Arc USDC</text>
+              </g>
+              <!-- connector dots -->
+              <circle class="pd-dot" cx="196" cy="112" r="3" />
+              <circle class="pd-dot" cx="224" cy="112" r="3" />
+              <circle class="pd-dot" cx="196" cy="172" r="3" />
+              <circle class="pd-dot" cx="224" cy="172" r="3" />
+              <!-- accent scan line -->
+              <rect class="pd-scan" x="52" y="78" width="2" height="128" rx="1" />
+            </svg>
+            <div class="product-diagram-foot">
+              <span>Arc Testnet · Escrow V2 · GenLayer</span>
               <a href="/dashboard">Open live ledger →</a>
             </div>
           </div>

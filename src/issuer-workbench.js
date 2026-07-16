@@ -29,6 +29,19 @@ export function initIssuerWorkbench({ apiUrl, onNavigate }) {
       message.dataset.state = "error";
     }
   });
+
+  // Segmented controls (job type / verification) → hidden inputs
+  panel?.querySelectorAll(".segment[data-segment]").forEach((group) => {
+    const input = document.getElementById(group.dataset.segment);
+    if (!input) return;
+    group.querySelectorAll("button[data-value]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        group.querySelectorAll("button").forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        input.value = btn.dataset.value;
+      });
+    });
+  });
   
   if(import.meta.env.DEV){const helper=document.createElement("button");helper.className="ghost dev-issuer-helper";helper.type="button";helper.textContent="Use local dev issuer";helper.addEventListener("click",()=>{issuerInput.value="useful_waiting_protocol";keyInput.value="uwp_issuer_useful_waiting_protocol_dev";message.textContent="Local development credentials loaded. Select Connect to start the issuer session.";message.dataset.state="ok";document.querySelector("#workbenchConnection").textContent="Credentials loaded";});document.querySelector("#issuerCol").append(helper);}
   
@@ -466,7 +479,7 @@ export function initIssuerWorkbench({ apiUrl, onNavigate }) {
   
   function renderProofs(rows){document.querySelector("#issuerProofs").innerHTML=rows.length?table(["Proof","Agent","Route","Verification","Adjudication","Funding","Settlement","Transaction"],rows.map((row)=>{const flash=row.fundingStatus==="payable"?"flash-payable":row.fundingStatus==="paid"?"flash-paid":"";return{className:flash,cells:[truncateId(row.proofId),truncateId(row.agentId),row.verificationRoute,pill(row.verificationStatus),adjudicationState(row),pill(fundingState(row.fundingStatus)),settlementState(row),row.txHash?`<a href="${escape(row.explorer)}" target="_blank" rel="noreferrer">Arcscan</a>`:"—"]};}),true):empty("No proofs submitted","Verified agent work will appear here with its payout state.");}
   function renderSettlements(value){document.querySelector("#issuerSettlements").innerHTML=table(["Batch","Status","Payout","Created","Settled"],value.batches.map((row)=>[row.batch_id,row.status,`${row.total_payout} USDC`,date(row.created_at),row.settled_at?date(row.settled_at):"—"]));}
-  function setStatus(text,ok){message.textContent=text;message.dataset.state=ok?"ok":"error";document.querySelector("#workbenchConnection").textContent=ok?"Session active":"Not authenticated";}
+  function setStatus(text,ok){message.textContent=text;message.dataset.state=ok?"ok":"error";document.querySelector("#workbenchConnection").textContent=ok?"Session active":"Not signed in";}
   function renderUnauthenticated() {
     document.querySelector("#issuerOverview").innerHTML=empty("Connect an issuer session","Create funded jobs, validate uploads, review proofs, and follow Arc Testnet payouts.");
     document.querySelector("#issuerJobs").innerHTML=empty("Issuer access required","Connect to inspect and manage funded jobs.");
