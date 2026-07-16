@@ -94,6 +94,7 @@ export async function executeContract({
   abiParameters = [],
   callData = null,
   amount = undefined,
+  idempotencyKey = null,
   feeLevel = "HIGH",
   waitForState = "COMPLETE",
   pollMs = 2500,

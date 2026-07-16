@@ -21,7 +21,7 @@ function createSqliteJobsRepository(store) {
              funding_status, status, proof_requirements_json, claimed_by, lease_expires_at, created_at, updated_at,
              verification_mode, required_access_level, compound_parent_id, funding_rail, escrow_status, escrow_tx_hash,
              funding_source, treasury_tx_hash)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?, ?, ?, NULL, 'direct_treasury', NULL, NULL, NULL, NULL)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?, ?, ?, NULL, ?, NULL, NULL, NULL, NULL)
         `).run(
           job.jobId,
           job.issuerReferenceId ?? null,
@@ -38,6 +38,7 @@ function createSqliteJobsRepository(store) {
           job.updatedAt || job.createdAt,
           job.verificationMode || "deterministic",
           job.requiredAccessLevel || "starter",
+          job.fundingRail || "direct_treasury",
         );
       } catch (error) {
         throw asUniqueViolation(error);
@@ -95,7 +96,7 @@ function createPostgresJobsRepository(store) {
              funding_status, status, proof_requirements_json, claimed_by, lease_expires_at, created_at, updated_at,
              verification_mode, required_access_level, compound_parent_id, funding_rail, escrow_status, escrow_tx_hash,
              funding_source, treasury_tx_hash)
-          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,NULL,NULL,$12,$13,$14,$15,NULL,'direct_treasury',NULL,NULL,NULL,NULL)
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,NULL,NULL,$12,$13,$14,$15,NULL,$16,NULL,NULL,NULL,NULL)
         `, [
           job.jobId,
           job.issuerReferenceId ?? null,
@@ -112,6 +113,7 @@ function createPostgresJobsRepository(store) {
           job.updatedAt || job.createdAt,
           job.verificationMode || "deterministic",
           job.requiredAccessLevel || "starter",
+          job.fundingRail || "direct_treasury",
         ]);
       } catch (error) {
         throw asUniqueViolation(error);

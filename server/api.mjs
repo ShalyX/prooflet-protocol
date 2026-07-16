@@ -673,12 +673,10 @@ export function createApp({
           proofRequirements,
           verificationMode,
           requiredAccessLevel: accessLevel,
+          fundingRail: fundingRail || "direct_treasury",
           createdAt: now,
           updatedAt: now,
         });
-        if (fundingRail && fundingRail !== "direct_treasury") {
-          await db.prepare("UPDATE jobs SET funding_rail = ? WHERE job_id = ?").run(fundingRail, jobId);
-        }
       });
     } catch (error) {
       if (error?.code === "UNIQUE_VIOLATION" || String(error.message).includes("UNIQUE")) {
@@ -769,11 +767,25 @@ export function createApp({
         }
         throw error;
       }
-      await appendReputationEvent(db, { agentId, eventType: "job_claimed", jobId: job.job_id, issuerId: job.issuer_id, createdAt: claimedAt.toISOString() });
-      return await db.prepare("SELECT * FROM jobs WHERE job_id = ?").get(job.job_id);
+      // Return from the transaction connection so Neon dual-connection sees the claim.
+      const claimedJob = await tx.jobs.getJob(job.job_id);
+      return { claimedJob, agentId, issuerId: job.issuer_id, jobId: job.job_id, claimedAt: claimedAt.toISOString() };
     });
 
-    response.json({ job: serializeJob(claimed) });
+    // Reputation after commit (FK to agents/jobs already durable).
+    try {
+      await appendReputationEvent(db, {
+        agentId: claimed.agentId,
+        eventType: "job_claimed",
+        jobId: claimed.jobId,
+        issuerId: claimed.issuerId,
+        createdAt: claimed.claimedAt,
+      });
+    } catch {
+      // non-fatal; claim already committed
+    }
+
+    response.json({ job: serializeJob(claimed.claimedJob) });
   });
 
   app.post("/jobs/:jobId/proof", async (request, response) => {
