@@ -20,11 +20,11 @@
 
 ## Flow
 
-1. draft job `content_summary` + Escrow V2 awaiting fund  
-2. operator `fundJob` on Arc Testnet  
-3. API `fund-escrow` on-chain verify  
-4. Circle Gateway x402 access  
-5. LLM analyst plan → claim → infer → proof  
-6. operator release → release receipt  
+1. draft job `content_summary` + Escrow V2 awaiting fund
+2. operator `fundJob` on Arc Testnet
+3. API `fund-escrow` on-chain verify
+4. Circle Gateway x402 access
+5. LLM analyst plan → claim → infer → proof
+6. operator release → release receipt
 
 Reproduce: `npm run escrow:v2:llm-e2e`
