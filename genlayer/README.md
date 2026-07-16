@@ -48,13 +48,24 @@ export ADJUDICATOR_API_KEY=…               # scoped key
 
 If deploy credentials are missing, leave mode `manual` and keep shipping schema-verified LLM demos.
 
-## Deployment attempt (post-submission, 2026-07-16)
+## Deployment (post-submission, 2026-07-16) — FINALIZED
 
 | Field | Value |
 |---|---|
 | Network | `testnet-bradbury` |
 | Deploy tx | `0x7df8da92ea39c91a692320b14b050feaa8da400e15e806f99ae2e6adb66ff819` |
-| Status | Submitted; receipt wait timed out at status code `5` (not yet FINALIZED in client poll) |
-| Contract address | Pending FINALIZED receipt — re-run `npm run genlayer:deploy` or poll receipt before setting `GENLAYER_CONTRACT_ADDRESS` for live mode |
+| Status | **FINALIZED** (`status_name: FINALIZED`, `resultName: AGREE`) |
+| Contract address | **`0x3bF4b60176F8FAbA367bfC129C0529aeF462E397`** |
+| Record | `genlayer/deployment.json` |
+| Previous env address | `0xFF413C5cC01ffc8070BC8E4C0365bA1A33F013Bb` (superseded for new LLM quality code) |
 
-Do **not** claim live GenLayer quality consensus until the address is confirmed FINALIZED and wired into hosted `ADJUDICATION_MODE=genlayer`.
+Set hosted:
+
+```bash
+ADJUDICATION_MODE=genlayer
+GENLAYER_NETWORK=testnet-bradbury
+GENLAYER_CONTRACT_ADDRESS=0x3bF4b60176F8FAbA367bfC129C0529aeF462E397
+GENLAYER_PRIVATE_KEY=…   # server only
+```
+
+Do **not** claim live GenLayer quality consensus on hosted until Render env is updated and a subjective proof is submitted through the live path.

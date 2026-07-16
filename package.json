@@ -89,7 +89,8 @@
     "agent:llm:once": "node --no-warnings --env-file-if-exists=.env workers/llm-analyst.mjs --once",
     "agent:llm:check": "node --no-warnings --env-file-if-exists=.env workers/llm-analyst.mjs --check",
     "llm-agent:check": "node --no-warnings scripts/llm-agent-acceptance.mjs",
-    "job:create-summary": "node --no-warnings --env-file-if-exists=.env scripts/create-summary-job.mjs"
+    "job:create-summary": "node --no-warnings --env-file-if-exists=.env scripts/create-summary-job.mjs",
+    "escrow:v2:llm-e2e": "node --no-warnings --env-file-if-exists=.env scripts/escrow-v2-llm-e2e.mjs"
   },
   "dependencies": {
     "@circle-fin/developer-controlled-wallets": "^10.7.1",

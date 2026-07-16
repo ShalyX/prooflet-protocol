@@ -24,8 +24,20 @@ export function buildGenLayerEvidence(db, proofId) {
   const row = db.prepare(`SELECT p.*,j.issuer_id,j.input_json AS job_input_json,j.proof_requirements_json,
     j.reward_amount,j.reward_asset,j.network,j.verification_mode FROM proofs p JOIN jobs j USING(job_id) WHERE p.proof_id=?`).get(proofId);
   if (!row) throw genLayerError(404, "proof_not_found", `Proof ${proofId} does not exist.`);
-  if (row.job_type !== "context_compression_quality" || row.verification_mode !== "subjective") {
-    throw genLayerError(409, "proof_not_subjective", "Only subjective context_compression_quality proofs can use GenLayer.");
+  const subjectiveTypes = new Set([
+    "context_compression_quality",
+    "content_summary",
+    "content_summary_quality",
+    "claim_factcheck",
+    "claim_factcheck_quality",
+    "sentiment_toxicity_tagging",
+  ]);
+  if (row.verification_mode !== "subjective" || !subjectiveTypes.has(row.job_type)) {
+    throw genLayerError(
+      409,
+      "proof_not_subjective",
+      "Only subjective GenLayer-supported job types can use GenLayer adjudication.",
+    );
   }
   return {
     protocol: "Prooflet", proofId: row.proof_id, jobId: row.job_id,

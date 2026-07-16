@@ -596,6 +596,7 @@ async function hydrateFromApi({ force = false } = {}) {
     systemStatus.arc = dashboard.treasury?.network === "Arc Testnet" ? "Connected" : "Unavailable";
     systemStatus.mode = "Dry-run default";
     setLandingText("#landingApi", "Connected");
+    renderLivePaymentTicker(dashboard);
     render();
     hydrateLeaderboard().catch(() => {});
   } catch (error) {
@@ -612,6 +613,7 @@ async function hydrateFromApi({ force = false } = {}) {
     setLandingText("#landingPayable", "Unavailable");
     setLandingText("#landingRejected", "Unavailable");
     setLandingText("#landingTreasury", "Unavailable");
+    renderLivePaymentTicker(null);
     render();
     renderLeaderboardUnavailable();
   }
@@ -829,6 +831,28 @@ async function hydrateEscrowV2ProtocolPanel() {
 }
 
 function setLandingText(selector, value) { const element = document.querySelector(selector); if (element) element.textContent = value; }
+
+/** Live ledger strip on landing — recent proofs only, no fabricated activity. */
+function renderLivePaymentTicker(dashboard) {
+  const track = document.querySelector("#livePaymentTickerTrack");
+  if (!track) return;
+  if (!dashboard?.proofs?.length) {
+    track.innerHTML = "<em>No live proof events yet — create a job or run the LLM agent.</em>";
+    return;
+  }
+  const items = [...dashboard.proofs]
+    .sort((a, b) => String(b.proofTimestamp || "").localeCompare(String(a.proofTimestamp || "")))
+    .slice(0, 8)
+    .map((proof) => {
+      const job = (dashboard.jobs || []).find((j) => j.jobId === proof.jobId);
+      const amount = Number(job?.rewardAmount || 0);
+      const status = proof.fundingStatus || proof.outcome || "unknown";
+      const jobType = proof.jobType || job?.jobType || "job";
+      const shortId = String(proof.proofId || proof.jobId || "").slice(0, 18);
+      return `<span class="live-ticker-item" data-status="${escapeHtml(status)}"><b>${escapeHtml(status)}</b> ${escapeHtml(jobType)} · ${money(amount)} USDC · <code>${escapeHtml(shortId)}</code></span>`;
+    });
+  track.innerHTML = items.join("");
+}
 
 function jobStatus(job) {
   if (job.fundingRail === "arc_usdc_escrow" || job.fundingRail === "arc_usdc_escrow_v2") {

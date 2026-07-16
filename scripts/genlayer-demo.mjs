@@ -56,6 +56,15 @@ export async function runGenLayerDemo({ decision = readDecision(), quiet = false
         mockDecision: decision,
       },
     }, DEV_KEYS.issuer);
+
+    // Local demo grant — Gateway not called in genlayer:demo
+    const accessNow = new Date().toISOString();
+    db.prepare(`INSERT INTO job_access_payments
+      (job_id, agent_id, rail, amount, payer_address, tx_hash, gateway_transaction_id, network, status, metadata_json, created_at, updated_at)
+      VALUES (?, ?, 'circle_gateway_x402', '0.000001', ?, NULL, ?, 'eip155:5042002', 'paid', '{}', ?, ?)
+      ON CONFLICT(job_id, agent_id) DO UPDATE SET status='paid', updated_at=excluded.updated_at`)
+      .run(jobId, agentId, registered.agent?.payoutAddress || "0x3333333333333333333333333333333333333333", `demo-gl-${jobId}`, accessNow, accessNow);
+
     await request(baseUrl, "POST", `/agents/${agentId}/claim-job`, { jobId, leaseSeconds: 120 }, registered.apiKey);
 
     const pending = await request(baseUrl, "POST", `/jobs/${jobId}/proof`, {
