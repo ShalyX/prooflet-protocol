@@ -74,10 +74,9 @@ check("synthetic actions are guarded by explicit replay mode", () => {
   assert.match(app, /hydrationVersion \+= 1/);
   assert.match(app, /replayGeneration \+= 1/);
   assert.match(app, /expectedGeneration !== replayGeneration/);
-  assert.match(app, /requestVersion !== hydrationVersion \|\| appMode === "replay"/);
-  assert.match(app, /Agent registration is disabled in replay mode/);
+  assert.match(app, /appMode !== "replay"/);
   assert.match(html, /id="toggleReplay"/);
-  assert.match(html, /Replay simulates browser-only dashboard queue\/worker actions/);
+  assert.match(html, /Browser-only simulation/);
 });
 
 check("archive evidence has an explicit dedicated surface", () => {

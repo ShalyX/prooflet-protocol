@@ -82,12 +82,30 @@ function setAppMode(mode, { durable = storageDurable } = {}) {
     truthState.dataset.mode = appMode;
   }
   document.body.dataset.appMode = appMode;
-  for (const id of ["runCycle", "prepareBatch", "prepareBatchHero", "addJobs"]) {
+  const isReplay = appMode === "replay";
+  for (const id of ["runCycle", "prepareBatch", "addJobs"]) {
     const control = document.getElementById(id);
-    if (control) control.disabled = appMode !== "replay";
+    if (control) {
+      control.hidden = !isReplay;
+      control.disabled = !isReplay;
+    }
   }
+  const replayNote = document.getElementById("replayNote");
+  if (replayNote) replayNote.hidden = !isReplay;
   const replayToggle = document.getElementById("toggleReplay");
-  if (replayToggle) replayToggle.textContent = appMode === "replay" ? "Exit replay" : "Enter replay";
+  if (replayToggle) replayToggle.textContent = isReplay ? "Exit simulation · restore live" : "Enter simulation";
+  const batchDl = document.getElementById("batchDownload");
+  const batchPre = document.getElementById("batchPayload");
+  if (!isReplay) {
+    if (batchDl) {
+      batchDl.hidden = true;
+      batchDl.removeAttribute("href");
+    }
+    if (batchPre) {
+      batchPre.hidden = true;
+      batchPre.textContent = "";
+    }
+  }
 }
 
 function clearLiveState() {
@@ -215,13 +233,16 @@ function render() {
   $("#treasuryPending").closest("div").classList.toggle("has-payable", pendingPayout > 0);
   $("#systemApi").textContent = systemStatus.api;
   $("#systemArc").textContent = systemStatus.arc;
-  $("#systemMode").textContent = systemStatus.mode;
-  $("#systemBatch").textContent = systemStatus.batch || "None yet";
-  $("#systemPayout").textContent = `${money(systemStatus.payout || 0)} USDC`;
+  $("#systemMode").textContent = systemStatus.mode || "Operator host";
+  $("#systemBatch").textContent = systemStatus.batch || "—";
+  $("#systemPayout").textContent =
+    systemStatus.payout > 0 ? `${money(systemStatus.payout)} USDC` : "—";
   if (latestBatchPayload) renderPreparedBatch(batch);
-  $("#runCycle").disabled = appMode !== "replay" || running || queued.length === 0;
+  const runCycleBtn = $("#runCycle");
+  if (runCycleBtn) runCycleBtn.disabled = appMode !== "replay" || running || queued.length === 0;
 
-  $("#events").innerHTML = events.map((event) => `
+  $("#events").innerHTML = events.length
+    ? events.map((event) => `
     <article class="event-row ${eventKindClass(event.kind)}">
       <div class="event-dot"></div>
       <div>
@@ -230,7 +251,8 @@ function render() {
       </div>
       <span>${escapeHtml(event.meta)}</span>
     </article>
-  `).join("");
+  `).join("")
+    : `<div class="empty-state"><strong>No live events yet</strong><p>Claims, proofs, and releases will show up here as they happen.</p></div>`;
 
   const visibleJobs = filteredJobs(jobs, activeQueueFilter).filter(job => !job.title?.includes("Fixture") && !job.title?.includes("fixture"));
   $("#jobs").innerHTML = visibleJobs.length ? visibleJobs.map((job) => `
@@ -280,7 +302,8 @@ function render() {
   }
 
   const visibleLedgerItems = ledger.filter(item => !item.job?.includes("Fixture") && !item.job?.includes("fixture"));
-  $("#ledger").innerHTML = visibleLedgerItems.map((item) => `
+  $("#ledger").innerHTML = visibleLedgerItems.length
+    ? visibleLedgerItems.map((item) => `
     <article class="receipt ${proofOutcomeClass(item.outcome)}">
       <div>
         <strong>${escapeHtml(item.agent)}</strong>
@@ -294,21 +317,21 @@ function render() {
         <a class="proof-link" href="${proofHref(item)}" download="${escapeHtml(item.id)}-proof.json">proof packet</a>
       </div>
     </article>
-  `).join("");
+  `).join("")
+    : `<div class="empty-state"><strong>No proofs in the live ledger</strong><p>Verified agent work will appear here after submission.</p></div>`;
 }
 
 function prepareBatch() {
   if (appMode !== "replay") return;
-  setActionState("#prepareBatch, #prepareBatchHero", "loading", "Preparing…");
-  latestBatchPayload = buildSettlementBatch();
-  renderPreparedBatch(latestBatchPayload);
-  if (latestBatchPayload.approvedProofs === 0) {
-    pushEvent("settlement", "empty payout batch", "No approved unpaid proof packets are payable right now; dry-run export would contain zero recipients.", "0 payable");
-    render();
-    window.setTimeout(() => setActionState("#prepareBatch, #prepareBatchHero", "notice", "No payouts ready"), 260);
+  setActionState("#prepareBatch", "loading", "Preparing…");
+  const batch = buildSettlementBatch();
+  latestBatchPayload = batch;
+  renderPreparedBatch(batch);
+  if (!batch.approvedProofs) {
+    window.setTimeout(() => setActionState("#prepareBatch", "notice", "No payouts ready"), 260);
     return;
   }
-  window.setTimeout(() => setActionState("#prepareBatch, #prepareBatchHero", "success", "Batch ready"), 260);
+  window.setTimeout(() => setActionState("#prepareBatch", "success", "Batch ready"), 260);
 }
 
 function setActionState(selector, state, label) {
@@ -340,12 +363,21 @@ function setActionState(selector, state, label) {
 }
 
 function renderPreparedBatch(batch) {
+  if (appMode !== "replay") return;
   latestBatchPayload = batch;
   const payloadText = JSON.stringify(batch, null, 2);
-  $("#batchPayload").textContent = payloadText;
-  $("#batchPayload").classList.add("visible");
-  $("#batchDownload").href = `data:application/json;charset=utf-8,${encodeURIComponent(payloadText)}`;
-  $("#batchDownload").classList.add("visible");
+  const pre = $("#batchPayload");
+  const dl = $("#batchDownload");
+  if (pre) {
+    pre.textContent = payloadText;
+    pre.hidden = false;
+    pre.classList.add("visible");
+  }
+  if (dl) {
+    dl.href = `data:application/json;charset=utf-8,${encodeURIComponent(payloadText)}`;
+    dl.hidden = false;
+    dl.classList.add("visible");
+  }
 }
 
 function buildSettlementBatch() {
@@ -604,7 +636,7 @@ async function hydrateFromApi({ force = false } = {}) {
     $("#apiStatus").textContent = "API connected";
     systemStatus.api = "Connected";
     systemStatus.arc = dashboard.treasury?.network === "Arc Testnet" ? "Connected" : "Unavailable";
-    systemStatus.mode = "Dry-run default";
+    systemStatus.mode = "Operator host · autonomous";
     setLandingText("#landingApi", "Connected");
     renderLivePaymentTicker(dashboard);
     render();
@@ -989,11 +1021,10 @@ function jobTitle(job) {
   return job.jobType.replaceAll("_", " ");
 }
 
-$("#addJobs").addEventListener("click", addJobs);
-$("#runCycle").addEventListener("click", runCycle);
-$("#prepareBatch").addEventListener("click", prepareBatch);
-$("#prepareBatchHero").addEventListener("click", prepareBatch);
-$("#toggleReplay").addEventListener("click", () => {
+$("#addJobs")?.addEventListener("click", addJobs);
+$("#runCycle")?.addEventListener("click", runCycle);
+$("#prepareBatch")?.addEventListener("click", prepareBatch);
+$("#toggleReplay")?.addEventListener("click", () => {
   if (appMode === "replay") {
     const toggle = document.getElementById("toggleReplay");
     if (toggle) toggle.textContent = "Enter replay (sim)";
