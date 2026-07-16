@@ -52,6 +52,37 @@ export function verifyProof(job, proof, requirements) {
     return approve("context_compression_v0");
   }
 
+  // LLM analyst outputs — schema-level deterministic gate (not content quality adjudication).
+  if (job.jobType === "content_summary") {
+    const summary = String(proof.result?.summary || "").trim();
+    if (summary.length < 40) return reject("content_summary requires a substantive summary (>= 40 chars).");
+    if (!proof.result?.model) return reject("content_summary requires model identifier.");
+    const conf = Number(proof.result?.confidence);
+    if (!Number.isFinite(conf) || conf < 0 || conf > 1) return reject("content_summary requires confidence in [0,1].");
+    if (!proof.result?.tokenUsage || typeof proof.result.tokenUsage !== "object") {
+      return reject("content_summary requires tokenUsage object.");
+    }
+    if (!/^0x[0-9a-f]+$/i.test(String(proof.result?.contentHash || ""))) {
+      return reject("content_summary requires hexadecimal contentHash.");
+    }
+    return approve("content_summary_schema_v0");
+  }
+
+  if (job.jobType === "claim_factcheck") {
+    const verdict = String(proof.result?.verdict || "").toLowerCase();
+    if (!["supported", "refuted", "insufficient"].includes(verdict)) {
+      return reject("claim_factcheck requires verdict supported|refuted|insufficient.");
+    }
+    if (!proof.result?.model) return reject("claim_factcheck requires model identifier.");
+    const conf = Number(proof.result?.confidence);
+    if (!Number.isFinite(conf) || conf < 0 || conf > 1) return reject("claim_factcheck requires confidence in [0,1].");
+    if (!String(proof.result?.rationale || "").trim()) return reject("claim_factcheck requires rationale.");
+    if (!proof.result?.tokenUsage || typeof proof.result.tokenUsage !== "object") {
+      return reject("claim_factcheck requires tokenUsage object.");
+    }
+    return approve("claim_factcheck_schema_v0");
+  }
+
   if (job.jobType === "duplicate_proof") return reject("Duplicate proof jobs are rejection fixtures and never receive payout.", "duplicate_proof_v0");
   return reject(`No deterministic verifier exists for ${job.jobType}.`);
 }
