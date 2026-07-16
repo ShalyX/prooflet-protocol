@@ -33,26 +33,31 @@
             <a href="/protocol" data-route="/protocol">Protocol</a>
           </nav>
           <div class="top-actions" aria-label="Dashboard actions">
-            <button class="ghost" id="toggleReplay" type="button">Enter replay (sim)</button>
-            <button class="primary" id="runCycle" type="button">Run worker cycle</button>
-            <button class="secondary" id="prepareBatch" type="button">Prepare payout batch</button>
+            <details class="dev-tools">
+              <summary>Simulate</summary>
+              <p class="dev-tools-note">Browser-only simulation. Does not move USDC or write settlement.</p>
+              <button class="secondary compact" id="toggleReplay" type="button">Enter simulation</button>
+              <button class="secondary compact" id="runCycle" type="button" hidden>Run worker cycle</button>
+              <button class="secondary compact" id="prepareBatch" type="button" hidden>Prepare batch JSON</button>
+              <button class="secondary compact" id="addJobs" type="button" hidden>Add sample jobs</button>
+            </details>
           </div>
         </div>
       </header>
 
       <section class="system-strip protocol-route" hidden aria-label="System status">
         <span class="truth-state" id="globalTruthState" data-mode="loading">Loading live ledger</span>
-        <span class="replay-note">Replay simulates browser-only dashboard queue/worker actions. Settlement is never written. Issuer/agent surfaces outside the disabled controls may still call the live API.</span>
+        <span class="replay-note" id="replayNote" hidden>Simulation mode: browser-only. Exit simulation to restore the live ledger.</span>
         <span><i class="status-dot"></i><strong>API</strong><em id="systemApi">Connecting</em></span>
         <span><i class="status-dot"></i><strong>Arc Testnet</strong><em id="systemArc">Checking</em></span>
-        <span><strong>Settlement mode</strong><em id="systemMode">Dry-run default</em></span>
-        <span><strong>Latest live batch</strong><em id="systemBatch">None yet</em></span>
-        <span><strong>Latest live payout</strong><em id="systemPayout">0.000 USDC</em></span>
+        <span><strong>Settlement</strong><em id="systemMode">Operator host</em></span>
+        <span><strong>Latest batch</strong><em id="systemBatch">—</em></span>
+        <span><strong>Latest payout</strong><em id="systemPayout">—</em></span>
       </section>
 
       <section class="workbench protocol-route" id="issuerWorkbench" hidden aria-label="Issuer Workbench">
         <header class="workbench-head"><div><span>ISSUER PORTAL</span><h2>Fund jobs · review proofs</h2></div><strong id="workbenchConnection">Not signed in</strong></header>
-        <div class="issuer-mode-tabs">
+        <div class="issuer-mode-tabs" hidden>
           <button class="mode-tab active" data-mode="external">External Issuer</button>
           <button class="mode-tab" data-mode="demo">Local demo issuer</button>
         </div>
@@ -70,7 +75,7 @@
 
         <div class="issuer-session-panel workbench-auth demo-only" id="demoIssuerPanel" hidden>
           <div style="width: 100%;">
-            <h3 style="color: var(--amber); margin-bottom: 8px;">Prooflet Demo Issuer</h3>
+            <h3 class="desk-subhead">Prooflet Demo Issuer</h3>
             <p style="margin-bottom: 12px; color: var(--muted);">Seeded issuer used for local/testnet demos.</p>
             <button class="primary" id="connectDemoIssuer" type="button">Connect Demo Issuer</button>
           </div>
@@ -98,7 +103,7 @@
         <div class="issuer-session-panel workbench-auth external-only" id="registerIssuerPanel" hidden>
           <form id="registerIssuerForm" style="display:flex; width:100%; gap: 24px;">
             <div class="issuer-session-column">
-              <h3 style="color: var(--amber); margin-bottom: 8px;">Register New Issuer</h3>
+              <h3 class="desk-subhead">Register New Issuer</h3>
               <label>Platform / Issuer name<input id="regIssuerName" required placeholder="My Agent Platform"></label>
             </div>
             <div class="issuer-key-column">
@@ -114,7 +119,7 @@
 
         <div class="issuer-session-panel workbench-auth external-only" id="registerSuccessPanel" hidden>
           <div style="width: 100%;">
-            <h3 style="color: var(--primary); margin-bottom: 12px;">Registration Successful</h3>
+            <h3 class="desk-subhead">Registration Successful</h3>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
               <div>
                 <p><strong>Issuer ID:</strong> <span id="successIssuerId"></span></p>
@@ -151,15 +156,15 @@
                 <p><strong>Wallet address:</strong> <span id="fundingWalletAddress"></span> <button type="button" class="compact ghost" id="copyWalletAddrBtn">Copy</button></p>
                 <p><strong>Balance:</strong> <span id="fundingWalletBalance">0</span> USDC <span id="fundingBalanceStatus" class="state-badge"></span></p>
                 <div class="top-up-instructions" style="margin-top: 12px; padding: 12px; border: 1px solid var(--line-strong); border-radius: 8px;">
-                  <strong style="color: var(--primary); display: block; margin-bottom: 4px;">Claim Arc Testnet USDC (no treasury)</strong>
+                  <strong class="funding-rail-title">Claim Arc Testnet USDC</strong>
                   <p class="issuer-helper" style="margin-bottom: 8px;">Use the Circle faucet for this issuer wallet. Prooflet tries the API first; free-tier keys usually need the web faucet.</p>
                   <p><strong>Network:</strong> Arc Testnet (5042002) · <strong>Asset:</strong> USDC</p>
                   <p id="faucetManualHint" class="issuer-helper" style="margin-top:6px;"></p>
                 </div>
-                <div class="external-only" style="margin-top: 12px; padding: 12px; background: rgba(80, 200, 120, 0.08); border: 1px solid var(--primary); border-radius: 8px;">
-                  <strong style="color: var(--primary);">Escrow V2 open-market funding is live (Arc Testnet)</strong>
-                  <p style="font-size: 0.85rem; margin-top: 4px;">Create a draft job, claim faucet USDC into the issuer Circle wallet, then <strong>Fund Escrow V2 (Circle wallet)</strong>. Autonomous release remains explicit after proof approval. Treasury is not used for issuer funds.</p>
-                  <p style="font-size: 0.8rem; margin-top: 8px; color: var(--muted);">Contract: <code id="escrowV2AddressHint">Loading…</code></p>
+                <div class="external-only funding-rail-note">
+                  <strong>Escrow V2 · Arc Testnet</strong>
+                  <p>Fund from your Circle wallet after faucet. Treasury is not used for issuer funds. Release is autonomous on the operator host.</p>
+                  <p class="issuer-helper">Contract: <code id="escrowV2AddressHint">—</code></p>
                 </div>
               </div>
               <div class="funding-actions" style="margin-top: 12px; display:flex; flex-wrap:wrap; gap:8px;">
@@ -236,8 +241,8 @@
           <strong id="needsActionCount">0</strong>
           <p id="needsActionCopy">No proof packets are waiting for release.</p>
           <div class="ops-action-row">
-            <button class="primary compact" id="prepareBatchHero" type="button">Prepare payout batch</button>
-            <a class="ghost compact" href="/protocol" data-route="/protocol">View safeguards</a>
+            <a class="primary compact" href="/protocol" data-route="/protocol">View release queue</a>
+            <a class="secondary compact" href="/issuer" data-route="/issuer">Issuer desk</a>
           </div>
         </article>
         <article class="ops-card">
@@ -273,23 +278,21 @@
 
       <section class="console-grid screenshot-board dashboard-surface protocol-route" hidden>
         <section class="panel workstream-panel">
-          <header><h2>Live Workstream</h2><span class="panel-badge">micro-work timeline</span></header>
+          <header><h2>Live activity</h2><span class="panel-badge">timeline</span></header>
           <div class="flow-strip" aria-label="Protocol flow">
-            <span>idle capacity</span>
-            <span>job claimed</span>
-            <span>proof submitted</span>
-            <span>reward gated</span>
-            <span>batch settlement</span>
+            <span>Open</span>
+            <span>Claimed</span>
+            <span>Proof</span>
+            <span>Payable</span>
+            <span>Released</span>
           </div>
           <div class="event-list" id="events"></div>
         </section>
 
         <section class="panel settlement-panel">
-          <header><h2>Proof + Settlement</h2><span class="panel-badge">Arc rail</span></header>
+          <header><h2>Proofs & payouts</h2><span class="panel-badge">Arc Testnet</span></header>
           <p class="panel-note">
-            Rewards are real Arc Testnet USDC transactions, not mainnet funds.
-            Prooflet reserves rewards, makes approved proofs payable, and
-            excludes rejected proofs from settlement.
+            Live ledger from the hosted API. Rewards are Arc Testnet USDC. Rejected proofs never enter payout.
           </p>
           <div class="treasury-panel" aria-label="Prooflet treasury status">
             <div><span>Network</span><strong id="treasuryNetwork">Arc Testnet</strong></div>
@@ -300,23 +303,23 @@
             <div><span>Payable rewards</span><strong id="treasuryPending">0.000 USDC</strong><small>Approved proofs not paid</small></div>
             <div><span>Paid</span><strong id="treasuryPaid">0.000 USDC</strong><small>Settled on Arc Testnet</small></div>
           </div>
-          <div class="settlement-preview" aria-label="Batch settlement preview">
+          <div class="settlement-preview" aria-label="Ledger snapshot">
             <div class="settlement-grid">
               <div><span>Payable rewards</span><strong id="batchPending">0.000 USDC</strong></div>
               <div><span>Approved proofs</span><strong id="batchApproved">0</strong></div>
               <div><span>Rejected proofs</span><strong id="batchRejected">0</strong></div>
-              <div><span>Settlement mode</span><strong>Batch</strong></div>
+              <div><span>Settlement</span><strong>Autonomous operator host</strong></div>
               <div><span>Network</span><strong>Arc Testnet</strong></div>
-              <div><span>Action</span><strong>Settle approved rewards</strong></div>
+              <div><span>Release</span><strong>No keys in this browser</strong></div>
             </div>
-            <a class="batch-download" id="batchDownload" download="prooflet-settlement-batch.json">download batch payload</a>
-            <pre id="batchPayload" aria-label="Settlement batch payload"></pre>
+            <a class="batch-download" id="batchDownload" download="prooflet-settlement-batch.json" hidden>Download batch JSON</a>
+            <pre id="batchPayload" aria-label="Settlement batch payload" hidden></pre>
           </div>
           <div class="ledger" id="ledger"></div>
         </section>
 
         <section class="panel queue-panel">
-          <header><h2>Micro-work Queue</h2><button class="ghost compact" id="addJobs" type="button">Add jobs</button></header>
+          <header><h2>Job queue</h2></header>
           <nav class="queue-tabs" id="queueTabs" aria-label="Queue filters">
             <button class="active" data-queue-filter="priority" type="button">Priority</button>
             <button data-queue-filter="open" type="button">Open</button>
@@ -406,24 +409,6 @@
             </table>
           </div>
         </section>
-      </section>
-
-      <section class="story dashboard-surface protocol-route" hidden>
-        <div>
-          <h2>Prooflet</h2>
-          <p>
-            Prooflet issues Arc Testnet-funded micro-jobs, verifies agent
-            work, and moves accepted proofs into payable USDC rewards.
-          </p>
-        </div>
-        <div>
-          <h2>Why Arc matters</h2>
-          <p>
-            These rewards are real testnet USDC transactions, not mainnet funds.
-            Arc makes tiny approved rewards practical with USDC-native settlement
-            and predictable fees.
-          </p>
-        </div>
       </section>
 
       <section class="protocol-transparency-page protocol-route" id="protocolPage" hidden aria-label="Protocol Transparency">
@@ -543,7 +528,7 @@
       <footer class="protocol-footer protocol-route" hidden>
         <div>
           <strong>Prooflet</strong>
-          <span>Circle Agent Stack alignment: Developer-Controlled Wallets, Gateway x402 nanopayment access (npm run gateway:pay-access), Arc Testnet USDC rewards, and autonomous Escrow V2 release on the operator host.</span>
+          <span>Tiny agent jobs on Arc Testnet. Verified by proof. Paid in USDC. Operator keys never live in this browser.</span>
         </div>
         <nav aria-label="Protocol footer links">
           <a href="/dashboard" data-route="/dashboard">Dashboard</a>
@@ -551,10 +536,8 @@
           <a href="/agents" data-route="/agents">Agents</a>
           <a href="/protocol" data-route="/protocol">Protocol</a>
           <a href="https://github.com/ShalyX/prooflet-protocol" target="_blank" rel="noreferrer">GitHub</a>
-          <a href="https://developers.circle.com/agent-stack" target="_blank" rel="noreferrer">Circle Agent Stack</a>
         </nav>
       </footer>
-    </main>
     </main>
     <script type="module" src="/src/app.js"></script>
   </body>
