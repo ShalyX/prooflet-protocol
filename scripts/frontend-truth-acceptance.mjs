@@ -82,7 +82,7 @@ check("synthetic actions are guarded by explicit replay mode", () => {
 
 check("archive evidence has an explicit dedicated surface", () => {
   assert.match(html, /id="archiveEvidence"/);
-  assert.match(html, /Archived Lepton submission evidence/);
+  assert.match(html, /Archived Lepton submission/);
   assert.match(app, /renderArchiveEvidence/);
   assert.match(css, /\.archive-evidence/);
 });
