@@ -928,17 +928,17 @@ export function createApp({
   });
   app.get("/adjudication/genlayer/requests/:requestId", async (request, response) => {
     await requireAdjudicator(db, request, "genlayer:read");
-    response.json({ request: getGenLayerRequest(db, request.params.requestId) });
+    response.json({ request: await getGenLayerRequest(db, request.params.requestId) });
   });
   app.get("/adjudication/genlayer/proofs/:proofId", async (request, response) => {
     await requireAdjudicator(db, request, "genlayer:read");
-    response.json({ adjudication: getProofGenLayerStatus(db, request.params.proofId) });
+    response.json({ adjudication: await getProofGenLayerStatus(db, request.params.proofId) });
   });
   app.get("/proofs/:proofId/adjudication", async (request, response) => {
     const proof = await db.prepare("SELECT p.agent_id,j.issuer_id FROM proofs p JOIN jobs j USING(job_id) WHERE p.proof_id=?").get(request.params.proofId);
     if (!proof) throw httpError(404, `Proof ${request.params.proofId} does not exist.`);
     if (!await authenticate(db, request, "agent", proof.agent_id) && !await authenticate(db, request, "issuer", proof.issuer_id)) throw httpError(403, "Proof owner API key required.");
-    response.json({ adjudication: getProofGenLayerStatus(db, request.params.proofId) });
+    response.json({ adjudication: await getProofGenLayerStatus(db, request.params.proofId) });
   });
 
   app.post("/issuers/:issuerId/uploads/validate", async (request, response) => {
