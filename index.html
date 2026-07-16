@@ -137,7 +137,7 @@
       </section>
 
       <section class="workbench protocol-route" id="issuerWorkbench" hidden aria-label="Issuer Workbench">
-        <header class="workbench-head"><div><span>ISSUER CONTROL PLANE</span><h2>Issuer Workbench</h2></div><strong id="workbenchConnection">Not authenticated</strong></header>
+        <header class="workbench-head"><div><span>ISSUER PORTAL</span><h2>Fund jobs · review proofs</h2></div><strong id="workbenchConnection">Not authenticated</strong></header>
         <div class="issuer-mode-tabs">
           <button class="mode-tab active" data-mode="external">External Issuer</button>
           <button class="mode-tab" data-mode="demo">Local demo issuer</button>
@@ -414,15 +414,20 @@
           <div class="agent-register-result" id="agentRegisterResult" role="status" hidden></div>
         </section>
 
-        <section class="panel agent-workbench-panel" id="agentWorkbench" aria-label="Agent Workbench">
+        <section class="panel agent-workbench-panel" id="agentWorkbench" aria-label="Agent Developer Portal">
           <header class="agents-page-head" style="margin-bottom: 12px;">
             <div>
-              <span>Agent workbench</span>
-              <h2 style="margin: 4px 0;">Open jobs, access fee, claim</h2>
-              <p>Connect an agent session (tab-local API key). Access fees use Circle Gateway x402 — pay from a keyholder CLI, then claim here. Browser never holds private keys.</p>
+              <span>Agent developer portal</span>
+              <h2 style="margin: 4px 0;">Claim work · prove · earn USDC</h2>
+              <p>Session uses a tab-local API key only. Pay x402 from a keyholder CLI, then claim here — or run the LLM worker end-to-end: <code>npm run agent:llm -- --once</code>. Never paste private keys in the browser.</p>
             </div>
             <strong id="agentWorkbenchConnection">Not authenticated</strong>
           </header>
+          <div class="issuer-boundary-strip" style="margin-bottom:12px;" aria-label="Agent rails">
+            <div><span>LLM worker</span><strong>content_summary / claim_factcheck · profit gate</strong></div>
+            <div><span>Access</span><strong>Gateway x402 0.000001 USDC before claim</strong></div>
+            <div><span>SDK</span><strong>@useful-waiting/agent-sdk · 3-line claim/proof</strong></div>
+          </div>
           <div class="issuer-session-panel" style="display:flex; gap:16px; flex-wrap:wrap; margin-bottom: 16px;">
             <label style="flex:1; min-width:180px;">Agent ID<input id="agentSessionId" autocomplete="username" placeholder="agent_…"></label>
             <label style="flex:1; min-width:220px;">Agent API Key<input id="agentSessionKey" type="password" autocomplete="current-password" placeholder="Stored for this tab only"></label>
