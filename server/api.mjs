@@ -767,9 +767,8 @@ export function createApp({
         }
         throw error;
       }
-      // Return from the transaction connection so Neon dual-connection sees the claim.
-      const claimedJob = await tx.jobs.getJob(job.job_id);
-      return { claimedJob, agentId, issuerId: job.issuer_id, jobId: job.job_id, claimedAt: claimedAt.toISOString() };
+      // Identity for post-commit reputation + response (response re-read after commit for Neon).
+      return { agentId, issuerId: job.issuer_id, jobId: job.job_id, claimedAt: claimedAt.toISOString() };
     });
 
     // Reputation after commit (FK to agents/jobs already durable).
@@ -785,7 +784,9 @@ export function createApp({
       // non-fatal; claim already committed
     }
 
-    response.json({ job: serializeJob(claimed.claimedJob) });
+    // Re-read after commit so Neon outer connection sees the claim (and serializeJob gets snake_case row).
+    const claimedRow = await db.prepare("SELECT * FROM jobs WHERE job_id = ?").get(claimed.jobId);
+    response.json({ job: serializeJob(claimedRow) });
   });
 
   app.post("/jobs/:jobId/proof", async (request, response) => {
