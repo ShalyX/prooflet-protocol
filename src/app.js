@@ -93,7 +93,7 @@ function setAppMode(mode, { durable = storageDurable } = {}) {
   const replayNote = document.getElementById("replayNote");
   if (replayNote) replayNote.hidden = !isReplay;
   const replayToggle = document.getElementById("toggleReplay");
-  if (replayToggle) replayToggle.textContent = isReplay ? "Exit simulation · restore live" : "Enter simulation";
+  if (replayToggle) replayToggle.textContent = isReplay ? "Exit simulate" : "Simulate";
   const batchDl = document.getElementById("batchDownload");
   const batchPre = document.getElementById("batchPayload");
   if (!isReplay) {
@@ -126,7 +126,7 @@ function clearLiveState() {
 
 function enterReplayMode() {
   const ok = window.confirm(
-    "Replay replaces the live ledger with a browser-only simulation (zeros until you run cycles).\n\nLive data returns when you exit replay. Continue?",
+    "Simulation replaces the live ledger with browser-only data. Live data returns when you exit. Continue?",
   );
   if (!ok) return;
   hydrationVersion += 1;
@@ -143,7 +143,7 @@ function enterReplayMode() {
   renderLeaderboardUnavailable();
   render();
   const toggle = document.getElementById("toggleReplay");
-  if (toggle) toggle.textContent = "Exit replay · restore live";
+  if (toggle) toggle.textContent = "Exit simulate";
 }
 
 function renderArchiveEvidence() {
@@ -784,7 +784,7 @@ function applyDashboard(dashboard) {
     title: pendingPayout > 0 ? "payout batch ready" : "no payout batch ready",
     detail: pendingPayout > 0
       ? `${money(pendingPayout)} testnet USDC is approved and awaiting operator-controlled release.`
-      : "No approved unpaid proof packets are payable right now; dry-run batch export would be empty.",
+      : "No payable proofs waiting for release.",
     meta: pendingPayout > 0 ? `${dashboard.proofs.filter((proof) => proof.fundingStatus === "payable").length} payable` : "0 payable",
   }];
   if (latestSettled) {
@@ -1027,7 +1027,7 @@ $("#prepareBatch")?.addEventListener("click", prepareBatch);
 $("#toggleReplay")?.addEventListener("click", () => {
   if (appMode === "replay") {
     const toggle = document.getElementById("toggleReplay");
-    if (toggle) toggle.textContent = "Enter replay (sim)";
+    if (toggle) toggle.textContent = "Simulate";
     hydrateFromApi({ force: true });
   } else {
     enterReplayMode();
