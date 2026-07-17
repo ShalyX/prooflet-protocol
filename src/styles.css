@@ -2973,31 +2973,31 @@ td { border-bottom: 1px solid var(--line-subtle) !important; color: var(--ink-2)
 }
 
 
-/* lean dashboard grid — must fully reset legacy named areas */
-.console-grid.dashboard-surface {
-  display: grid !important;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
-  grid-template-rows: auto auto !important;
-  grid-template-areas: "settlement settlement" "queue stream" !important;
-  gap: 12px !important;
-  align-items: stretch !important;
+/* lean dashboard grid — only when visible; never beat [hidden] */
+.console-grid.dashboard-surface:not([hidden]) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  grid-template-areas: "settlement settlement" "queue stream";
+  gap: 12px;
+  align-items: stretch;
   padding-top: 12px !important;
   padding-bottom: 32px !important;
 }
-.console-grid.dashboard-surface > .settlement-panel {
-  grid-area: settlement !important;
-  min-height: 280px !important;
-  max-height: none !important;
+.console-grid.dashboard-surface:not([hidden]) > .settlement-panel {
+  grid-area: settlement;
+  min-height: 280px;
+  max-height: none;
   border: 1px solid var(--line) !important;
   box-shadow: none !important;
 }
-.console-grid.dashboard-surface > .queue-panel {
-  grid-area: queue !important;
-  min-height: 280px !important;
+.console-grid.dashboard-surface:not([hidden]) > .queue-panel {
+  grid-area: queue;
+  min-height: 280px;
 }
-.console-grid.dashboard-surface > .workstream-panel {
-  grid-area: stream !important;
-  min-height: 280px !important;
+.console-grid.dashboard-surface:not([hidden]) > .workstream-panel {
+  grid-area: stream;
+  min-height: 280px;
 }
 .console-grid.dashboard-surface .ledger,
 .console-grid.dashboard-surface .event-list,
@@ -3006,8 +3006,19 @@ td { border-bottom: 1px solid var(--line-subtle) !important; color: var(--ink-2)
   overflow: auto;
 }
 @media (max-width: 900px) {
-  .console-grid.dashboard-surface {
-    grid-template-columns: 1fr !important;
-    grid-template-areas: "settlement" "queue" "stream" !important;
+  .console-grid.dashboard-surface:not([hidden]) {
+    grid-template-columns: 1fr;
+    grid-template-areas: "settlement" "queue" "stream";
   }
+}
+
+/* Route isolation: beat leftover display:!important surface rules */
+.console-grid.dashboard-surface[hidden],
+.metrics.dashboard-surface[hidden],
+.dashboard-surface[hidden],
+.agents-surface[hidden],
+.workbench[hidden],
+.protocol-transparency-page[hidden],
+#protocolPage[hidden] {
+  display: none !important;
 }

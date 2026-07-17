@@ -1054,6 +1054,17 @@ function navigate(path) {
   renderRoute();
 }
 
+function setRouteSurface(el, visible) {
+  if (!el) return;
+  el.hidden = !visible;
+  // Hard-stop CSS display:!important leaks
+  if (visible) {
+    el.style.removeProperty("display");
+  } else {
+    el.style.setProperty("display", "none", "important");
+  }
+}
+
 function renderRoute() {
   const product = ["/dashboard", "/issuer", "/agents", "/protocol"];
   let route = product.includes(location.pathname) ? location.pathname : "/dashboard";
@@ -1062,49 +1073,49 @@ function renderRoute() {
 
   // Always-on product chrome
   document.querySelectorAll(".console-bar, .system-strip, .protocol-footer").forEach((el) => {
-    el.hidden = false;
+    setRouteSurface(el, true);
   });
 
-  // Dashboard-only surfaces (metrics, ops center, review, ledger grid, etc.)
+  // Dashboard-only surfaces
   document.querySelectorAll(".dashboard-surface").forEach((element) => {
-    element.hidden = route !== "/dashboard";
+    setRouteSurface(element, route === "/dashboard");
   });
 
   // Agents-only surfaces
   document.querySelectorAll(".agents-surface").forEach((element) => {
-    element.hidden = route !== "/agents";
+    setRouteSurface(element, route === "/agents");
   });
 
   // Protocol page
-  if ($("#protocolPage")) $("#protocolPage").hidden = route !== "/protocol";
+  setRouteSurface($("#protocolPage"), route === "/protocol");
 
-  // Issuer / agent workbenches are explicit (also carry protocol-route)
+  // Issuer / agent workbenches
   if (route === "/issuer") issuerWorkbench.show();
   else issuerWorkbench.hide();
   if (route === "/agents") agentWorkbench.show();
   else agentWorkbench.hide();
 
-  // Defensive: any leftover protocol-route that is not shared chrome / active surface
+  // Ensure issuer workbench visibility is also hard-gated
+  setRouteSurface($("#issuerWorkbench"), route === "/issuer");
+  // agents-surface already gates agentWorkbench
+
+  // Defensive pass: any protocol-route that is not shared chrome
   document.querySelectorAll(".protocol-route").forEach((element) => {
     if (element.matches(".console-bar, .system-strip, .protocol-footer")) return;
     if (element.matches(".dashboard-surface")) {
-      element.hidden = route !== "/dashboard";
+      setRouteSurface(element, route === "/dashboard");
       return;
     }
-    if (element.matches(".agents-surface") || element.closest(".agents-surface")) {
-      element.hidden = route !== "/agents";
+    if (element.matches(".agents-surface")) {
+      setRouteSurface(element, route === "/agents");
       return;
     }
     if (element.id === "protocolPage") {
-      element.hidden = route !== "/protocol";
+      setRouteSurface(element, route === "/protocol");
       return;
     }
     if (element.id === "issuerWorkbench") {
-      element.hidden = route !== "/issuer";
-      return;
-    }
-    if (element.id === "agentWorkbench" || element.closest("#agentWorkbench")) {
-      // agentWorkbench lives inside agents-surface; parent handles visibility
+      setRouteSurface(element, route === "/issuer");
       return;
     }
   });
