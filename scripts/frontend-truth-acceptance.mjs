@@ -79,6 +79,11 @@ check("synthetic actions are guarded by explicit replay mode", () => {
   assert.match(html, /Browser-only simulation/);
 });
 
+check("dashboard hydration does not abort normal Render latency", () => {
+  assert.match(app, /const attempts = \[6000, 15000, 30000\]/);
+  assert.doesNotMatch(app, /const attempts = \[2500, 8000, 25000\]/);
+});
+
 check("agent network is read-only and SDK-first", () => {
   assert.match(html, /Agents register, pay access, claim work, and submit proofs through the API and SDK/);
   assert.doesNotMatch(html, /not this browser/);

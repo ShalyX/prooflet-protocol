@@ -1223,27 +1223,42 @@ function shouldSeedDemoData(env = process.env) {
 
 async function buildDashboard(db, circle) {
   await expireLeasesWithEvents(db);
-  const issuer = await db.prepare("SELECT * FROM issuers WHERE issuer_id = 'useful_waiting_protocol'").get();
-  const agentRows = await db.prepare("SELECT * FROM agents ORDER BY agent_id").all();
-  const agents = [];
-  for (const agent of agentRows) {
-    agents.push({ ...serializeAgent(agent), reputation: await getReputationSummary(db, agent.agent_id) });
-  }
-  const jobs = (await db.prepare("SELECT * FROM jobs ORDER BY created_at DESC, job_id DESC").all()).map(serializeJob);
-  const proofRows = await db.prepare("SELECT * FROM proofs ORDER BY created_at DESC").all();
-  const proofs = [];
-  for (const proof of proofRows) proofs.push(await withAdjudication(db, serializeProof(proof)));
-  const settlements = await settlementSummary(db);
   const sum = async (status) => (await db.prepare(`
     SELECT COALESCE(SUM(CAST(j.reward_amount AS REAL)), 0) AS total
     FROM proofs p JOIN jobs j ON j.job_id = p.job_id WHERE p.funding_status = ?
   `).get(status)).total;
-  const reserved = (await db.prepare("SELECT COALESCE(SUM(CAST(reward_amount AS REAL)), 0) AS total FROM jobs WHERE funding_status = 'reserved'").get()).total;
+
+  const [issuer, agentRows, jobRows, proofRows, settlements, reservedRow, pendingPayout, paidOut] = await Promise.all([
+    db.prepare("SELECT * FROM issuers WHERE issuer_id = 'useful_waiting_protocol'").get(),
+    db.prepare("SELECT * FROM agents ORDER BY agent_id").all(),
+    db.prepare("SELECT * FROM jobs ORDER BY created_at DESC, job_id DESC").all(),
+    db.prepare("SELECT * FROM proofs ORDER BY created_at DESC").all(),
+    settlementSummary(db),
+    db.prepare("SELECT COALESCE(SUM(CAST(reward_amount AS REAL)), 0) AS total FROM jobs WHERE funding_status = 'reserved'").get(),
+    sum("payable"),
+    sum("paid"),
+  ]);
+
+  const [agents, proofs] = await Promise.all([
+    Promise.all(agentRows.map(async (agent) => ({
+      ...serializeAgent(agent),
+      reputation: await getReputationSummary(db, agent.agent_id),
+    }))),
+    Promise.all(proofRows.map((proof) => withAdjudication(db, serializeProof(proof)))),
+  ]);
+
+  const jobs = jobRows.map(serializeJob);
   return {
     protocol: "Prooflet",
     version: "v0",
     issuer: issuer ? { issuerId: issuer.issuer_id, name: issuer.name, treasuryAddress: issuer.treasury_address } : null,
-    treasury: { network: "Arc Testnet", asset: "USDC", reservedRewards: reserved, pendingPayout: await sum("payable"), paidOut: await sum("paid") },
+    treasury: {
+      network: "Arc Testnet",
+      asset: "USDC",
+      reservedRewards: reservedRow.total,
+      pendingPayout,
+      paidOut,
+    },
     agents: filterPublicAgents(agents),
     jobs,
     proofs,
