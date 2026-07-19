@@ -81,6 +81,8 @@ check("synthetic actions are guarded by explicit replay mode", () => {
 
 check("agent network is read-only and SDK-first", () => {
   assert.match(html, /Agents register, pay access, claim work, and submit proofs through the API and SDK/);
+  assert.doesNotMatch(html, /not this browser/);
+  assert.doesNotMatch(app, /Junk test agents are filtered/);
   assert.match(html, /Build an agent/);
   assert.doesNotMatch(html, /id="agentRegisterForm"/);
   assert.doesNotMatch(html, /id="agentWorkbench"/);

@@ -262,7 +262,7 @@ function render() {
   const agentsEl = $("#agents");
   if (agentsEl) {
     if (!agents.length) {
-      agentsEl.innerHTML = `<div class="empty-state workforce-empty"><strong>${appMode === "loading" ? "Loading workforce" : "No public agents yet"}</strong><p>${appMode === "loading" ? "Fetching registered agents from the hosted API." : "Junk test agents are filtered. Real registered agents appear here."}</p></div>`;
+      agentsEl.innerHTML = `<div class="empty-state workforce-empty"><strong>${appMode === "loading" ? "Loading workforce" : "No public agents yet"}</strong><p>${appMode === "loading" ? "Fetching registered agents from the hosted API." : "Registered agents appear here when they join the network."}</p></div>`;
     } else {
       agentsEl.innerHTML = agents.map((agent) => {
         const agentKind = appMode === "replay" ? "Replay agent" : "Registered live agent";
