@@ -646,7 +646,8 @@ async function hydrateFromApi({ force = false } = {}) {
 }
 
 async function fetchDashboardWithRetry(requestVersion) {
-  const attempts = [2500, 8000, 25000];
+  // Render + Neon normally answers in ~3s; never abort a healthy first response at 2.5s.
+  const attempts = [6000, 15000, 30000];
   let lastError = null;
   for (let index = 0; index < attempts.length; index += 1) {
     if (requestVersion !== hydrationVersion) throw new Error("Dashboard hydration superseded.");
