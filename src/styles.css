@@ -2492,7 +2492,18 @@ td { border-bottom: 1px solid var(--line-subtle) !important; color: var(--ink-2)
   .issuer-product-strip { grid-template-columns: 1fr 1fr; }
 }
 
-/* ═══ Design pass 3 — protocol density, dashboard, brand, agent desk ═══ */
+.agents-network-head {
+  margin-bottom: 12px;
+}
+.agents-dev-link {
+  color: var(--ink-2);
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.agents-dev-link:hover { color: var(--accent); }
+
 .brand-mark {
   transition: transform 0.2s ease, filter 0.2s ease;
 }
