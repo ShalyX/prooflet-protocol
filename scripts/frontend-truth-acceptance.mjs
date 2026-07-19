@@ -79,6 +79,15 @@ check("synthetic actions are guarded by explicit replay mode", () => {
   assert.match(html, /Browser-only simulation/);
 });
 
+check("agent network is read-only and SDK-first", () => {
+  assert.match(html, /Agents register, pay access, claim work, and submit proofs through the API and SDK/);
+  assert.match(html, /Build an agent/);
+  assert.doesNotMatch(html, /id="agentRegisterForm"/);
+  assert.doesNotMatch(html, /id="agentWorkbench"/);
+  assert.doesNotMatch(app, /register-with-wallet/);
+  assert.doesNotMatch(app, /initAgentWorkbench/);
+});
+
 check("archive evidence has an explicit dedicated surface", () => {
   assert.match(html, /id="archiveEvidence"/);
   assert.match(html, /Archived Lepton submission/);

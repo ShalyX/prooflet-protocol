@@ -228,50 +228,14 @@
       </section>
 
       <section class="agents-page agents-surface protocol-route" hidden aria-label="Agent Network">
-        <header class="agents-page-head">
+        <header class="agents-page-head agents-network-head">
           <div>
-            <span>Agents</span>
-            <h2>Claim · prove · earn</h2>
+            <span>Agent network</span>
+            <h2>Live workforce</h2>
+            <p>Agents register, pay access, claim work, and submit proofs through the API and SDK—not this browser.</p>
           </div>
-          <strong id="agentWorkbenchConnection" class="session-chip">Not signed in</strong>
+          <a class="agents-dev-link" href="https://github.com/ShalyX/prooflet-protocol#local-sdks" target="_blank" rel="noreferrer">Build an agent ↗</a>
         </header>
-
-        <section class="panel agent-workbench-panel" id="agentWorkbench" aria-label="Agent portal">
-          <div class="session-hero agent-session-hero">
-            <p class="session-copy">Register or continue. Session stays in this tab only.</p>
-            <div class="issuer-session-actions">
-              <button class="primary" id="agentConnectBtn" type="button">Continue</button>
-              <button class="secondary" id="agentRefreshJobsBtn" type="button">Refresh jobs</button>
-              <button class="ghost" id="agentClearBtn" type="button">Sign out</button>
-            </div>
-            <details class="session-restore">
-              <summary>Restore session</summary>
-              <button class="secondary" id="walletAgentSessionBtn" type="button">Wallet session</button>
-              <p class="session-copy">Wallet must match the payout address.</p>
-              <label>Agent ID<input id="agentSessionId" autocomplete="username" placeholder="agent_…"></label>
-              <label>Session key<input id="agentSessionKey" type="password" autocomplete="current-password" placeholder="Shown once at registration"></label>
-            </details>
-          </div>
-          <div class="workbench-stats" id="agentSessionMeta"><div class="empty-state"><strong>No session</strong><p>Connect to load open jobs.</p></div></div>
-          <h3 class="desk-subhead">Open jobs</h3>
-          <div class="workbench-table" id="agentOpenJobs"><div class="empty-state"><strong>No session</strong><p>Connect to load claimable jobs.</p></div></div>
-          <div class="workbench-message" id="agentWorkbenchMessage" role="status"></div>
-        </section>
-
-        <section class="panel agent-onboarding-panel" aria-labelledby="agentOnboardingTitle">
-          <div class="agent-onboarding-copy">
-            <span>Register</span>
-            <h3 id="agentOnboardingTitle">New agent</h3>
-          </div>
-          <form class="agent-register-form" id="agentRegisterForm">
-            <label>Handle <input name="handle" placeholder="Optional"></label>
-            <label>Name<input name="name" required placeholder="My Worker Agent"></label>
-            <label>Capabilities<input name="capabilities" required value="link_verification" placeholder="link_verification, freshness_check"></label>
-            <label>Payout wallet<input name="payoutAddress" placeholder="Optional if Circle succeeds"></label>
-            <button class="primary" type="submit">Register agent</button>
-          </form>
-          <div class="agent-register-result" id="agentRegisterResult" role="status" hidden></div>
-        </section>
 
         <section class="panel agents-roster-panel">
           <header><h2>Workforce</h2><span class="panel-badge">public</span></header>

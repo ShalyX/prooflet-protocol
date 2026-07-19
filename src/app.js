@@ -1,6 +1,5 @@
 import "./styles.css";
 import { initIssuerWorkbench } from "./issuer-workbench.js";
-import { initAgentWorkbench } from "./agent-workbench.js";
 import { ARCHIVED_SUBMISSION_EVIDENCE, createReplayState } from "./archive-evidence.js";
 
 const ARCSCAN = "https://testnet.arcscan.app";
@@ -278,7 +277,6 @@ function render() {
       <h3>${escapeHtml(agent.name)}</h3>
       <p>${escapeHtml(agent.skill)}</p>
       <div class="agent-stats"><span>${money(agent.earned)} USDC</span><span>${Math.round(agent.score)} trust</span></div>
-      <code>${escapeHtml(agent.payoutWallet || "No payout wallet")}</code>
     </article>`;
       }).join("");
     }
@@ -1019,8 +1017,6 @@ $("#toggleReplay")?.addEventListener("click", () => {
     enterReplayMode();
   }
 });
-const agentRegisterForm = document.getElementById("agentRegisterForm");
-if (agentRegisterForm) agentRegisterForm.addEventListener("submit", registerAgentWithWallet);
 $("#queueTabs").addEventListener("click", (event) => {
   const button = event.target.closest("[data-queue-filter]");
   if (!button) return;
@@ -1032,7 +1028,6 @@ renderArchiveEvidence();
 render();
 hydrateFromApi();
 const issuerWorkbench = initIssuerWorkbench({ apiUrl: API_URL, onNavigate: navigate });
-const agentWorkbench = initAgentWorkbench({ apiUrl: API_URL });
 
 function navigate(path) {
   // Product routes live on app.html; pitch lives on index.html
@@ -1089,15 +1084,13 @@ function renderRoute() {
   // Protocol page
   setRouteSurface($("#protocolPage"), route === "/protocol");
 
-  // Issuer / agent workbenches
+  // Issuer workbench
   if (route === "/issuer") issuerWorkbench.show();
   else issuerWorkbench.hide();
-  if (route === "/agents") agentWorkbench.show();
-  else agentWorkbench.hide();
 
   // Ensure issuer workbench visibility is also hard-gated
   setRouteSurface($("#issuerWorkbench"), route === "/issuer");
-  // agents-surface already gates agentWorkbench
+  // Agent network is read-only; agents integrate through API/SDK.
 
   // Defensive pass: any protocol-route that is not shared chrome
   document.querySelectorAll(".protocol-route").forEach((element) => {
@@ -1190,66 +1183,6 @@ function renderLeaderboard(rows) {
       <td><span class="risk-badge ${riskClass}">${escapeHtml(row.riskFlag || "clean")}</span></td>
     </tr>`;
   }).join("");
-}
-
-async function registerAgentWithWallet(event) {
-  event.preventDefault();
-  if (appMode === "replay") {
-    const result = document.getElementById("agentRegisterResult");
-    if (result) {
-      result.hidden = false;
-      result.dataset.state = "error";
-      result.textContent = "Agent registration is disabled in replay mode because it writes to the live API.";
-    }
-    return;
-  }
-  const form = event.currentTarget;
-  const result = document.getElementById("agentRegisterResult");
-  const button = form.querySelector("button[type=submit]");
-  const data = new FormData(form);
-  const payload = {
-    name: String(data.get("name") || "").trim(),
-    capabilities: String(data.get("capabilities") || "").split(",").map((item) => item.trim()).filter(Boolean),
-  };
-  const handle = String(data.get("handle") || "").trim();
-  if (handle) payload.handle = handle;
-  const payoutAddress = String(data.get("payoutAddress") || "").trim();
-  if (payoutAddress) payload.payoutAddress = payoutAddress;
-  try {
-    button.disabled = true;
-    button.textContent = "Registering…";
-    result.hidden = false;
-    result.dataset.state = "loading";
-    result.textContent = "Creating agent identity and requesting Circle wallet provisioning…";
-    const response = await fetch(`${API_URL}/agents/register-with-wallet`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    const body = await response.json();
-    if (!response.ok) throw new Error(body.error || body.walletProvisioning?.message || "Agent registration failed");
-    result.dataset.state = "ok";
-    result.innerHTML = `<strong>Agent registered: ${escapeHtml(body.agent.agentId)}</strong>
-      ${body.agent.handle ? `<p>Handle: <code>${escapeHtml(body.agent.handle)}</code></p>` : ""}
-      <p>API key: <code>${escapeHtml(body.apiKey)}</code></p>
-      <p>Payout wallet: <code>${escapeHtml(body.agent.payoutAddress || "not provisioned")}</code></p>
-      <p>Circle wallet: ${escapeHtml(body.circleWallet?.walletId || body.walletProvisioning?.status || "not created")}</p>
-      <p class="agent-register-next">Next: connect in <strong>Agent workbench</strong> below (fields prefilled), pay access with <code>npm run gateway:pay-access</code>, then claim. Or run <code>npm run agent:link -- --once</code>.</p>`;
-    const sid = document.getElementById("agentSessionId");
-    const skey = document.getElementById("agentSessionKey");
-    if (sid) sid.value = body.agent.agentId;
-    if (skey) skey.value = body.apiKey;
-    try {
-      sessionStorage.setItem("prooflet.agent.session.v1", JSON.stringify({ agentId: body.agent.agentId, apiKey: body.apiKey }));
-    } catch { /* ignore */ }
-    await Promise.allSettled([hydrateFromApi(), hydrateLeaderboard()]);
-  } catch (error) {
-    result.dataset.state = "error";
-    result.textContent = error.message;
-  } finally {
-    button.disabled = false;
-    button.textContent = "Register agent with wallet";
-  }
 }
 
 function escapeHtml(str) {
